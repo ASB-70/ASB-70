@@ -203,7 +203,7 @@ $("cc").onclick=function(){var b=this;if(!b.getAttribute("data-s")){b.setAttribu
 var S={n:1,s:false};try{var s0=JSON.parse(localStorage.getItem("inv")||"null");if(s0&&s0.n>=1)S=s0}catch(e){}
 function sS(){try{localStorage.setItem("inv",JSON.stringify(S))}catch(e){}}
 function ordH(k){var h={apikey:k,"Content-Type":"application/json",Prefer:"return=minimal"};if(k.indexOf("eyJ")===0)h.Authorization="Bearer "+k;return h}
-function ordSend(){var o=(SET&&SET.ord)||{};if(!o.url||!o.key)return;var t=tot(),it=[];keys().forEach(function(i){var r=R[i];it.push({c:r[0],d:r[1],u:r[3],q:CT[i],p:EP(i),cp:CP[i]!==undefined?1:0})});
+function ordSend(){var o=(SET&&SET.ord)||{};if(!o.url||!o.key)return;o={url:(o.url.match(/^https?:\/\/[^\/\s]+/)||[o.url])[0],key:o.key,topic:o.topic};var t=tot(),it=[];keys().forEach(function(i){var r=R[i];it.push({c:r[0],d:r[1],u:r[3],q:CT[i],p:EP(i),cp:CP[i]!==undefined?1:0})});
  var sig=INVN()+"|"+t.g+"|"+t.n;try{if(localStorage.getItem("osig")===sig)return}catch(e){}
  var ship=$("sh").value==="__other"?($("so").value.trim()||"غير محدد"):$("sh").value;
  var body={inv:INVN(),name:$("cu").value.trim(),phone:$("ph").value.trim(),gov:$("gv").value,city:$("cy").value.trim(),pay:$("pm").value,ship:ship,items:it,total:+M(t.g),cnt:t.n,status:"new"};
