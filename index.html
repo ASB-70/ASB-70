@@ -202,11 +202,12 @@ $("cp").onclick=function(){mkS();var m=msg();if(navigator.clipboard&&navigator.c
 $("cc").onclick=function(){var b=this;if(!b.getAttribute("data-s")){b.setAttribute("data-s","1");b.textContent="اضغط مرة ثانية للتأكيد";setTimeout(function(){b.removeAttribute("data-s");b.textContent=cl()},3000);return}b.removeAttribute("data-s");var was=S.s;if(S.s){S.n++;S.s=false;sS()}CT={};sv();closeC();bar();toast(was?"فاتورة جديدة: "+INVN():"تم تفريغ الفاتورة")};
 var S={n:1,s:false};try{var s0=JSON.parse(localStorage.getItem("inv")||"null");if(s0&&s0.n>=1)S=s0}catch(e){}
 function sS(){try{localStorage.setItem("inv",JSON.stringify(S))}catch(e){}}
+function ordH(k){var h={apikey:k,"Content-Type":"application/json",Prefer:"return=minimal"};if(k.indexOf("eyJ")===0)h.Authorization="Bearer "+k;return h}
 function ordSend(){var o=(SET&&SET.ord)||{};if(!o.url||!o.key)return;var t=tot(),it=[];keys().forEach(function(i){var r=R[i];it.push({c:r[0],d:r[1],u:r[3],q:CT[i],p:EP(i),cp:CP[i]!==undefined?1:0})});
  var sig=INVN()+"|"+t.g+"|"+t.n;try{if(localStorage.getItem("osig")===sig)return}catch(e){}
  var ship=$("sh").value==="__other"?($("so").value.trim()||"غير محدد"):$("sh").value;
  var body={inv:INVN(),name:$("cu").value.trim(),phone:$("ph").value.trim(),gov:$("gv").value,city:$("cy").value.trim(),pay:$("pm").value,ship:ship,items:it,total:+M(t.g),cnt:t.n,status:"new"};
- fetch(o.url+"/rest/v1/orders",{method:"POST",keepalive:true,headers:{apikey:o.key,Authorization:"Bearer "+o.key,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(body)}).then(function(r){if(r.ok)try{localStorage.setItem("osig",sig)}catch(e){}}).catch(function(){});
+ fetch(o.url+"/rest/v1/orders",{method:"POST",keepalive:true,headers:ordH(o.key),body:JSON.stringify(body)}).then(function(r){if(r.ok)try{localStorage.setItem("osig",sig)}catch(e){}}).catch(function(){});
  if(o.topic)fetch("https://ntfy.sh/",{method:"POST",keepalive:true,body:JSON.stringify({topic:o.topic,title:"🧾 طلب جديد "+INVN(),message:"محافظة "+body.gov+" · "+t.n+" صنف · $"+M(t.g),tags:["shopping_cart"],priority:4})}).catch(function(){})}
 function INVN(){var x=String(S.n);while(x.length<3)x="0"+x;return "#A"+x}
 function cl(){return S.s?"بدء فاتورة جديدة":"تفريغ الفاتورة"}
