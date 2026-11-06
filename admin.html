@@ -69,7 +69,7 @@ button{font-family:inherit;cursor:pointer}
 var $=function(x){return document.getElementById(x)};
 function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 var NS="altheqa-asb70",AB="https://abacus.jasoncameron.dev/";
-var G=null,PW="",SJ=null,IMS=[],ST={},SH={site:null,imgs:null,stock:null},DT={site:false,imgs:false,stock:false},SMIS=false,TAB="dash",PL=60,PQ="",PC="",PS="",PH="",CFG="adm.cfg";
+var G=null,PW="",SJ=null,IMS=[],ST={},SH={site:null,imgs:null,stock:null,cfg:null},DT={site:false,imgs:false,stock:false,cfg:false},RC=null,SMIS=false,TAB="dash",PL=60,PQ="",PC="",PS="",PH="",CFG="adm.cfg";
 var BADGES={"":"بدون",new:"جديد",hot:"الأكثر طلباً",offer:"عرض"},UNITS=["قطعة","دستة","طقم","طرد"];
 var KW=[["cutlery","معالق|معلقة|شوكة|سكين|سكاكين|ملقط|جماجي|كفكير|سد رز"],["glass","بللور|زجاج|مطربان|ركوة|ابريق|سكرية|بيركس|مباهر|مطرة|تاج"],["porcelain","بورسلان|فخار|فنجان|صحن|زباد"],["steel","ستانلس|براد|منسف|جاط|مصافي|مصفاية|زورق|نفاضة|زبدية"],["clean","ليفة|مساحة|غبرة|كشاشة|غسيل|بشكير|بردايه|مريول"],["home","لمبدير|ساعة|تعاليق|مبخرة|تعلوقة|فلتر|مضخة|قداحة|حافظة|متة|صواني|قالب"]];
 /* ---------- crypto ---------- */
@@ -82,7 +82,7 @@ function decJ(pw,t){var j=JSON.parse(t);return dk(pw,ub(j.s)).then(function(k){r
 /* ---------- helpers ---------- */
 function toast(m){var e=$("ts");e.textContent=m;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){e.hidden=true},2400)}
 function dirty(k){DT[k]=true;pubMark()}
-function anyDirty(){return DT.site||DT.imgs||DT.stock}
+function anyDirty(){return DT.site||DT.imgs||DT.stock||DT.cfg}
 function pubMark(){var b=document.querySelector('#tabs [data-t="pub"]');if(b)b.textContent="🚀 النشر"+(anyDirty()?" ●":"")}
 function dl(name,text){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a)}
 function catName(id){var n="بدون قسم";SJ.cats.forEach(function(c){if(c.id===id)n=c.n});return n}
@@ -101,6 +101,8 @@ function wr(p,text,sha,msg){var body={message:msg,content:b64u(text),branch:G.br
 function showLogin(){
  $("app").hidden=true;$("lg").hidden=false;
  var has=null;try{has=localStorage.getItem(CFG)}catch(e){}
+ if(!has&&RC===null&&window.fetch){RC=false;fetch("admin.cfg.enc?"+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():null}).then(function(t){try{if(t&&JSON.parse(t).d)RC=t}catch(e){}}).catch(function(){}).then(showLogin);$("lg").innerHTML='<h2>جاري التحميل…</h2>';return}
+ if(has===null&&RC)has=RC;
  if(!(window.crypto&&crypto.subtle)){$("lg").innerHTML='<h2>غير مدعوم</h2><div class="er">افتح اللوحة عبر رابط https الخاص بموقعك.</div>';return}
  if(has){$("lg").innerHTML='<h2>🔐 دخول الإدارة</h2><div class="m">أدخل كلمة سر الإدارة.</div><label>كلمة السر</label><input id="p1" type="password" autocomplete="off"><div class="er" id="er"></div><button type="button" class="b1" id="go">دخول</button><button type="button" class="b2" id="rs" style="margin-top:12px;width:100%">إعادة ضبط هذا الجهاز (نسيت كلمة السر)</button>';
   $("go").onclick=doLogin;$("p1").onkeydown=function(e){if(e.key==="Enter")doLogin()};
@@ -108,16 +110,16 @@ function showLogin(){
  else{$("lg").innerHTML='<h2>🛠 إعداد لوحة الإدارة</h2><div class="m">أول مرة على هذا الجهاز. أنشئ كلمة سر للإدارة واربط مستودع GitHub الخاص بموقعك.</div><label>كلمة سر الإدارة (8 أحرف فأكثر)</label><input id="s1" type="password" autocomplete="off"><label>أعد كتابتها</label><input id="s2" type="password" autocomplete="off"><label>اسم مستخدم GitHub</label><input id="so" placeholder="مثال: altheqa" autocomplete="off"><label>اسم المستودع (Repository)</label><input id="sr" placeholder="مثال: altheqa-asb70" autocomplete="off"><label>الفرع</label><input id="sb" value="main"><label>رمز GitHub (Token) – اختياري</label><input id="st" type="password" placeholder="github_pat_..." autocomplete="off"><div class="m">بدون رمز تقدر تعدّل وتنزّل الملفات وترفعها يدوياً. مع الرمز يتم النشر بضغطة وحدة. الرمز بيتخزّن مشفّراً على هذا الجهاز فقط.</div><div class="er" id="er"></div><button type="button" class="b1" id="go">حفظ ودخول</button>';
   $("go").onclick=doSetup}}
 function er(m){$("er").textContent=m}
-function doLogin(){var pw=$("p1").value;er("");decJ(pw,localStorage.getItem(CFG)).then(function(o){G=o;PW=pw;return loadAll()}).catch(function(e){er(e&&e.message&&e.message.indexOf("GitHub")>=0||e&&e.message&&e.message.indexOf("site.json")>=0?e.message:"كلمة السر غير صحيحة")})}
+function doLogin(){var pw=$("p1").value;er("");var cf=null;try{cf=localStorage.getItem(CFG)}catch(e){}var fromRC=!cf;decJ(pw,cf||RC).then(function(o){G=o;PW=pw;if(fromRC){try{localStorage.setItem(CFG,RC)}catch(e){}}return loadAll()}).catch(function(e){er(e&&e.message&&e.message.indexOf("GitHub")>=0||e&&e.message&&e.message.indexOf("site.json")>=0?e.message:"كلمة السر غير صحيحة")})}
 function doSetup(){var p=$("s1").value,o=$("so").value.trim(),r=$("sr").value.trim(),b=$("sb").value.trim()||"main",t=$("st").value.trim();er("");
  if(p.length<8)return er("كلمة السر 8 أحرف على الأقل");if(p!==$("s2").value)return er("كلمتا السر غير متطابقتين");if(!o||!r)return er("أدخل اسم المستخدم واسم المستودع");
  var chk=t?fetch("https://api.github.com/repos/"+o+"/"+r,{headers:{"Authorization":"Bearer "+t,"Accept":"application/vnd.github+json"}}).then(function(x){if(!x.ok)throw new Error("تعذّر الوصول للمستودع، تأكد من الاسم والرمز وصلاحية Contents")}):Promise.resolve();
  chk.then(function(){G={owner:o,repo:r,branch:b,token:t};PW=p;return encJ(p,G)}).then(function(c){localStorage.setItem(CFG,c);return loadAll()}).catch(function(e){er(e.message||"خطأ")})}
 function loadAll(){
  $("lg").innerHTML='<h2>جاري تحميل البيانات…</h2>';
- return Promise.all([rd("site.json"),rd("imgs.json"),rd("stock.enc")]).then(function(a){
+ return Promise.all([rd("site.json"),rd("imgs.json"),rd("stock.enc"),rd("admin.cfg.enc")]).then(function(a){
   if(!a[0]||!a[1])throw new Error("الملفان site.json و imgs.json غير موجودين بالمستودع. ارفعهما بجانب index.html أولاً.");
-  SJ=JSON.parse(a[0].text);IMS=JSON.parse(a[1].text);SH.site=a[0].sha;SH.imgs=a[1].sha;SH.stock=a[2]?a[2].sha:null;DT={site:false,imgs:false,stock:false};SMIS=false;ST={};
+  SJ=JSON.parse(a[0].text);IMS=JSON.parse(a[1].text);SH.site=a[0].sha;SH.imgs=a[1].sha;SH.stock=a[2]?a[2].sha:null;SH.cfg=a[3]?a[3].sha:null;DT={site:false,imgs:false,stock:false,cfg:!a[3]&&!!G.token};SMIS=false;ST={};
   if(a[2])return decJ(PW,a[2].text).then(function(o){ST=o}).catch(function(){SMIS=true})}).then(function(){$("lg").hidden=true;$("app").hidden=false;buildTabs();go(TAB)}).catch(function(e){showLogin();er(e.message||"تعذّر التحميل")})}
 /* ---------- tabs ---------- */
 function buildTabs(){var T=[["dash","📊 الرئيسية"],["prod","📦 المنتجات"],["cat","🗂 الأقسام"],["set","⚙ الإعدادات"],["stat","📈 الإحصائيات"],["pub","🚀 النشر"]];$("tabs").innerHTML=T.map(function(t){return'<button type="button" data-t="'+t[0]+'">'+t[1]+'</button>'}).join("");pubMark();$("stt").textContent=G.token?"● متصل":"○ بدون ربط"}
@@ -175,12 +177,12 @@ function rSet(){var s=SJ.set;
  $("view").innerHTML='<div class="cd"><b>معلومات الشركة والتواصل</b><div class="fr">'+fld("s_name","اسم الشركة",s.name)+fld("s_date","تاريخ النشرة",s.date)+fld("s_phone","رقم الواتساب (للعرض)",s.phone)+fld("s_wa","واتساب (أرقام فقط)",s.wa,"963945215551")+'<div class="w2">'+fld("s_a1","العنوان – السطر الأول",s.addr1)+'</div><div class="w2">'+fld("s_a2","العنوان – السطر الثاني",s.addr2)+'</div><div class="w2">'+fld("s_map","رابط الموقع على الخريطة",s.map)+'</div>'+fld("s_fb","فيسبوك",s.fb)+fld("s_ig","إنستغرام",s.ig)+'<div class="w2"><label>إعلان أعلى الموقع (اختياري)</label><input id="s_note" value="'+esc(s.note)+'" placeholder="مثال: عروض نهاية الأسبوع"></div></div></div>'+
  '<div class="cd"><b>الدفع والشحن</b><label>طرق الدفع (كل طريقة بسطر)</label><textarea id="s_pay">'+esc(s.pay.join("\n"))+'</textarea><div class="m">عند وجود عبارة «شام كاش» ضمن الطريقة يظهر رمز QR للزبون.</div><label>مكاتب الشحن (كل مكتب بسطر)</label><textarea id="s_ship">'+esc(s.ship.join("\n"))+'</textarea><label>رمز QR شام كاش</label><div id="qpv">'+(s.qr?'<img class="pv" src="'+s.qr+'">':'<div class="m">لا يوجد</div>')+'</div><input type="file" id="s_qr" accept="image/*"></div>'+
  '<button type="button" class="b1" data-a="sav">حفظ الإعدادات</button>'+
- '<div class="cd"><b>الأمان والربط</b><div class="m">كلمة السر تحمي هذه اللوحة على هذا الجهاز، والتعديل الفعلي على الموقع لا يتم إلا برمز GitHub الذي تملكه أنت فقط.</div><div class="fr">'+fld("g_o","مستخدم GitHub",G.owner)+fld("g_r","المستودع",G.repo)+fld("g_b","الفرع",G.branch)+'<div><label>رمز GitHub (اتركه فارغاً لعدم التغيير)</label><input id="g_t" type="password" autocomplete="off"></div><div><label>كلمة سر جديدة (اختياري)</label><input id="g_p" type="password" autocomplete="off"></div></div><div class="ac"><button type="button" class="b2" data-a="pass">حفظ بيانات الربط / كلمة السر</button></div></div>';
+ '<div class="cd"><b>الأمان والربط</b><div class="m">كلمة السر (12 حرفاً فأكثر) تحمي إعدادات الدخول المشفّرة المحفوظة بالمستودع، فتدخل من أي جهاز بكلمة السر فقط. والتعديل الفعلي على الموقع لا يتم إلا برمز GitHub الذي تملكه أنت فقط.</div><div class="fr">'+fld("g_o","مستخدم GitHub",G.owner)+fld("g_r","المستودع",G.repo)+fld("g_b","الفرع",G.branch)+'<div><label>رمز GitHub (اتركه فارغاً لعدم التغيير)</label><input id="g_t" type="password" autocomplete="off"></div><div><label>كلمة سر جديدة (اختياري)</label><input id="g_p" type="password" autocomplete="off"></div></div><div class="ac"><button type="button" class="b2" data-a="pass">حفظ بيانات الربط / كلمة السر</button></div></div>';
  $("s_qr").onchange=function(){var f=this.files[0];if(!f)return;fileToData(f,700,0,true,function(d){SJ.set.qr=d;$("qpv").innerHTML='<img class="pv" src="'+d+'">';dirty("site")})}}
 function saveSet(){var s=SJ.set,v=function(i){return $(i).value.trim()};s.name=v("s_name");s.date=v("s_date");s.phone=v("s_phone");s.wa=v("s_wa").replace(/\D/g,"");s.addr1=v("s_a1");s.addr2=v("s_a2");s.map=v("s_map");s.fb=v("s_fb").replace(/^@/,"");s.ig=v("s_ig").replace(/^@/,"");s.note=v("s_note");
  s.pay=$("s_pay").value.split("\n").map(function(x){return x.trim()}).filter(Boolean);s.ship=$("s_ship").value.split("\n").map(function(x){return x.trim()}).filter(Boolean);dirty("site");toast("تم حفظ الإعدادات (غير منشورة بعد)")}
 function chPass(){var o=$("g_o").value.trim(),r=$("g_r").value.trim(),b=$("g_b").value.trim()||"main",t=$("g_t").value.trim(),np=$("g_p").value;if(np&&np.length<8)return toast("كلمة السر الجديدة 8 أحرف على الأقل");
- G.owner=o;G.repo=r;G.branch=b;if(t)G.token=t;if(np){PW=np;dirty("stock")}encJ(PW,G).then(function(c){localStorage.setItem(CFG,c);$("stt").textContent=G.token?"● متصل":"○ بدون ربط";toast(np?"تم تغيير كلمة السر وسيُعاد تشفير المخزون عند النشر":"تم حفظ بيانات الربط")})}
+ G.owner=o;G.repo=r;G.branch=b;if(t)G.token=t;if(np){PW=np;dirty("stock")}if(G.token)dirty("cfg");encJ(PW,G).then(function(c){localStorage.setItem(CFG,c);$("stt").textContent=G.token?"● متصل":"○ بدون ربط";toast(np?"تم تغيير كلمة السر وسيُعاد تشفير المخزون عند النشر":"تم حفظ بيانات الربط")})}
 /* ---------- stats ---------- */
 var GV=[["دمشق","damascus"],["ريف دمشق","rif-dimashq"],["حلب","aleppo"],["حمص","homs"],["حماة","hama"],["اللاذقية","latakia"],["طرطوس","tartus"],["إدلب","idlib"],["دير الزور","deir-ez-zor"],["الرقة","raqqa"],["الحسكة","hasakah"],["درعا","daraa"],["السويداء","sweida"],["القنيطرة","quneitra"],["خارج سوريا","abroad"]];
 function fg(k){return fetch(AB+"get/"+NS+"/"+k).then(function(r){return r.json()}).then(function(j){return Number(j.value)||0}).catch(function(){return 0})}
@@ -194,7 +196,7 @@ function rStat(){$("view").innerHTML='<div class="cd">جاري تحميل الإ
   if(!to)h+='<div class="m">لا توجد طلبات بعد.</div>';h+='</div><button type="button" class="b2" data-a="rfs">تحديث</button>';$("view").innerHTML=h})}
 /* ---------- publish ---------- */
 function compact(){var used={},m={},n=[];SJ.rows.forEach(function(r){if(r.i!==null&&r.i!==undefined&&IMS[r.i]!==undefined)used[r.i]=1;else r.i=null});SJ.rows.forEach(function(r){if(r.i===null)return;if(m[r.i]===undefined){m[r.i]=n.length;n.push(IMS[r.i])}r.i=m[r.i]});IMS=n}
-function rPub(){var ch=[];if(DT.site)ch.push("بيانات المنتجات والإعدادات (site.json)");if(DT.imgs)ch.push("الصور (imgs.json)");if(DT.stock)ch.push("المخزون المشفّر (stock.enc)");
+function rPub(){var ch=[];if(DT.site)ch.push("بيانات المنتجات والإعدادات (site.json)");if(DT.imgs)ch.push("الصور (imgs.json)");if(DT.stock)ch.push("المخزون المشفّر (stock.enc)");if(DT.cfg)ch.push("إعدادات الدخول المشفّرة (admin.cfg.enc) – للدخول من أي جهاز بكلمة السر فقط");
  $("view").innerHTML=(SMIS?'<div class="wn">ملف المخزون الحالي مشفّر بكلمة سر مختلفة. إذا أعدت إنشاءه سيتم مسح المخزون القديم.<div class="ac"><button type="button" class="bd" data-a="stk0">إعادة إنشاء المخزون</button></div></div>':'')+
  '<div class="cd"><b>التغييرات غير المنشورة</b>'+(ch.length?'<ul>'+ch.map(function(x){return'<li>'+x+'</li>'}).join("")+'</ul>':'<div class="m">لا توجد تغييرات.</div>')+(G.token?'<button type="button" class="b1" data-a="pub"'+(ch.length?'':' disabled')+'>🚀 نشر التعديلات على الموقع</button><div class="m" style="margin-top:6px">بعد النشر تظهر التعديلات للزبائن خلال دقيقة إلى 10 دقائق (ذاكرة GitHub المؤقتة).</div>':'<div class="wn">لا يوجد رمز GitHub مربوط. نزّل الملفات وارفعها يدوياً على المستودع (استبدل الملفات الموجودة)، أو أضف الرمز من الإعدادات.</div>')+'<div id="plog" class="m" style="margin-top:8px"></div></div>'+
  '<div class="cd"><b>نسخة احتياطية / رفع يدوي</b><div class="m">تنزيل الملفات الثلاثة (site.json و imgs.json و stock.enc).</div><div class="ac"><button type="button" class="b2" data-a="dlall">⬇ تنزيل كل الملفات</button></div></div>'}
@@ -203,6 +205,7 @@ function doPub(){if(!G.token)return;var log=[],L=function(m){log.push(m);$("plog
  if(DT.imgs)p=p.then(function(){L("⏳ رفع الصور…");return wr("imgs.json",JSON.stringify(IMS),SH.imgs,msg)}).then(function(s){SH.imgs=s;DT.imgs=false;L("✔ الصور")});
  if(DT.site)p=p.then(function(){L("⏳ رفع بيانات المنتجات…");return wr("site.json",JSON.stringify(SJ),SH.site,msg)}).then(function(s){SH.site=s;DT.site=false;L("✔ المنتجات والإعدادات")});
  if(DT.stock&&!SMIS)p=p.then(function(){L("⏳ رفع المخزون المشفّر…");return encJ(PW,ST)}).then(function(t){return wr("stock.enc",t,SH.stock,msg)}).then(function(s){SH.stock=s;DT.stock=false;L("✔ المخزون")});
+ if(DT.cfg)p=p.then(function(){if(PW.length<12)throw new Error("لحفظ إعدادات الدخول بالمستودع (العام) لازم كلمة السر 12 حرفاً فأكثر. غيّرها من الإعدادات.");L("⏳ رفع إعدادات الدخول المشفّرة…");return encJ(PW,G)}).then(function(t){return wr("admin.cfg.enc",t,SH.cfg,msg)}).then(function(s){SH.cfg=s;DT.cfg=false;L("✔ إعدادات الدخول")});
  p.then(function(){pubMark();L("<b>🎉 تم النشر. ستظهر التعديلات على الموقع خلال دقائق.</b>")}).catch(function(e){L('<span class="er">❌ '+esc(e.message)+'</span>');pubMark()})}
 /* ---------- boot ---------- */
 showLogin();
