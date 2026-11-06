@@ -117,6 +117,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px))}
 <div class="loc" id="lc"></div>
 <div class="ct" id="ctc"></div>
 <div class="sc" id="scc"></div>
+<a class="o2" id="pdl" href="price-list.pdf" download="قائمة_أسعار_الثقة.pdf" hidden style="max-width:520px;margin:10px auto 0;text-align:center;text-decoration:none">📄 تحميل قائمة الأسعار (PDF)</a>
 <button type="button" class="o2" id="plb" style="max-width:520px;margin:10px auto 0">🖨 طباعة قائمة الأسعار (حسب الفلتر الحالي)</button>
 <p>🔍 اضغط على صورة أي منتج لتكبيرها</p>
 </header>
@@ -335,6 +336,7 @@ startUp();
 document.addEventListener("contextmenu",stop);document.addEventListener("dragstart",stop);
 document.addEventListener("keydown",function(e){var k=e.key;if(k==="PrintScreen"||(e.ctrlKey||e.metaKey)&&(k==="s"||k==="S"||k==="u"||k==="U")){e.preventDefault();try{navigator.clipboard.writeText("شركة الثقة – جميع الحقوق محفوظة")}catch(x){}}});
 document.addEventListener("keyup",function(e){if(e.key==="PrintScreen"){try{navigator.clipboard.writeText("شركة الثقة – جميع الحقوق محفوظة")}catch(x){}document.body.classList.add("pb");setTimeout(function(){document.body.classList.remove("pb")},1500)}})})();
+fetch("price-list.pdf",{method:"HEAD",cache:"no-store"}).then(function(r){if(r.ok)document.getElementById("pdl").hidden=false}).catch(function(){});
 </script>
 </body>
 </html>
