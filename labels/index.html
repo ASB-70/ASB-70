@@ -167,6 +167,22 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
         <label class="slider" for="barColor">لون الشريط <input id="barColor" type="color" value="#1f2a37" style="width:44px;height:34px;padding:0;border:0;background:none"></label>
         <label class="slider" for="accColor">لون الإبراز <input id="accColor" type="color" value="#c9a24b" style="width:44px;height:34px;padding:0;border:0;background:none"></label>
       </div>
+      <div class="row">
+        <label class="slider" for="outSize">قياس الصورة
+          <select id="outSize" style="width:auto">
+            <option value="1280x968">1280 × 968 (متل نموذج المورد)</option>
+            <option value="orig">نفس قياس الصورة الأصلية</option>
+            <option value="1080x1080">1080 × 1080 مربع</option>
+            <option value="1080x1350">1080 × 1350 طولي (إنستغرام)</option>
+            <option value="1080x1920">1080 × 1920 ستوري</option>
+          </select></label>
+        <label class="slider" for="fitMode">إذا الصورة ما ركبت عالقياس
+          <select id="fitMode" style="width:auto">
+            <option value="blur">بتبين كاملة مع خلفية ضبابية</option>
+            <option value="white">بتبين كاملة مع خلفية بيضاء</option>
+            <option value="cover">بتنقص لتعبي المساحة</option>
+          </select></label>
+      </div>
     </div>
     <div class="box">
       <div class="row">
@@ -275,7 +291,7 @@ async function prepare(src){
 }
 
 /* ---------- logo + watermark (global) ---------- */
-const brand = {style:'dark', barColor:'#1f2a37', accColor:'#c9a24b', logo:null, logoOn:false, logoSize:18, wmText:'', wmOn:false, wmAlpha:20};
+const brand = {size:'1280x968', fit:'blur', style:'dark', barColor:'#1f2a37', accColor:'#c9a24b', logo:null, logoOn:false, logoSize:18, wmText:'', wmOn:false, wmAlpha:20};
 function drawBrand(x,W,H){
   if(brand.wmOn && (brand.wmText.trim() || brand.logo)){
     x.save(); x.beginPath(); x.rect(0,0,W,H); x.clip();
@@ -335,15 +351,36 @@ function fmtPrice(raw, cur){
   return s.replace(/[0-9٠-٩][0-9٠-٩.,]*/g, n=>toEn(n)+'$').replace(/\s+/g,' ');
 }
 function withAl(u){ u=u.trim(); if(!u) return ''; return u.startsWith('ال') ? u : 'ال'+u; }
-function draw(src,it){
-  const [W,H] = dims(src);
+function placePhoto(x,src,W,H){
+  const [sw,sh] = dims(src);
+  const cover = Math.max(W/sw, H/sh), contain = Math.min(W/sw, H/sh);
+  if(brand.fit==='cover'){ const dw=sw*cover, dh=sh*cover; x.drawImage(src,(W-dw)/2,(H-dh)/2,dw,dh); return; }
+  if(brand.fit!=='white'){
+    // soft blurred backdrop: shrink the photo to a few pixels, then stretch it back up
+    const tw = 24, th = Math.max(1, Math.round(tw*H/W));
+    const tc = document.createElement('canvas'); tc.width = tw; tc.height = th;
+    const tx = tc.getContext('2d'); const s = Math.max(tw/sw, th/sh);
+    tx.drawImage(src,(tw-sw*s)/2,(th-sh*s)/2,sw*s,sh*s);
+    x.save(); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(tc,0,0,W,H); x.fillStyle = 'rgba(255,255,255,.18)'; x.fillRect(0,0,W,H); x.restore();
+  }
+  const dw = sw*contain, dh = sh*contain;
+  x.drawImage(src,(W-dw)/2,(H-dh)/2,dw,dh);
+}
+function draw(src,it,preview){
+  const sz = brand.size && brand.size!=='orig' ? brand.size.split('x').map(Number) : null;
+  let W, H;
+  if(sz) W = preview ? Math.min(sz[0], 720) : sz[0];
+  else [W,H] = dims(src);
   const k = (+$('#scale').value)/100;
   const fs = Math.round(W*0.036*k);
   const classic = brand.style==='classic';
   const barH = Math.round(fs*(classic?2.75:3.3));
+  if(sz) H = Math.max(20, Math.round(W*sz[1]/sz[0]) - barH);
   const c = document.createElement('canvas'); c.width = W; c.height = H+barH;
   const x = c.getContext('2d');
-  x.fillStyle='#fff'; x.fillRect(0,0,W,c.height); x.drawImage(src,0,0,W,H);
+  x.fillStyle='#fff'; x.fillRect(0,0,W,c.height);
+  if(sz) placePhoto(x,src,W,H); else x.drawImage(src,0,0,W,H);
   drawBrand(x,W,H);
   try{ x.direction='rtl'; }catch(e){}
   x.textAlign='center'; x.textBaseline='middle';
@@ -425,7 +462,7 @@ async function updatePreview(it){
     do{
       it.again = false; it.dirty = false;
       if(!it.thumb) it.thumb = await fetchImage(it,'thumb');
-      const src = await decode(it.thumb); const c = draw(src,it); if(src.close) src.close();
+      const src = await decode(it.thumb); const c = draw(src,it,true); if(src.close) src.close();
       const b = await toBlob(c,0.85); c.width = c.height = 0;
       if(it.url) URL.revokeObjectURL(it.url);
       it.url = URL.createObjectURL(b);
@@ -702,7 +739,7 @@ document.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove(
 document.addEventListener('paste',e=>{ if(e.clipboardData && e.clipboardData.files.length) loadFiles(e.clipboardData.files); });
 
 /* brand controls, remembered in this browser */
-const brandData = ()=>({logo:brand.logoData||null, logoOn:brand.logoOn, logoSize:brand.logoSize, style:brand.style, barColor:brand.barColor, accColor:brand.accColor, wmText:brand.wmText, wmOn:brand.wmOn, wmAlpha:brand.wmAlpha, lastUnits});
+const brandData = ()=>({size:brand.size, fit:brand.fit, logo:brand.logoData||null, logoOn:brand.logoOn, logoSize:brand.logoSize, style:brand.style, barColor:brand.barColor, accColor:brand.accColor, wmText:brand.wmText, wmOn:brand.wmOn, wmAlpha:brand.wmAlpha, lastUnits});
 let brandT = 0;
 function saveBrand(){ clearTimeout(brandT); brandT = setTimeout(()=>putOp({lid:'brand', kind:'brand', data:brandData()}), 600); }
 const redrawAll = (d=200)=> items.forEach(it=>schedule(it,d));
@@ -731,13 +768,16 @@ $('#wmOn').onchange = e=>{ brand.wmOn = e.target.checked; if(brand.wmOn && !bran
 $('#barStyle').onchange = e=>{ brand.style = e.target.value; saveBrand(); redrawAll(0); };
 $('#barColor').oninput = e=>{ brand.barColor = e.target.value; saveBrand(); redrawAll(); };
 $('#accColor').oninput = e=>{ brand.accColor = e.target.value; saveBrand(); redrawAll(); };
+$('#outSize').onchange = e=>{ brand.size = e.target.value; $('#fitMode').disabled = brand.size==='orig'; saveBrand(); redrawAll(0); };
+$('#fitMode').onchange = e=>{ brand.fit = e.target.value; saveBrand(); redrawAll(0); };
 $('#wmAlpha').oninput = e=>{ brand.wmAlpha = +e.target.value; saveBrand(); redrawAll(); };
 async function applyBrand(s){
   if(!s) return;
-  Object.assign(brand,{style:s.style||'dark', barColor:s.barColor||'#1f2a37', accColor:s.accColor||'#c9a24b', logoOn:!!s.logoOn, logoSize:s.logoSize||18, wmText:s.wmText||'', wmOn:!!s.wmOn, wmAlpha:s.wmAlpha||20});
+  Object.assign(brand,{size:s.size||'1280x968', fit:s.fit||'blur', style:s.style||'dark', barColor:s.barColor||'#1f2a37', accColor:s.accColor||'#c9a24b', logoOn:!!s.logoOn, logoSize:s.logoSize||18, wmText:s.wmText||'', wmOn:!!s.wmOn, wmAlpha:s.wmAlpha||20});
   if(s.lastUnits) Object.assign(lastUnits, s.lastUnits);
   $('#logoOn').checked = brand.logoOn; $('#logoSize').value = brand.logoSize; $('#wmText').value = brand.wmText;
   $('#wmOn').checked = brand.wmOn; $('#wmAlpha').value = brand.wmAlpha;
+  $('#outSize').value = brand.size; $('#fitMode').value = brand.fit;
   $('#barStyle').value = brand.style; $('#barColor').value = brand.barColor; $('#accColor').value = brand.accColor;
   if(s.logo){ try{ await setLogo(s.logo); }catch(e){} }
   redrawAll(0);
