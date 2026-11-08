@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1d5c63">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ملصق الأسعار">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%231d5c63%22/%3E%3Cpath d=%22M14 40h36v10H14z%22 fill=%22%23c9a24b%22/%3E%3Crect x=%2214%22 y=%2214%22 width=%2236%22 height=%2222%22 rx=%224%22 fill=%22%23fff%22/%3E%3C/svg%3E">
 <title>ملصق الأسعار</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -115,6 +121,7 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
 .acct-grid form,.acct-grid .box{display:flex;flex-direction:column;gap:10px;min-width:0}
 .acct-grid h3{margin:0;font-size:.9rem}
 .note{font-size:.85rem;color:var(--muted);margin:0}
+.lock-card .installBtn{justify-content:center}
 .setup{background:var(--surface);border:2px solid var(--accent);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .setup h2{margin:0;font-family:var(--display);font-size:1.1rem}
 .setup p{margin:0}
@@ -134,6 +141,8 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
     <label class="switch" for="keep"><input type="checkbox" id="keep" checked> خليني داخل على هالجهاز</label>
     <button class="btn primary" type="submit" id="lockBtn" disabled>دخول</button>
     <p class="err" id="lockErr" aria-live="polite"></p>
+    <button type="button" class="btn installBtn" hidden>📲 تثبيت كتطبيق على الموبايل</button>
+    <p class="note installHelp" hidden></p>
   </form>
 </div>
 <div class="wrap" id="app" dir="rtl" lang="ar" hidden>
@@ -151,6 +160,7 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
     <button class="btn ghost-danger" id="clearAll" type="button">حذف الكل</button>
     <span class="count" id="count"></span>
     <span class="saved" id="saved"></span>
+    <button class="btn installBtn" type="button" hidden>📲 تثبيت التطبيق</button>
     <button class="btn" id="lockNow" type="button">خروج</button>
     <label class="size" for="scale">حجم الخط <input id="scale" type="range" min="70" max="140" value="100"></label>
   </div>
@@ -242,6 +252,7 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
       </div>
     </div>
   </details>
+  <p class="note installHelp" hidden></p>
   <div class="status" id="status" aria-live="polite"></div>
 
   <div class="drop" id="drop">على الكمبيوتر فيك تسحب الصور لهون، أو تلصقها بـ Ctrl+V</div>
@@ -1260,6 +1271,34 @@ $('#restoreFile').addEventListener('change', async e=>{
 });
 
 initLock();
+
+/* ---------- install as an app (PWA) ---------- */
+if('serviceWorker' in navigator && window.isSecureContext){
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+let installEvt = null;
+const standalone = ()=> (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+function showInstall(){
+  const on = !standalone() && (installEvt || isIOS);
+  document.querySelectorAll('.installBtn').forEach(b=>b.hidden = !on);
+}
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEvt = e; showInstall(); });
+window.addEventListener('appinstalled', ()=>{ installEvt = null; showInstall(); document.querySelectorAll('.installHelp').forEach(h=>{ h.hidden = false; h.textContent = 'تم تثبيت التطبيق. بتلاقي أيقونة «ملصق الأسعار» على شاشة الموبايل.'; }); });
+document.querySelectorAll('.installBtn').forEach(b=>b.addEventListener('click', async()=>{
+  if(installEvt){
+    installEvt.prompt();
+    try{ await installEvt.userChoice; }catch(e){}
+    installEvt = null; showInstall(); return;
+  }
+  document.querySelectorAll('.installHelp').forEach(h=>{
+    h.hidden = false;
+    h.textContent = isIOS
+      ? 'على الآيفون: افتح الموقع بـ Safari، اضغط زر المشاركة (المربع مع السهم لفوق) تحت الشاشة، واختار «إضافة إلى الشاشة الرئيسية» ثم «إضافة».'
+      : 'افتح قائمة المتصفح (الثلاث نقاط فوق) واختار «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».';
+  });
+}));
+showInstall();
 </script>
 
 </body>
