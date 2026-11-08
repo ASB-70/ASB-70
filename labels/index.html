@@ -55,6 +55,17 @@ header p{margin:4px 0 0;color:var(--muted)}
 .preview{min-width:0;display:flex;flex-direction:column;gap:8px}
 .preview img{display:block;width:100%;min-height:120px;border-radius:6px;border:1px solid var(--line);background:#fff}
 .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sel{display:inline-flex;flex-direction:row;align-items:center;gap:6px;font-weight:600;cursor:pointer;padding:5px 12px;
+  border:1px solid var(--line);border-radius:99px;background:var(--field);font-size:.88rem;user-select:none}
+.sel input{width:18px;height:18px;accent-color:var(--accent);margin:0;cursor:pointer}
+.card.selected{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.card.selected .sel{border-color:var(--accent);color:var(--accent)}
+.selbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:2px solid var(--accent);
+  padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;box-shadow:0 -6px 18px rgba(0,0,0,.12)}
+.selcount{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums}
+body.has-sel .wrap{padding-bottom:150px}
 .num{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums}
 .tag{font-size:.78rem;background:var(--field);border:1px solid var(--line);border-radius:99px;padding:1px 10px;color:var(--muted);
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -135,6 +146,7 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
     <label class="btn primary pick" for="file">＋ إضافة صور
       <input id="file" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple>
     </label>
+    <label class="sel" for="selAll"><input type="checkbox" id="selAll"> تحديد الكل</label>
     <button class="btn" id="saveAll" type="button">تنزيل الكل (ZIP)</button>
     <button class="btn ghost-danger" id="clearAll" type="button">حذف الكل</button>
     <span class="count" id="count"></span>
@@ -213,6 +225,13 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
   <div class="drop" id="drop">على الكمبيوتر فيك تسحب الصور لهون، أو تلصقها بـ Ctrl+V</div>
 
   <div class="cards" id="cards"></div>
+  <div class="selbar" id="selbar" hidden role="region" aria-label="الصور المحددة">
+    <span class="selcount" id="selCount">محدد: 0</span>
+    <button class="btn primary" type="button" id="selSave">تنزيل المحدد</button>
+    <button class="btn" type="button" id="selShare">مشاركة المحدد</button>
+    <button class="btn ghost-danger" type="button" id="selDel">حذف المحدد</button>
+    <button class="btn" type="button" id="selNone">إلغاء التحديد</button>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -415,6 +434,7 @@ async function updatePreview(it){
   }catch(e){} finally{ it.busy = false; }
 }
 function schedule(it,delay=150){
+  sharePrepared = null;
   it.dirty = true; it.shareBlob = null; clearTimeout(it.t);
   if(it.visible) it.t = setTimeout(()=>updatePreview(it), delay);
 }
@@ -448,7 +468,7 @@ function addCard(it){
   d.className = 'card'; d.id = 'card-'+it.id; d.dataset.id = it.id;
   d.innerHTML = `
     <div class="preview">
-      <div class="meta"><span class="num"></span>
+      <div class="meta"><label class="sel" for="sel-${it.id}"><input type="checkbox" id="sel-${it.id}" data-sel> تحديد</label><span class="num"></span>
         <span class="tag">${esc(it.name||'')}</span></div>
       <img id="prev-${it.id}" alt="معاينة الصورة مع المعلومات">
     </div>
@@ -472,6 +492,8 @@ function addCard(it){
       </div>
     </div>`;
   cardsEl.appendChild(d);
+  const sc = d.querySelector('[data-sel]'); sc.checked = !!it.sel; d.classList.toggle('selected', !!it.sel);
+  sc.addEventListener('click', e=>{ pickSel(it, sc.checked, e.shiftKey); });
   for(const inp of d.querySelectorAll('input[data-key]')){
     inp.value = it[inp.dataset.key];
     inp.addEventListener('input',()=>{ it[inp.dataset.key] = inp.value; schedule(it); queueSave(it); });
@@ -521,6 +543,7 @@ function renumber(){
     if(!e){ e = document.createElement('div'); e.id='emptyNote'; e.className='empty';
       e.textContent = 'ما في صور لسا. اضغط «إضافة صور» واختار صورة أو أكتر من جهازك.'; cardsEl.appendChild(e); }
   } else if(e) e.remove();
+  updateSel();
 }
 
 /* ---------- loading many files, one at a time ---------- */
@@ -572,11 +595,11 @@ async function shareOne(it){
     }
   }catch(e){ setStatus('صار خطأ بتجهيز الصورة.'); }
 }
-async function saveAll(){
-  const list = items.slice();
+function saveAll(){ return zipList(items.slice(), $('#saveAll'), 'صور-المنتجات.zip'); }
+async function zipList(list, btn, zipName){
   if(!list.length){ setStatus('ما في صور لتنزيلها.'); return; }
   if(!window.JSZip){ setStatus('ما قدرت حمّل أداة الضغط. تأكد من الإنترنت وحدّث الصفحة.'); return; }
-  const btn = $('#saveAll'); btn.disabled = true;
+  btn.disabled = true;
   try{
     const zip = new JSZip(), used = {};
     for(let n=0;n<list.length;n++){
@@ -587,11 +610,76 @@ async function saveAll(){
     }
     setStatus('عم جهّز ملف ZIP…');
     const blob = await zip.generateAsync({type:'blob', compression:'STORE'});
-    offerDownload(blob,'صور-المنتجات.zip');
+    offerDownload(blob, zipName);
     setStatus(`نزل ملف فيه ${list.length} صورة`);
   }catch(e){ setStatus('صار خطأ بتجهيز الملف.'); }
   finally{ btn.disabled = false; }
 }
+
+/* ---------- selection ---------- */
+var sharePrepared = null, lastPicked = -1;
+const selected = ()=>items.filter(i=>i.sel);
+function setSel(it,v){
+  it.sel = v;
+  const d = document.getElementById('card-'+it.id);
+  if(d){ d.classList.toggle('selected', v); const c = d.querySelector('[data-sel]'); if(c) c.checked = v; }
+}
+function pickSel(it, v, range){
+  const idx = items.indexOf(it);
+  if(range && lastPicked>-1 && lastPicked<items.length){
+    const [a,b] = idx<lastPicked ? [idx,lastPicked] : [lastPicked,idx];
+    for(let i=a;i<=b;i++) setSel(items[i], v);
+  } else setSel(it, v);
+  lastPicked = idx; sharePrepared = null; updateSel();
+}
+function updateSel(){
+  const n = selected().length, bar = $('#selbar'); if(!bar) return;
+  bar.hidden = !n; document.body.classList.toggle('has-sel', !!n);
+  $('#selCount').textContent = `محدد: ${n}`;
+  $('#selShare').hidden = !canShareFiles;
+  const all = $('#selAll'); all.checked = n>0 && n===items.length; all.indeterminate = n>0 && n<items.length;
+  if(!n) resetSelDel();
+}
+$('#selAll').addEventListener('change', e=>{ items.forEach(it=>setSel(it, e.target.checked)); sharePrepared = null; updateSel(); });
+$('#selNone').onclick = ()=>{ items.forEach(it=>setSel(it,false)); sharePrepared = null; updateSel(); };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && selected().length && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) $('#selNone').click(); });
+$('#selSave').onclick = ()=>{
+  const list = selected();
+  if(list.length===1) return saveOne(list[0]);
+  return zipList(list, $('#selSave'), `صور-مختارة-${list.length}.zip`);
+};
+$('#selShare').onclick = async()=>{
+  const list = selected(); if(!list.length) return;
+  const key = list.map(i=>i.id).join(',');
+  try{
+    let files = sharePrepared && sharePrepared.key===key ? sharePrepared.files : null;
+    if(!files){
+      files = [];
+      for(let n=0;n<list.length;n++){
+        setStatus(`عم جهّز الصور للمشاركة… ${n+1} من ${list.length}`);
+        const b = await renderFull(list[n]);
+        files.push(new File([b], fileBase(list[n], items.indexOf(list[n])+1)+'.jpg', {type:'image/jpeg'}));
+      }
+    }
+    if(navigator.canShare && !navigator.canShare({files})){ setStatus('الجهاز ما بيقبل مشاركة هالعدد مرة وحدة. خفّف التحديد أو نزّلهم ZIP.'); return; }
+    try{ await navigator.share({files}); sharePrepared = null; setStatus(''); }
+    catch(e){
+      if(e && e.name==='AbortError'){ setStatus(''); return; }
+      if(e && e.name==='NotAllowedError'){ sharePrepared = {key, files}; setStatus('الصور جاهزة، اضغط «مشاركة المحدد» مرة تانية.'); return; }
+      setStatus('ما قدرت أشارك الصور.');
+    }
+  }catch(e){ setStatus('صار خطأ بتجهيز الصور.'); }
+};
+let selDelArmed = 0;
+function resetSelDel(){ clearTimeout(selDelArmed); selDelArmed = 0; const b = $('#selDel'); if(b) b.textContent = 'حذف المحدد'; }
+$('#selDel').onclick = ()=>{
+  const list = selected(); if(!list.length) return;
+  const b = $('#selDel');
+  if(!selDelArmed){ b.textContent = `متأكد؟ رح ينحذفوا ${list.length}`; selDelArmed = setTimeout(resetSelDel, 4000); return; }
+  resetSelDel();
+  list.forEach(it=>{ it.keepStored = true; removeItem(it); }); queueDelete(list);
+  setStatus(`انحذفت ${list.length} صورة`);
+};
 
 /* ---------- wiring ---------- */
 $('#file').addEventListener('change', e=>{ loadFiles(e.target.files); e.target.value=''; });
