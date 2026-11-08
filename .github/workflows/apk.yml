@@ -2,11 +2,15 @@ name: Build APK
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - 'android/**'
       - '.github/workflows/apk.yml'
 permissions:
   contents: write
+concurrency:
+  group: apk-site
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,21 +20,31 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.7'
       - name: Build
-        run: gradle -p android assembleCustomerRelease assembleAdminRelease --no-daemon --stacktrace
+        id: build
+        run: |
+          set -o pipefail
+          gradle -p android assembleCustomerRelease assembleAdminRelease --no-daemon --stacktrace 2>&1 | tee build.log
       - name: Collect
         run: |
           mkdir -p apk
           cp android/app/build/outputs/apk/customer/release/*.apk apk/altheqa.apk
           cp android/app/build/outputs/apk/admin/release/*.apk apk/altheqa-admin.apk
-      - name: Commit APKs
+          rm -f apk/build.log
+      - name: Publish build log on failure
+        if: failure()
         run: |
-          git config user.name "apk-bot"
-          git config user.email "apk-bot@users.noreply.github.com"
+          mkdir -p apk
+          grep -E "error:|FAILED|What went wrong|Caused by|warning: \[|symbol|location" build.log | head -60 > apk/build.log || true
+          [ -s apk/build.log ] || tail -40 build.log > apk/build.log
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apk
           git commit -m "APK build" || exit 0
           git pull --rebase origin main
