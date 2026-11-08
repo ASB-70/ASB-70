@@ -1,6 +1,6 @@
 // ملصق الأسعار — app shell cache so the app opens fast and works on a weak connection.
 // The page itself is fetched fresh when online (so updates arrive), and served from cache when offline.
-const CACHE = 'price-label-v2';
+const CACHE = 'price-label-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
