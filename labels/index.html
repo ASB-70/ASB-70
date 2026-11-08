@@ -744,8 +744,9 @@ function pickSel(it, v, range){
     const [a,b] = idx<lastPicked ? [idx,lastPicked] : [lastPicked,idx];
     for(let i=a;i<=b;i++) setSel(items[i], v);
   } else setSel(it, v);
-  lastPicked = idx; sharePrepared = null; updateSel();
+  lastPicked = idx; sharePrepared = null; resetShareBtn(); updateSel();
 }
+function resetShareBtn(){ shareCursor = null; const b = $('#selShare'); if(b) b.textContent = 'مشاركة المحدد'; }
 function updateSel(){
   const n = selected().length, bar = $('#selbar'); if(!bar) return;
   bar.hidden = !n; document.body.classList.toggle('has-sel', !!n);
@@ -754,8 +755,8 @@ function updateSel(){
   const all = $('#selAll'); all.checked = n>0 && n===items.length; all.indeterminate = n>0 && n<items.length;
   if(!n) resetSelDel();
 }
-$('#selAll').addEventListener('change', e=>{ items.forEach(it=>setSel(it, e.target.checked)); sharePrepared = null; updateSel(); });
-$('#selNone').onclick = ()=>{ items.forEach(it=>setSel(it,false)); sharePrepared = null; updateSel(); };
+$('#selAll').addEventListener('change', e=>{ items.forEach(it=>setSel(it, e.target.checked)); sharePrepared = null; resetShareBtn(); updateSel(); });
+$('#selNone').onclick = ()=>{ items.forEach(it=>setSel(it,false)); sharePrepared = null; resetShareBtn(); updateSel(); };
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && selected().length && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) $('#selNone').click(); });
 $('#selSave').onclick = async()=>{
   const list = selected(); if(!list.length) return;
@@ -773,27 +774,57 @@ $('#selSave').onclick = async()=>{
     setStatus(ok===list.length ? `نزلت ${ok} صورة` : `نزلت ${ok} من ${list.length} صورة`);
   }finally{ btn.disabled = false; }
 };
+const SHARE_BATCH = 100;   // WhatsApp accepts up to 100 photos per message
+var shareCursor = null;
 $('#selShare').onclick = async()=>{
-  const list = selected(); if(!list.length) return;
-  const key = list.map(i=>i.id).join(',');
+  const all = selected(); if(!all.length) return;
+  const key = all.map(i=>i.id).join(',');
+  if(!shareCursor || shareCursor.key!==key) shareCursor = {key, next:0};
+  const start = shareCursor.next >= all.length ? 0 : shareCursor.next;
+  const list = all.slice(start, start+SHARE_BATCH);
+  const batches = Math.ceil(all.length/SHARE_BATCH), bn = Math.floor(start/SHARE_BATCH)+1;
+  const tag = batches>1 ? ` (الدفعة ${bn} من ${batches})` : '';
+  const btn = $('#selShare'); btn.disabled = true;
   try{
-    let files = sharePrepared && sharePrepared.key===key ? sharePrepared.files : null;
+    if(NATIVE && NATIVE.shareBegin){
+      NATIVE.shareBegin();
+      for(let n=0;n<list.length;n++){
+        setStatus(`عم جهّز الصور للمشاركة${tag}… ${n+1} من ${list.length}`);
+        const b = await renderFull(list[n]);
+        if(!NATIVE.shareAdd(fileBase(list[n], items.indexOf(list[n])+1)+'.jpg', await blobToB64(b))) throw new Error('add');
+      }
+      if(!NATIVE.shareCommit()) throw new Error('commit');
+      afterBatch();
+      return;
+    }
+    let files = sharePrepared && sharePrepared.key===key+'@'+start ? sharePrepared.files : null;
     if(!files){
       files = [];
       for(let n=0;n<list.length;n++){
-        setStatus(`عم جهّز الصور للمشاركة… ${n+1} من ${list.length}`);
+        setStatus(`عم جهّز الصور للمشاركة${tag}… ${n+1} من ${list.length}`);
         const b = await renderFull(list[n]);
         files.push(new File([b], fileBase(list[n], items.indexOf(list[n])+1)+'.jpg', {type:'image/jpeg'}));
       }
     }
-    if(!NATIVE && navigator.canShare && !navigator.canShare({files})){ setStatus('الجهاز ما بيقبل مشاركة هالعدد مرة وحدة. خفّف التحديد أو نزّلهم ZIP.'); return; }
-    try{ await shareFileList(files); sharePrepared = null; setStatus(''); }
+    if(!NATIVE && navigator.canShare && !navigator.canShare({files})){ setStatus('الجهاز ما بيقبل مشاركة هالعدد مرة وحدة. نزّلهم بدل المشاركة.'); return; }
+    try{ await shareFileList(files); sharePrepared = null; afterBatch(); }
     catch(e){
       if(e && e.name==='AbortError'){ setStatus(''); return; }
-      if(e && e.name==='NotAllowedError'){ sharePrepared = {key, files}; setStatus('الصور جاهزة، اضغط «مشاركة المحدد» مرة تانية.'); return; }
+      if(e && e.name==='NotAllowedError'){ sharePrepared = {key:key+'@'+start, files}; setStatus(`الصور جاهزة${tag}، اضغط «مشاركة المحدد» مرة تانية.`); return; }
       setStatus('ما قدرت أشارك الصور.');
     }
   }catch(e){ setStatus('صار خطأ بتجهيز الصور.'); }
+  finally{ btn.disabled = false; }
+  function afterBatch(){
+    shareCursor.next = start + list.length;
+    if(shareCursor.next < all.length){
+      btn.textContent = `مشاركة الدفعة ${bn+1} من ${batches}`;
+      setStatus(`انبعتت ${shareCursor.next} من ${all.length}. بعد ما تبعتهم، اضغط «مشاركة الدفعة ${bn+1}» للباقي.`);
+    } else {
+      btn.textContent = 'مشاركة المحدد'; shareCursor = null;
+      setStatus(batches>1 ? `خلصت كل الدفعات (${all.length} صورة).` : '');
+    }
+  }
 };
 let selDelArmed = 0;
 function resetSelDel(){ clearTimeout(selDelArmed); selDelArmed = 0; const b = $('#selDel'); if(b) b.textContent = 'حذف المحدد'; }
@@ -1195,6 +1226,7 @@ async function enter(){
     await loadSettings();
     const ok = await loadAll();
     if(ok) kick();
+    pullShared();
   }catch(e){ if(e instanceof AuthError) toLogin('انتهت الجلسة، ادخل مرة تانية.'); }
   showUsage();
 }
@@ -1336,6 +1368,35 @@ document.querySelectorAll('.installBtn').forEach(b=>b.addEventListener('click', 
 }));
 showInstall();
 if(/android/i.test(navigator.userAgent) && !NATIVE) document.querySelectorAll('.apkBtn').forEach(a=>a.hidden = false);
+
+/* ---------- images shared from the phone's gallery into the Android app ---------- */
+let pulling = false;
+async function pullShared(){
+  if(!NATIVE || typeof NATIVE.sharedCount!=='function' || !S || pulling) return;
+  const n = NATIVE.sharedCount(); if(!n) return;
+  pulling = true;
+  const names = []; for(let i=0;i<n;i++){ try{ names.push(NATIVE.sharedName(i) || ''); }catch(e){ names.push(''); } }
+  loadChain = loadChain.then(async()=>{
+    let ok = 0;
+    for(let i=0;i<n;i++){
+      setStatus(`عم ضيف الصور اللي شاركتها… ${i+1} من ${n}`);
+      try{
+        const r = await fetch(`__shared__/${i}?t=${Date.now()}`, {cache:'no-store'});
+        if(!r.ok) throw new Error('fetch');
+        const blob = await r.blob();
+        const src = await decode(blob);
+        const p = await prepare(src);
+        await newItem(p, (names[i]||('صورة '+(i+1))).replace(/\.[^.]+$/,'')); ok++;
+      }catch(e){}
+      if(i%4===3) await new Promise(r=>setTimeout(r,0));
+    }
+    try{ NATIVE.clearShared(); }catch(e){}
+    pulling = false;
+    setStatus(`تمت إضافة ${ok} صورة من المعرض` + (ok<n ? ` (${n-ok} ما انفتحت)` : ''));
+    const last = items[items.length-1]; if(last){ const d = document.getElementById('card-'+last.id); if(d && ok) d.scrollIntoView({block:'center'}); }
+  });
+}
+window.__androidShared = ()=>pullShared();
 </script>
 
 </body>
