@@ -727,10 +727,21 @@ function updateSel(){
 $('#selAll').addEventListener('change', e=>{ items.forEach(it=>setSel(it, e.target.checked)); sharePrepared = null; updateSel(); });
 $('#selNone').onclick = ()=>{ items.forEach(it=>setSel(it,false)); sharePrepared = null; updateSel(); };
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && selected().length && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) $('#selNone').click(); });
-$('#selSave').onclick = ()=>{
-  const list = selected();
-  if(list.length===1) return saveOne(list[0]);
-  return zipList(list, $('#selSave'), `صور-مختارة-${list.length}.zip`);
+$('#selSave').onclick = async()=>{
+  const list = selected(); if(!list.length) return;
+  const btn = $('#selSave'); btn.disabled = true;
+  let ok = 0;
+  try{
+    for(let n=0;n<list.length;n++){
+      setStatus(`عم نزّل الصور… ${n+1} من ${list.length}`);
+      try{
+        const b = await renderFull(list[n]);
+        offerDownload(b, fileBase(list[n], items.indexOf(list[n])+1)+'.jpg'); ok++;
+      }catch(e){}
+      if(n < list.length-1) await new Promise(r=>setTimeout(r, 600));
+    }
+    setStatus(ok===list.length ? `نزلت ${ok} صورة` : `نزلت ${ok} من ${list.length} صورة`);
+  }finally{ btn.disabled = false; }
 };
 $('#selShare').onclick = async()=>{
   const list = selected(); if(!list.length) return;
