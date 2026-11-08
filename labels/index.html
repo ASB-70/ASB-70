@@ -167,6 +167,11 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
         <label class="slider" for="barColor">لون الشريط <input id="barColor" type="color" value="#1f2a37" style="width:44px;height:34px;padding:0;border:0;background:none"></label>
         <label class="slider" for="accColor">لون الإبراز <input id="accColor" type="color" value="#c9a24b" style="width:44px;height:34px;padding:0;border:0;background:none"></label>
       </div>
+      <div class="row">
+        <label class="switch" for="footOn"><input id="footOn" type="checkbox" checked> شريط سفلي (مشان وقت الواتساب ما يغطي السعر)</label>
+      </div>
+      <label for="footText">نص الشريط السفلي (اختياري)
+        <input type="text" id="footText" placeholder="مثال: للطلب واتساب 0945215551" autocomplete="off"></label>
     </div>
     <div class="box">
       <div class="row">
@@ -275,7 +280,7 @@ async function prepare(src){
 }
 
 /* ---------- logo + watermark (global) ---------- */
-const brand = {style:'dark', barColor:'#1f2a37', accColor:'#c9a24b', logo:null, logoOn:false, logoSize:18, wmText:'', wmOn:false, wmAlpha:20};
+const brand = {footOn:true, footText:'', style:'dark', barColor:'#1f2a37', accColor:'#c9a24b', logo:null, logoOn:false, logoSize:18, wmText:'', wmOn:false, wmAlpha:20};
 function drawBrand(x,W,H){
   if(brand.wmOn && (brand.wmText.trim() || brand.logo)){
     x.save(); x.beginPath(); x.rect(0,0,W,H); x.clip();
@@ -299,6 +304,28 @@ function drawBrand(x,W,H){
     if(lh > H*0.3){ lh = H*0.3; lw = lh*lw0/lh0; }
     x.drawImage(brand.logo, W-m-lw, m, lw, lh);
   }
+}
+/* bottom strip: gives WhatsApp's time stamp an empty place to sit */
+function drawFoot(x,W,top,h,fs){
+  const st = brand.style, dark = st==='dark';
+  const bg = dark ? shade(brand.barColor, -0.28) : (st==='light' ? '#f1f2f4' : '#ffffff');
+  x.fillStyle = bg; x.fillRect(0, top, W, h);
+  if(st==='classic'){ x.fillStyle = '#e5e7eb'; x.fillRect(0, top, W, Math.max(1, Math.round(W*0.0015))); }
+  const t = (brand.footText||'').trim(); if(!t) return;
+  x.save();
+  x.fillStyle = dark ? (lum(bg) > 0.55 ? 'rgba(20,23,28,.75)' : 'rgba(255,255,255,.8)') : '#4b5563';
+  let f = Math.round(fs*0.62); const font = n=>`600 ${n}px Cairo, "IBM Plex Sans Arabic", Tahoma, sans-serif`;
+  x.font = font(f); x.textBaseline = 'middle';
+  const maxW = W*0.62;  // keep the left third free for the time stamp
+  try{ x.direction='rtl'; }catch(e){}
+  while(x.measureText(t).width > maxW && f > 8){ f -= 2; x.font = font(f); }
+  say(x, t, W*0.64, top + h/2);
+  x.restore();
+}
+function shade(hex, k){
+  const n = parseInt(hex.slice(1),16); let r = n>>16&255, g = n>>8&255, b = n&255;
+  const f = v=>Math.max(0, Math.min(255, Math.round(k<0 ? v*(1+k) : v+(255-v)*k)));
+  return '#'+[f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
 }
 /* ---------- drawing the label bar ---------- */
 function lum(hex){ const n=parseInt(hex.slice(1),16); const ch=[n>>16&255,n>>8&255,n&255].map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)}); return .2126*ch[0]+.7152*ch[1]+.0722*ch[2]; }
@@ -341,9 +368,11 @@ function draw(src,it){
   const fs = Math.round(W*0.036*k);
   const classic = brand.style==='classic';
   const barH = Math.round(fs*(classic?2.75:3.3));
-  const c = document.createElement('canvas'); c.width = W; c.height = H+barH;
+  const footH = brand.footOn ? Math.round(Math.max(fs*1.55, W*0.075)) : 0;
+  const c = document.createElement('canvas'); c.width = W; c.height = H+barH+footH;
   const x = c.getContext('2d');
   x.fillStyle='#fff'; x.fillRect(0,0,W,c.height); x.drawImage(src,0,0,W,H);
+  if(footH) drawFoot(x, W, H+barH, footH, fs);
   drawBrand(x,W,H);
   try{ x.direction='rtl'; }catch(e){}
   x.textAlign='center'; x.textBaseline='middle';
@@ -702,7 +731,7 @@ document.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove(
 document.addEventListener('paste',e=>{ if(e.clipboardData && e.clipboardData.files.length) loadFiles(e.clipboardData.files); });
 
 /* brand controls, remembered in this browser */
-const brandData = ()=>({logo:brand.logoData||null, logoOn:brand.logoOn, logoSize:brand.logoSize, style:brand.style, barColor:brand.barColor, accColor:brand.accColor, wmText:brand.wmText, wmOn:brand.wmOn, wmAlpha:brand.wmAlpha, lastUnits});
+const brandData = ()=>({footOn:brand.footOn, footText:brand.footText, logo:brand.logoData||null, logoOn:brand.logoOn, logoSize:brand.logoSize, style:brand.style, barColor:brand.barColor, accColor:brand.accColor, wmText:brand.wmText, wmOn:brand.wmOn, wmAlpha:brand.wmAlpha, lastUnits});
 let brandT = 0;
 function saveBrand(){ clearTimeout(brandT); brandT = setTimeout(()=>putOp({lid:'brand', kind:'brand', data:brandData()}), 600); }
 const redrawAll = (d=200)=> items.forEach(it=>schedule(it,d));
@@ -731,13 +760,16 @@ $('#wmOn').onchange = e=>{ brand.wmOn = e.target.checked; if(brand.wmOn && !bran
 $('#barStyle').onchange = e=>{ brand.style = e.target.value; saveBrand(); redrawAll(0); };
 $('#barColor').oninput = e=>{ brand.barColor = e.target.value; saveBrand(); redrawAll(); };
 $('#accColor').oninput = e=>{ brand.accColor = e.target.value; saveBrand(); redrawAll(); };
+$('#footOn').onchange = e=>{ brand.footOn = e.target.checked; saveBrand(); redrawAll(0); };
+$('#footText').oninput = e=>{ brand.footText = e.target.value; saveBrand(); redrawAll(); };
 $('#wmAlpha').oninput = e=>{ brand.wmAlpha = +e.target.value; saveBrand(); redrawAll(); };
 async function applyBrand(s){
   if(!s) return;
-  Object.assign(brand,{style:s.style||'dark', barColor:s.barColor||'#1f2a37', accColor:s.accColor||'#c9a24b', logoOn:!!s.logoOn, logoSize:s.logoSize||18, wmText:s.wmText||'', wmOn:!!s.wmOn, wmAlpha:s.wmAlpha||20});
+  Object.assign(brand,{footOn:s.footOn!==false, footText:s.footText||'', style:s.style||'dark', barColor:s.barColor||'#1f2a37', accColor:s.accColor||'#c9a24b', logoOn:!!s.logoOn, logoSize:s.logoSize||18, wmText:s.wmText||'', wmOn:!!s.wmOn, wmAlpha:s.wmAlpha||20});
   if(s.lastUnits) Object.assign(lastUnits, s.lastUnits);
   $('#logoOn').checked = brand.logoOn; $('#logoSize').value = brand.logoSize; $('#wmText').value = brand.wmText;
   $('#wmOn').checked = brand.wmOn; $('#wmAlpha').value = brand.wmAlpha;
+  $('#footOn').checked = brand.footOn; $('#footText').value = brand.footText;
   $('#barStyle').value = brand.style; $('#barColor').value = brand.barColor; $('#accColor').value = brand.accColor;
   if(s.logo){ try{ await setLogo(s.logo); }catch(e){} }
   redrawAll(0);
