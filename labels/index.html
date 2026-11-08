@@ -104,6 +104,11 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
 .acct-grid form,.acct-grid .box{display:flex;flex-direction:column;gap:10px;min-width:0}
 .acct-grid h3{margin:0;font-size:.9rem}
 .note{font-size:.85rem;color:var(--muted);margin:0}
+.setup{background:var(--surface);border:2px solid var(--accent);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.setup h2{margin:0;font-family:var(--display);font-size:1.1rem}
+.setup p{margin:0}
+.setup pre{margin:0;max-height:220px;overflow:auto;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.78rem;white-space:pre;text-align:left}
+.saved.off{color:var(--danger)}
 </style>
 </head>
 <body>
@@ -113,18 +118,17 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
   <form class="lock-card" id="lockForm" autocomplete="on">
     <h1>ملصق الأسعار</h1>
     <p id="lockMsg">عم جهّز…</p>
-    <input type="text" name="username" value="ملصق الأسعار" autocomplete="username" hidden>
-    <label for="pw">كلمة السر<input type="password" id="pw" autocomplete="current-password" required></label>
-    <label for="pw2" id="pw2Wrap" hidden>أعد كتابة كلمة السر<input type="password" id="pw2" autocomplete="new-password"></label>
+    <label for="email">الإيميل<input type="email" id="email" autocomplete="username" required dir="ltr"></label>
+    <label for="pw">كلمة السر<input type="password" id="pw" autocomplete="current-password" required dir="ltr"></label>
+    <label class="switch" for="keep"><input type="checkbox" id="keep" checked> خليني داخل على هالجهاز</label>
     <button class="btn primary" type="submit" id="lockBtn" disabled>دخول</button>
     <p class="err" id="lockErr" aria-live="polite"></p>
-    <button type="button" class="linkbtn" id="forgot" hidden>نسيت كلمة السر؟</button>
   </form>
 </div>
 <div class="wrap" id="app" dir="rtl" lang="ar" hidden>
   <header>
     <h1>ملصق الأسعار</h1>
-    <p>ارفع صور المنتجات وعبّي معلومات كل صورة. كل شي بينحفظ لحاله على هالجهاز، ومشفّر بكلمة السر.</p>
+    <p>ارفع صور المنتجات وعبّي معلومات كل صورة. كل شي بينحفظ أونلاين لحاله، وبيبين على أي جهاز بتدخل منه.</p>
   </header>
 
   <div class="bar">
@@ -135,7 +139,7 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
     <button class="btn ghost-danger" id="clearAll" type="button">حذف الكل</button>
     <span class="count" id="count"></span>
     <span class="saved" id="saved"></span>
-    <button class="btn" id="lockNow" type="button">قفل</button>
+    <button class="btn" id="lockNow" type="button">خروج</button>
     <label class="size" for="scale">حجم الخط <input id="scale" type="range" min="70" max="140" value="100"></label>
   </div>
   <section class="brand" aria-label="الشعار والعلامة المائية">
@@ -173,26 +177,34 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
       </div>
     </div>
   </section>
+  <section class="setup" id="setup" hidden>
+    <h2>خطوة وحدة قبل ما تبلّش</h2>
+    <p>قاعدة البيانات لسا ما فيها مكان لصور ملصق الأسعار. افتح مشروعك بـ Supabase ← <b>SQL Editor</b> ← <b>New query</b>، الصق الكود تحت، واضغط <b>Run</b>. بعدها ارجع هون واضغط «جرّب مرة تانية».</p>
+    <pre id="sql" dir="ltr"></pre>
+    <div class="row"><button class="btn primary" type="button" id="copySql">نسخ الكود</button>
+      <button class="btn" type="button" id="retrySetup">جرّب مرة تانية</button></div>
+  </section>
   <details class="acct" id="acct">
     <summary>كلمة السر والنسخة الاحتياطية</summary>
     <div class="acct-grid">
       <form id="pwForm">
         <h3>تغيير كلمة السر</h3>
-        <input type="text" name="username" value="ملصق الأسعار" autocomplete="username" hidden>
-        <label for="oldPw">كلمة السر الحالية<input type="password" id="oldPw" autocomplete="current-password" required></label>
-        <label for="newPw">كلمة السر الجديدة<input type="password" id="newPw" autocomplete="new-password" required></label>
-        <label for="newPw2">أعد كتابة الجديدة<input type="password" id="newPw2" autocomplete="new-password" required></label>
+        <input type="email" id="pwEmail" autocomplete="username" hidden>
+        <label for="oldPw">كلمة السر الحالية<input type="password" id="oldPw" autocomplete="current-password" required dir="ltr"></label>
+        <label for="newPw">كلمة السر الجديدة<input type="password" id="newPw" autocomplete="new-password" required dir="ltr"></label>
+        <label for="newPw2">أعد كتابة الجديدة<input type="password" id="newPw2" autocomplete="new-password" required dir="ltr"></label>
         <button class="btn primary" type="submit" id="pwBtn">تغيير</button>
       </form>
       <div class="box">
         <h3>نسخة احتياطية</h3>
-        <p class="note">الصور والمعلومات محفوظة على هالجهاز وهالمتصفح بس. لتنقلها لجهاز تاني أو تحميها من الضياع، نزّل نسخة احتياطية وافتحها على الجهاز التاني.</p>
+        <p class="note">كل شي محفوظ أونلاين. فيك كمان تنزّل نسخة على جهازك للاحتياط، أو تسترجع نسخة قديمة (حتى من النسخة الأولى للأداة).</p>
         <div class="row">
           <button class="btn" type="button" id="backupBtn">تنزيل نسخة احتياطية</button>
           <label class="btn pick" for="restoreFile">استرجاع من نسخة
             <input id="restoreFile" type="file" accept=".zip,application/zip"></label>
         </div>
         <p class="note" id="usage"></p>
+        <p class="note">حسابك: <span id="whoami" dir="ltr"></span></p>
       </div>
     </div>
   </details>
@@ -379,9 +391,7 @@ function draw(src,it){
 }
 async function getFull(it){
   if(it.full) return it.full;
-  const rec = await dbGet('blobs', it.id);
-  if(!rec) throw new Error('missing');
-  return openBlob(rec.f);
+  return fetchImage(it, 'img');
 }
 async function renderFull(it){
   const src = await decode(await getFull(it)); const c = draw(src,it); if(src.close) src.close();
@@ -395,6 +405,7 @@ async function updatePreview(it){
   try{
     do{
       it.again = false; it.dirty = false;
+      if(!it.thumb) it.thumb = await fetchImage(it,'thumb');
       const src = await decode(it.thumb); const c = draw(src,it); if(src.close) src.close();
       const b = await toBlob(c,0.85); c.width = c.height = 0;
       if(it.url) URL.revokeObjectURL(it.url);
@@ -489,9 +500,9 @@ function addCard(it){
 var lastUnits = {priceUnit:'قطعة', packUnit:'قطعة', cur:'usd'};
 function blankItem(){ return {desc:'', code:'', price:'', packCount:'', priceUnit:lastUnits.priceUnit, packUnit:lastUnits.packUnit, cur:lastUnits.cur}; }
 async function newItem(p,name,extra={}){
-  const it = {id:++uid, name, full:p.full, thumb:p.thumb, ...blankItem(), ...extra};
+  const it = {id:++uid, lkey:newKey(), sid:null, pos:nextPos(), name, full:p.full, thumb:p.thumb, ...blankItem(), ...extra};
   items.push(it); addCard(it); renumber();
-  await persistNew(it);
+  await queueNew(it);
   return it;
 }
 function removeItem(it){
@@ -499,7 +510,7 @@ function removeItem(it){
   clearTimeout(it.t); if(it.url) URL.revokeObjectURL(it.url);
   const d = document.getElementById('card-'+it.id); if(d){ io.unobserve(d); d.remove(); }
   renumber();
-  if(!it.keepStored) track(Promise.all([dbDel('fields',it.id), dbDel('blobs',it.id)]));
+  if(!it.keepStored) queueDelete([it]);
 }
 function renumber(){
   items.forEach((it,i)=>{ const n = document.querySelector(`#card-${it.id} .num`); if(n) n.textContent = (i+1); });
@@ -585,15 +596,15 @@ async function saveAll(){
 /* ---------- wiring ---------- */
 $('#file').addEventListener('change', e=>{ loadFiles(e.target.files); e.target.value=''; });
 $('#saveAll').onclick = saveAll;
-$('#lockNow').onclick = ()=>location.reload();
+$('#lockNow').onclick = ()=>logout();
 let clearArmed = 0;
 $('#clearAll').onclick = ()=>{
   const b = $('#clearAll');
   if(!items.length) return;
   if(!clearArmed){ b.textContent='اضغط مرة تانية للتأكيد'; clearArmed = setTimeout(()=>{ b.textContent='حذف الكل'; clearArmed=0; },3000); return; }
   clearTimeout(clearArmed); clearArmed = 0; b.textContent='حذف الكل';
-  items.slice().forEach(it=>{ it.keepStored = true; removeItem(it); });
-  track(Promise.all([dbClear('fields'), dbClear('blobs')])); setStatus('انحذفت كل الصور.');
+  const all = items.slice(); all.forEach(it=>{ it.keepStored = true; removeItem(it); }); queueDelete(all);
+  setStatus('انحذفت كل الصور.');
 };
 $('#scale').oninput = ()=> items.forEach(it=>schedule(it,250));
 const drop = $('#drop');
@@ -605,7 +616,7 @@ document.addEventListener('paste',e=>{ if(e.clipboardData && e.clipboardData.fil
 /* brand controls, remembered in this browser */
 const brandData = ()=>({logo:brand.logoData||null, logoOn:brand.logoOn, logoSize:brand.logoSize, style:brand.style, barColor:brand.barColor, accColor:brand.accColor, wmText:brand.wmText, wmOn:brand.wmOn, wmAlpha:brand.wmAlpha, lastUnits});
 let brandT = 0;
-function saveBrand(){ clearTimeout(brandT); brandT = setTimeout(()=>track((async()=>dbPut('meta', await sealJSON(brandData()), 'brand'))()), 400); }
+function saveBrand(){ clearTimeout(brandT); brandT = setTimeout(()=>putOp({lid:'brand', kind:'brand', data:brandData()}), 600); }
 const redrawAll = (d=200)=> items.forEach(it=>schedule(it,d));
 async function setLogo(dataUrl){
   const img = new Image();
@@ -649,19 +660,24 @@ renumber();
 if(document.fonts){ document.fonts.load('600 40px Cairo','سعر').then(()=>items.forEach(it=>schedule(it,0))).catch(()=>{}); }
 
 
-/* ---------- storage: IndexedDB on this device, everything sealed with the password (AES-GCM) ---------- */
-const enc = new TextEncoder(), dec = new TextDecoder();
+/* ---------- cloud: Supabase (auth + table + private storage), with an on-device outbox for bad connections ---------- */
+const SB = {url:'https://ecvzyptrpekgsouhgbdb.supabase.co', key:'sb_publishable_UpaManLT8I-L0lcQi53BaQ_Y52DzNpt', bucket:'labels'};
 const FIELDS = ['name','desc','code','price','cur','priceUnit','packCount','packUnit'];
-const ITER = 250000;
-let KEY = null, dbp = null;
+const pick = it=>Object.fromEntries(FIELDS.map(k=>[k, it[k]]));
+const newKey = ()=> (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+let posSeed = Date.now();
+const nextPos = ()=> ++posSeed;
+let S = null;
+
+/* local store: outbox (pending changes) + cache (downloaded images) */
+let dbp = null;
 function idb(){
   if(dbp) return dbp;
   dbp = new Promise((res,rej)=>{
-    const r = indexedDB.open('price-label', 1);
+    const r = indexedDB.open('price-label-cloud', 1);
     r.onupgradeneeded = ()=>{ const d = r.result;
-      if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
-      if(!d.objectStoreNames.contains('fields')) d.createObjectStore('fields',{keyPath:'id'});
-      if(!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs',{keyPath:'id'}); };
+      if(!d.objectStoreNames.contains('outbox')) d.createObjectStore('outbox',{keyPath:'lid'});
+      if(!d.objectStoreNames.contains('cache')) d.createObjectStore('cache'); };
     r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error);
   });
   return dbp;
@@ -674,168 +690,344 @@ const dbPut = async(s,v,k)=>{ const st = await os(s,'readwrite'); return done(st
 const dbDel = async(s,k)=>{ const st = await os(s,'readwrite'); return done(st, st.delete(k)); };
 const dbClear = async(s)=>{ const st = await os(s,'readwrite'); return done(st, st.clear()); };
 
-async function deriveKey(pass,salt,iter=ITER){
-  const base = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+/* ---------- auth ---------- */
+const keepLogin = ()=> $('#keep').checked;
+function saveSession(){
+  if(!S) return;
+  const v = JSON.stringify({refresh:S.refresh, uid:S.uid, email:S.email});
+  try{ localStorage.removeItem('pl-session'); sessionStorage.removeItem('pl-session'); (keepLogin()?localStorage:sessionStorage).setItem('pl-session', v); }catch(e){}
 }
-async function seal(buf,key=KEY){ const iv = crypto.getRandomValues(new Uint8Array(12)); return {iv, data: await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, buf)}; }
-const unseal = (o,key=KEY)=>crypto.subtle.decrypt({name:'AES-GCM', iv:o.iv}, key, o.data);
-const sealJSON = (v,key)=>seal(enc.encode(JSON.stringify(v)), key);
-const openJSON = async(o,key)=>JSON.parse(dec.decode(await unseal(o,key)));
-const sealBlob = async(b,key)=>seal(await b.arrayBuffer(), key);
-const openBlob = async(o,key)=>new Blob([await unseal(o,key)], {type:'image/jpeg'});
-const pick = it=>Object.fromEntries(FIELDS.map(k=>[k, it[k]]));
+function readSession(){ try{ return JSON.parse(localStorage.getItem('pl-session') || sessionStorage.getItem('pl-session') || 'null'); }catch(e){ return null; } }
+function clearSession(){ try{ localStorage.removeItem('pl-session'); sessionStorage.removeItem('pl-session'); }catch(e){} }
+class AuthError extends Error{}
+async function authToken(grant, body){
+  let r;
+  try{ r = await fetch(`${SB.url}/auth/v1/token?grant_type=${grant}`, {method:'POST', headers:{apikey:SB.key,'Content-Type':'application/json'}, body:JSON.stringify(body)}); }
+  catch(e){ const er = new Error('offline'); er.offline = true; throw er; }
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok || !j.access_token){ const er = new AuthError(j.error_description || j.msg || j.message || ('HTTP '+r.status)); er.code = j.error_code || j.error; er.status = r.status; throw er; }
+  S = {access:j.access_token, refresh:j.refresh_token, exp:Date.now()+(j.expires_in||3600)*1000-60000, uid:j.user && j.user.id, email:j.user && j.user.email};
+  saveSession();
+  return S;
+}
+let refreshing = null;
+async function token(){
+  if(S && S.access && Date.now() < S.exp) return S.access;
+  if(!S || !S.refresh) throw new AuthError('no session');
+  if(!refreshing) refreshing = authToken('refresh_token', {refresh_token:S.refresh}).finally(()=>refreshing=null);
+  await refreshing; return S.access;
+}
+async function sb(path, opt={}, retry=true){
+  const t = await token();
+  let r;
+  try{ r = await fetch(SB.url+path, {...opt, headers:{apikey:SB.key, Authorization:'Bearer '+t, ...(opt.headers||{})}}); }
+  catch(e){ const er = new Error('offline'); er.offline = true; throw er; }
+  if(r.status===401 && retry){ S.exp = 0; return sb(path, opt, false); }
+  if(!r.ok){ const body = await r.text(); const er = new Error(body.slice(0,300)); er.status = r.status; er.body = body; throw er; }
+  return r;
+}
+const jsonOf = async r=>{ const x = await r.text(); return x ? JSON.parse(x) : null; };
+const missingTable = e=> e && e.body && /PGRST205|42P01|label_items|label_settings/.test(e.body) && /does not exist|Could not find|schema cache/.test(e.body);
+const missingBucket = e=> e && e.body && /Bucket not found|bucket/i.test(e.body) && e.status!==401;
 
-/* save indicator */
-let pending = 0, failed = false;
-function showSaved(){
-  const el = $('#saved'); if(!el) return;
-  el.classList.toggle('busy', pending>0);
-  el.textContent = failed ? 'ما انحفظ آخر تعديل!' : (pending>0 ? 'عم احفظ…' : (items.length ? 'كل شي محفوظ ✓' : ''));
+/* ---------- images in the private bucket ---------- */
+const paths = it=>({img:`${S.uid}/${it.lkey}.jpg`, thumb:`${S.uid}/${it.lkey}_t.jpg`});
+async function upload(path, blob){
+  await sb(`/storage/v1/object/${SB.bucket}/${path}`, {method:'POST', headers:{'Content-Type':'image/jpeg','x-upsert':'true','cache-control':'31536000'}, body:blob});
 }
-function track(p){
-  pending++; showSaved();
-  return Promise.resolve(p).then(r=>{ failed = false; return r; }, e=>{
-    failed = true;
-    setStatus(e && e.name==='QuotaExceededError' ? 'مساحة التخزين على الجهاز خلصت. نزّل نسخة احتياطية واحذف صور قديمة.' : 'صار خطأ بالحفظ على الجهاز.');
-  }).finally(()=>{ pending--; showSaved(); });
+async function fetchImage(it, which){
+  if(!it.sid){ const op = await dbGet('outbox','new-'+it.lkey); if(op) return which==='img' ? op.full : op.thumb; }
+  const p = it[which==='img' ? 'imgPath' : 'thumbPath'];
+  try{ const c = await dbGet('cache', p); if(c) return c; }catch(e){}
+  const r = await sb(`/storage/v1/object/authenticated/${SB.bucket}/${p}`);
+  const b = new Blob([await r.arrayBuffer()], {type:'image/jpeg'});
+  try{ await dbPut('cache', b, p); }catch(e){}
+  return b;
 }
-window.addEventListener('beforeunload', e=>{ if(pending>0){ e.preventDefault(); e.returnValue=''; } });
 
-async function persistNew(it){
-  await track((async()=>{
-    const f = await sealBlob(it.full), th = await sealBlob(it.thumb);
-    await dbPut('blobs', {id:it.id, f, t:th});
-    await dbPut('fields', {id:it.id, ...(await sealJSON(pick(it)))});
-    if(items.includes(it)) it.full = null; else { await dbDel('fields',it.id); await dbDel('blobs',it.id); }
-  })());
+/* ---------- outbox: every change is written here first, then sent ---------- */
+let stamp = 0;
+const mkStamp = ()=> Date.now()*1000 + (++stamp % 1000);
+async function putOp(op){
+  op.uid = S && S.uid; op.t = op.t || mkStamp(); op.s = mkStamp();
+  await dbPut('outbox', op); kick();
+}
+async function queueNew(it){
+  try{
+    await putOp({lid:'new-'+it.lkey, kind:'new', lkey:it.lkey, pos:it.pos, fields:pick(it), full:it.full, thumb:it.thumb});
+    it.full = null;
+  }catch(e){ failNote(e); }
 }
 function queueSave(it){
   clearTimeout(it.st);
-  it.st = setTimeout(()=>{ if(items.includes(it)) track((async()=>dbPut('fields', {id:it.id, ...(await sealJSON(pick(it)))}))()); }, 400);
+  it.st = setTimeout(async()=>{
+    if(!items.includes(it)) return;
+    try{
+      if(!it.sid){ const op = await dbGet('outbox','new-'+it.lkey); if(op){ op.fields = pick(it); await putOp(op); return; } }
+      if(it.sid) await putOp({lid:'upd-'+it.sid, kind:'upd', sid:it.sid, fields:pick(it)});
+    }catch(e){ failNote(e); }
+  }, 500);
+}
+async function queueDelete(list){
+  const sids = [], ps = [];
+  for(const it of list){
+    clearTimeout(it.st);
+    try{ await dbDel('outbox','new-'+it.lkey); }catch(e){}
+    if(it.sid){ sids.push(it.sid); ps.push(it.imgPath, it.thumbPath); try{ await dbDel('outbox','upd-'+it.sid); }catch(e){} }
+    else it.gone = true;
+  }
+  if(sids.length) await putOp({lid:'del-'+newKey(), kind:'del', sids, paths:ps});
+  else kick();
+}
+async function runOp(op){
+  if(op.kind==='new'){
+    const p = {img:`${S.uid}/${op.lkey}.jpg`, thumb:`${S.uid}/${op.lkey}_t.jpg`};
+    await upload(p.img, op.full); await upload(p.thumb, op.thumb);
+    const r = await sb(`/rest/v1/label_items?on_conflict=img_path`, {method:'POST',
+      headers:{'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=representation'},
+      body:JSON.stringify({user_id:S.uid, pos:op.pos, data:op.fields, img_path:p.img, thumb_path:p.thumb})});
+    const row = (await jsonOf(r))[0];
+    const it = items.find(i=>i.lkey===op.lkey);
+    try{ await dbPut('cache', op.thumb, p.thumb); }catch(e){}
+    const cur = await dbGet('outbox', op.lid);
+    if(!cur){ await putOp({lid:'del-'+newKey(), kind:'del', sids:[row.id], paths:[p.img,p.thumb]}); return 'keep'; }
+    if(it){ it.sid = row.id; it.imgPath = p.img; it.thumbPath = p.thumb; }
+    if(cur.s !== op.s){ await dbDel('outbox', op.lid); await putOp({lid:'upd-'+row.id, kind:'upd', sid:row.id, fields:cur.fields}); return 'keep'; }
+  } else if(op.kind==='upd'){
+    await sb(`/rest/v1/label_items?id=eq.${op.sid}`, {method:'PATCH', headers:{'Content-Type':'application/json', Prefer:'return=minimal'},
+      body:JSON.stringify({data:op.fields, updated_at:new Date().toISOString()})});
+  } else if(op.kind==='del'){
+    for(let i=0;i<op.sids.length;i+=100){
+      await sb(`/rest/v1/label_items?id=in.(${op.sids.slice(i,i+100).join(',')})`, {method:'DELETE', headers:{Prefer:'return=minimal'}});
+    }
+    for(let i=0;i<op.paths.length;i+=100){
+      try{ await sb(`/storage/v1/object/${SB.bucket}`, {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prefixes:op.paths.slice(i,i+100)})}); }catch(e){ if(e.offline) throw e; }
+      for(const p of op.paths.slice(i,i+100)) try{ await dbDel('cache', p); }catch(e){}
+    }
+  } else if(op.kind==='brand'){
+    await sb(`/rest/v1/label_settings?on_conflict=user_id`, {method:'POST', headers:{'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify({user_id:S.uid, data:op.data, updated_at:new Date().toISOString()})});
+  }
+}
+let flushing = false, again = false, retryT = 0, offline = false, failed = false, waiting = 0;
+function kick(){ clearTimeout(retryT); flush(); }
+async function flush(){
+  if(!S) return;
+  if(flushing){ again = true; return; }
+  flushing = true; showSaved();
+  try{
+    do{
+      again = false;
+      const ops = (await dbAll('outbox')).filter(o=>o.uid===S.uid).sort((a,b)=>a.t-b.t);
+      waiting = ops.length; showSaved();
+      for(const op of ops){
+        const res = await runOp(op);
+        if(res!=='keep'){ const cur = await dbGet('outbox', op.lid); if(cur && cur.s===op.s) await dbDel('outbox', op.lid); else again = true; }
+        else again = true;
+        waiting = Math.max(0, waiting-1); showSaved();
+      }
+    }while(again);
+    offline = false; failed = false; waiting = 0;
+  }catch(e){
+    if(e instanceof AuthError){ toLogin('انتهت الجلسة، ادخل مرة تانية.'); }
+    else if(missingTable(e) || (e.body && /Bucket not found/i.test(e.body))){ showSetup(); }
+    else { if(e.offline) offline = true; else { failed = true; setStatus('ما قدرت ارفع آخر تعديل: '+(e.message||'').slice(0,120)); } retryT = setTimeout(flush, 15000); }
+    try{ waiting = (await dbAll('outbox')).filter(o=>o.uid===S.uid).length; }catch(_){}
+  }finally{ flushing = false; showSaved(); }
+}
+window.addEventListener('online', ()=>{ kick(); items.forEach(it=>{ if(!it.thumb) schedule(it,0); }); });
+function showSaved(){
+  const el = $('#saved'); if(!el) return;
+  el.classList.toggle('busy', flushing && !offline);
+  el.classList.toggle('off', offline || failed);
+  el.textContent = offline ? `ما في إنترنت — ${waiting} تعديل محفوظ عالجهاز وبينرفع لحاله` :
+    failed ? 'في تعديل ما انرفع، رح جرّب كمان شوي' :
+    (flushing || waiting) ? `عم ارفع… ${waiting||''}`.trim() :
+    (items.length ? 'كل شي محفوظ أونلاين ✓' : '');
+}
+function failNote(e){ setStatus(e && e.name==='QuotaExceededError' ? 'مساحة الجهاز خلصت، ما قدرت احفظ.' : 'صار خطأ بالحفظ.'); }
+window.addEventListener('beforeunload', e=>{ if(flushing || waiting){ e.preventDefault(); e.returnValue=''; } });
+
+/* ---------- loading everything after login ---------- */
+async function loadAll(){
+  setStatus('عم حمّل صورك…');
+  let rows = [];
+  try{
+    const r = await sb(`/rest/v1/label_items?select=id,pos,data,img_path,thumb_path&order=pos.asc&limit=5000`);
+    rows = await jsonOf(r) || [];
+  }catch(e){
+    if(missingTable(e)){ showSetup(); return false; }
+    if(e instanceof AuthError) throw e;
+    setStatus(e.offline ? 'ما في إنترنت. عم اعرض بس الشي اللي لسا ما انرفع.' : 'ما قدرت حمّل الصور: '+(e.message||'').slice(0,120));
+  }
+  const ops = (await dbAll('outbox')).filter(o=>o.uid===S.uid);
+  const delSet = new Set(ops.filter(o=>o.kind==='del').flatMap(o=>o.sids));
+  const upd = Object.fromEntries(ops.filter(o=>o.kind==='upd').map(o=>[o.sid, o.fields]));
+  items.slice().forEach(it=>{ it.keepStored = true; removeItem(it); });
+  for(const r of rows){
+    if(delSet.has(r.id)) continue;
+    const lkey = (r.img_path.split('/').pop()||'').replace(/\.jpg$/,'');
+    const it = {id:++uid, lkey, sid:r.id, pos:r.pos, imgPath:r.img_path, thumbPath:r.thumb_path, full:null, thumb:null, ...blankItem(), ...(r.data||{}), ...(upd[r.id]||{})};
+    items.push(it); addCard(it); posSeed = Math.max(posSeed, r.pos);
+  }
+  for(const o of ops.filter(o=>o.kind==='new').sort((a,b)=>a.pos-b.pos)){
+    if(rows.some(r=>r.img_path.endsWith('/'+o.lkey+'.jpg'))) continue;
+    const it = {id:++uid, lkey:o.lkey, sid:null, pos:o.pos, full:null, thumb:o.thumb, ...blankItem(), ...o.fields};
+    items.push(it); addCard(it);
+  }
+  renumber();
+  if(rows.length || items.length) setStatus(`انفتحت ${items.length} صورة`);
+  else setStatus('');
+  return true;
+}
+async function loadSettings(){
+  try{
+    const r = await sb(`/rest/v1/label_settings?select=data&user_id=eq.${S.uid}`);
+    const j = await jsonOf(r);
+    const pendingBrand = await dbGet('outbox','brand');
+    const d = pendingBrand ? pendingBrand.data : (j && j[0] && j[0].data);
+    if(d) await applyBrand(d);
+  }catch(e){ if(e instanceof AuthError) throw e; }
 }
 
-async function loadAll(){
-  const recs = (await dbAll('fields')).sort((a,b)=>a.id-b.id);
-  let n = 0, bad = 0;
-  for(const r of recs){
-    n++; if(n%5===1) setStatus(`عم افتح الصور المحفوظة… ${n} من ${recs.length}`);
-    try{
-      const fields = await openJSON(r);
-      const b = await dbGet('blobs', r.id);
-      const thumb = await openBlob(b.t);
-      const it = {id:r.id, full:null, thumb, ...blankItem(), ...fields};
-      items.push(it); addCard(it); uid = Math.max(uid, r.id);
-    }catch(e){ bad++; }
-  }
-  renumber(); showSaved();
-  setStatus(recs.length ? `انفتحت ${recs.length-bad} صورة محفوظة` + (bad ? ` (${bad} ما انفتحت)` : '') : '');
+/* ---------- setup SQL (run once in Supabase) ---------- */
+const SETUP_SQL = `-- ملصق الأسعار: جداول وصور خاصة بكل مستخدم
+create table if not exists public.label_items (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  pos double precision not null default 0,
+  data jsonb not null default '{}'::jsonb,
+  img_path text not null unique,
+  thumb_path text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists label_items_user_pos on public.label_items (user_id, pos);
+alter table public.label_items enable row level security;
+drop policy if exists "label_items_own" on public.label_items;
+create policy "label_items_own" on public.label_items for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create table if not exists public.label_settings (
+  user_id uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.label_settings enable row level security;
+drop policy if exists "label_settings_own" on public.label_settings;
+create policy "label_settings_own" on public.label_settings for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+grant select, insert, update, delete on public.label_items, public.label_settings to authenticated;
+
+insert into storage.buckets (id, name, public) values ('labels', 'labels', false)
+  on conflict (id) do nothing;
+drop policy if exists "labels_read" on storage.objects;
+drop policy if exists "labels_insert" on storage.objects;
+drop policy if exists "labels_update" on storage.objects;
+drop policy if exists "labels_delete" on storage.objects;
+create policy "labels_read" on storage.objects for select to authenticated
+  using (bucket_id = 'labels' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "labels_insert" on storage.objects for insert to authenticated
+  with check (bucket_id = 'labels' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "labels_update" on storage.objects for update to authenticated
+  using (bucket_id = 'labels' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'labels' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "labels_delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'labels' and (storage.foldername(name))[1] = auth.uid()::text);
+`;
+$('#sql').textContent = SETUP_SQL;
+function showSetup(){ $('#setup').hidden = false; $('#setup').scrollIntoView({block:'start'}); setStatus(''); }
+$('#copySql').onclick = async()=>{
+  try{ await navigator.clipboard.writeText(SETUP_SQL); setStatus('انتسخ الكود'); }
+  catch(e){ const r = document.createRange(); r.selectNodeContents($('#sql')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); setStatus('حدّدت الكود، انسخه يدوياً'); }
+};
+$('#retrySetup').onclick = async()=>{ $('#setup').hidden = true; const ok = await loadAll(); if(ok){ await loadSettings(); kick(); } };
+
+/* ---------- login / logout ---------- */
+const lockErr = t=>$('#lockErr').textContent = t;
+function toLogin(msg){
+  S = null; clearSession();
+  items.slice().forEach(it=>{ it.keepStored = true; removeItem(it); });
+  $('#app').hidden = true; $('#lock').hidden = false;
+  $('#lockMsg').textContent = 'ادخل بإيميلك وكلمة السر.'; lockErr(msg||''); $('#lockBtn').disabled = false;
 }
+async function enter(){
+  $('#lock').hidden = true; $('#app').hidden = false;
+  $('#whoami').textContent = S.email || ''; $('#pwEmail').value = S.email || '';
+  try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+  try{
+    await loadSettings();
+    const ok = await loadAll();
+    if(ok) kick();
+  }catch(e){ if(e instanceof AuthError) toLogin('انتهت الجلسة، ادخل مرة تانية.'); }
+  showUsage();
+}
+async function initLock(){
+  if(!window.indexedDB || !window.fetch){ $('#lockMsg').textContent = 'هالمتصفح قديم. افتح الموقع بـ Chrome أو Safari حديث.'; return; }
+  const sv = readSession();
+  try{ $('#email').value = localStorage.getItem('pl-email') || ''; }catch(e){}
+  if(sv && sv.refresh){
+    $('#lockMsg').textContent = 'عم افتح حسابك…';
+    $('#keep').checked = !!localStorage.getItem('pl-session');
+    S = {refresh:sv.refresh, uid:sv.uid, email:sv.email, exp:0};
+    try{ await token(); return enter(); }
+    catch(e){
+      if(e.offline){ S.exp = 0; lockErr(''); setStatus(''); return enter(); }
+      S = null; clearSession();
+    }
+  }
+  $('#lockMsg').textContent = 'ادخل بإيميلك وكلمة السر.';
+  $('#lockBtn').disabled = false; ($('#email').value ? $('#pw') : $('#email')).focus();
+}
+$('#lockForm').addEventListener('submit', async e=>{
+  e.preventDefault(); lockErr('');
+  const btn = $('#lockBtn'); btn.disabled = true;
+  try{
+    await authToken('password', {email:$('#email').value.trim(), password:$('#pw').value});
+    try{ localStorage.setItem('pl-email', $('#email').value.trim()); }catch(_){}
+    $('#pw').value = '';
+    await enter();
+  }catch(err){
+    lockErr(err.offline ? 'ما في إنترنت. تأكد من الاتصال وجرّب كمان مرة.' :
+      (err.code==='invalid_credentials' || err.status===400) ? 'الإيميل أو كلمة السر غلط.' :
+      (err.code==='email_not_confirmed') ? 'الإيميل لسا ما تأكد. أكّده من لوحة Supabase.' : 'ما قدرت ادخل: '+err.message);
+  }finally{ btn.disabled = false; }
+});
+async function logout(){
+  if(waiting || flushing){
+    const b = $('#lockNow');
+    if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'في تعديلات لسا ما انرفعت. اضغط مرة تانية للخروج'; setTimeout(()=>{ delete b.dataset.armed; b.textContent = 'خروج'; }, 5000); return; }
+  }
+  try{ await sb('/auth/v1/logout', {method:'POST'}); }catch(e){}
+  try{ await dbClear('cache'); }catch(e){}
+  toLogin('');
+}
+
+/* change password */
+$('#pwForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const o = $('#oldPw').value, n1 = $('#newPw').value, n2 = $('#newPw2').value, btn = $('#pwBtn');
+  if(n1.length < 6){ setStatus('كلمة السر الجديدة لازم تكون 6 أحرف أو أكتر.'); return; }
+  if(n1 !== n2){ setStatus('كلمتين السر الجديدة مو متطابقين.'); return; }
+  btn.disabled = true;
+  try{
+    try{ await authToken('password', {email:S.email, password:o}); }catch(err){ setStatus(err.offline ? 'ما في إنترنت.' : 'كلمة السر الحالية غلط.'); return; }
+    await sb('/auth/v1/user', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:n1})});
+    $('#pwForm').reset(); setStatus('تغيّرت كلمة السر.');
+  }catch(err){ setStatus('ما قدرت غيّر كلمة السر: '+(err.message||'').slice(0,120)); }
+  finally{ btn.disabled = false; }
+});
 
 async function showUsage(){
   try{
     if(!navigator.storage || !navigator.storage.estimate) return;
-    const {usage, quota} = await navigator.storage.estimate();
-    const mb = v=>(v/1048576).toFixed(0);
-    $('#usage').textContent = `المساحة المستعملة على الجهاز: ${mb(usage)} ميغا من أصل ${mb(quota)} ميغا تقريباً.`;
+    const {usage} = await navigator.storage.estimate();
+    $('#usage').textContent = `الصور المحفوظة مؤقتاً على هالجهاز لتفتح أسرع: ${(usage/1048576).toFixed(0)} ميغا تقريباً.`;
   }catch(e){}
 }
 
-/* ---------- lock screen ---------- */
-let AUTH = null;
-const lockErr = t=>$('#lockErr').textContent = t;
-async function initLock(){
-  if(!window.isSecureContext || !window.crypto || !crypto.subtle || !window.indexedDB){
-    $('#lockMsg').textContent = 'هالمتصفح ما بيدعم الحفظ المشفّر. افتح الموقع بـ Chrome أو Safari حديث.'; return;
-  }
-  try{ AUTH = await dbGet('meta','auth'); }catch(e){ $('#lockMsg').textContent = 'المتصفح مانع التخزين (يمكن وضع التصفح الخفي). افتح الموقع بنافذة عادية.'; return; }
-  if(!AUTH){
-    $('#lockMsg').textContent = 'أول مرة على هالجهاز: اختار كلمة سر. رح تحتاجها كل ما تفتح الموقع، وما في طريقة لاسترجاعها إذا نسيتها.';
-    $('#pw2Wrap').hidden = false; $('#pw2').required = true; $('#lockBtn').textContent = 'إنشاء كلمة السر والدخول';
-    $('#pw').autocomplete = 'new-password';
-  } else {
-    $('#lockMsg').textContent = 'اكتب كلمة السر لتفتح صورك ومعلوماتك.';
-    $('#forgot').hidden = false;
-  }
-  $('#lockBtn').disabled = false; $('#pw').focus();
-}
-$('#lockForm').addEventListener('submit', async e=>{
-  e.preventDefault(); lockErr('');
-  const pw = $('#pw').value, btn = $('#lockBtn');
-  btn.disabled = true;
-  try{
-    if(!AUTH){
-      if(pw.length < 4){ lockErr('كلمة السر لازم تكون 4 أحرف أو أكتر.'); return; }
-      if(pw !== $('#pw2').value){ lockErr('كلمتين السر مو متطابقين.'); return; }
-      const salt = crypto.getRandomValues(new Uint8Array(16));
-      KEY = await deriveKey(pw, salt);
-      AUTH = {salt, iter:ITER, check: await sealJSON('price-label-ok')};
-      await dbPut('meta', AUTH, 'auth');
-    } else {
-      const k = await deriveKey(pw, AUTH.salt, AUTH.iter);
-      try{ await openJSON(AUTH.check, k); }catch(_){ lockErr('كلمة السر غلط.'); $('#pw').select(); return; }
-      KEY = k;
-    }
-    await unlock();
-  }catch(err){ lockErr('صار خطأ، جرّب كمان مرة.'); }
-  finally{ btn.disabled = false; }
-});
-let forgotArmed = 0;
-$('#forgot').onclick = async()=>{
-  const b = $('#forgot');
-  if(!forgotArmed){
-    b.classList.add('danger'); b.textContent = 'هيك رح تنمسح كل الصور والمعلومات المحفوظة على هالجهاز. اضغط مرة تانية للتأكيد';
-    forgotArmed = setTimeout(()=>{ forgotArmed = 0; b.classList.remove('danger'); b.textContent = 'نسيت كلمة السر؟'; }, 6000);
-    return;
-  }
-  clearTimeout(forgotArmed);
-  try{ (await idb()).close(); }catch(e){}
-  const r = indexedDB.deleteDatabase('price-label');
-  r.onsuccess = r.onerror = r.onblocked = ()=>location.reload();
-};
-async function unlock(){
-  $('#pw').value = ''; $('#pw2').value = '';
-  $('#lock').hidden = true; $('#app').hidden = false;
-  try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
-  try{ const b = await dbGet('meta','brand'); if(b) await applyBrand(await openJSON(b)); }catch(e){}
-  await loadAll();
-  showUsage();
-}
-
-/* change password: re-seal everything with the new key */
-$('#pwForm').addEventListener('submit', async e=>{
-  e.preventDefault();
-  const o = $('#oldPw').value, n1 = $('#newPw').value, n2 = $('#newPw2').value, btn = $('#pwBtn');
-  if(n1.length < 4){ setStatus('كلمة السر الجديدة لازم تكون 4 أحرف أو أكتر.'); return; }
-  if(n1 !== n2){ setStatus('كلمتين السر الجديدة مو متطابقين.'); return; }
-  btn.disabled = true;
-  try{
-    const ok = await deriveKey(o, AUTH.salt, AUTH.iter);
-    try{ await openJSON(AUTH.check, ok); }catch(_){ setStatus('كلمة السر الحالية غلط.'); return; }
-    setStatus('عم غيّر كلمة السر وأعيد تشفير الصور…');
-    const salt = crypto.getRandomValues(new Uint8Array(16)), nk = await deriveKey(n1, salt);
-    const fl = await dbAll('fields'), bl = await dbAll('blobs');
-    const nf = [], nb = [];
-    for(const r of fl) nf.push({id:r.id, ...(await seal(await unseal(r,ok), nk))});
-    for(const r of bl) nb.push({id:r.id, f: await seal(await unseal(r.f,ok), nk), t: await seal(await unseal(r.t,ok), nk)});
-    const br = await dbGet('meta','brand');
-    const nbr = br ? await seal(await unseal(br,ok), nk) : null;
-    const newAuth = {salt, iter:ITER, check: await sealJSON('price-label-ok', nk)};
-    const d = await idb();
-    await new Promise((res,rej)=>{
-      const tx = d.transaction(['meta','fields','blobs'],'readwrite');
-      nf.forEach(r=>tx.objectStore('fields').put(r)); nb.forEach(r=>tx.objectStore('blobs').put(r));
-      if(nbr) tx.objectStore('meta').put(nbr,'brand');
-      tx.objectStore('meta').put(newAuth,'auth');
-      tx.oncomplete = res; tx.onerror = tx.onabort = ()=>rej(tx.error);
-    });
-    AUTH = newAuth; KEY = nk;
-    $('#pwForm').reset(); setStatus('تغيّرت كلمة السر.');
-  }catch(err){ setStatus('ما قدرت غيّر كلمة السر. ما تغيّر شي.'); }
-  finally{ btn.disabled = false; }
-});
-
-/* backup: a zip with data.json + images, can be restored on any device */
+/* backup: zip with data.json + images (same format as the first version) */
 $('#backupBtn').onclick = async()=>{
   if(!window.JSZip){ setStatus('ما قدرت حمّل أداة الضغط. تأكد من الإنترنت وحدّث الصفحة.'); return; }
   const btn = $('#backupBtn'); btn.disabled = true;
@@ -843,17 +1035,17 @@ $('#backupBtn').onclick = async()=>{
     const zip = new JSZip(), data = {app:'price-label', v:1, brand:brandData(), items:[]};
     for(let n=0;n<items.length;n++){
       setStatus(`عم جهّز النسخة الاحتياطية… ${n+1} من ${items.length}`);
-      const it = items[n], rec = await dbGet('blobs', it.id);
-      zip.file(`images/${n+1}.jpg`, await openBlob(rec.f));
-      zip.file(`thumbs/${n+1}.jpg`, await openBlob(rec.t));
+      const it = items[n];
+      zip.file(`images/${n+1}.jpg`, await getFull(it));
+      zip.file(`thumbs/${n+1}.jpg`, it.thumb || await fetchImage(it,'thumb'));
       data.items.push({...pick(it), img:n+1});
     }
     zip.file('data.json', JSON.stringify(data));
     const blob = await zip.generateAsync({type:'blob', compression:'STORE'});
     const d = new Date(), day = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     offerDownload(blob, `نسخة-احتياطية-ملصق-الأسعار-${day}.zip`);
-    setStatus(`نزلت النسخة الاحتياطية (${items.length} صورة). احتفظ فيها بمكان آمن، لأنها مو مشفّرة.`);
-  }catch(e){ setStatus('ما قدرت جهّز النسخة الاحتياطية.'); }
+    setStatus(`نزلت النسخة الاحتياطية (${items.length} صورة).`);
+  }catch(e){ setStatus(e.offline ? 'ما في إنترنت لتنزيل الصور.' : 'ما قدرت جهّز النسخة الاحتياطية.'); }
   finally{ btn.disabled = false; }
 };
 $('#restoreFile').addEventListener('change', async e=>{
@@ -875,8 +1067,7 @@ $('#restoreFile').addEventListener('change', async e=>{
       const fields = Object.fromEntries(FIELDS.filter(k=>k!=='name' && r[k]!=null).map(k=>[k, String(r[k])]));
       await newItem({full, thumb}, r.name||'', fields);
     }
-    setStatus(`تم استرجاع ${n} صورة`);
-    showUsage();
+    setStatus(`تم استرجاع ${n} صورة، وعم ينرفعوا`);
   }catch(err){ setStatus('هالملف مو نسخة احتياطية من ملصق الأسعار.'); }
 });
 
