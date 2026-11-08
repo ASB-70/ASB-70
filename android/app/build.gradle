@@ -1,0 +1,48 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.altheqa.app'
+    compileSdk 34
+    defaultConfig {
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    buildFeatures { buildConfig true }
+    signingConfigs {
+        release {
+            storeFile file("../keystore.jks")
+            storePassword "altheqa2026"
+            keyAlias "altheqa"
+            keyPassword "altheqa2026"
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+    flavorDimensions "app"
+    productFlavors {
+        customer {
+            dimension "app"
+            applicationId "com.altheqa.app"
+            buildConfigField "String", "START_URL", "\"https://asb-70.github.io/asb-70/\""
+        }
+        admin {
+            dimension "app"
+            applicationId "com.altheqa.admin"
+            buildConfigField "String", "START_URL", "\"https://asb-70.github.io/asb-70/admin.html\""
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.13.1'
+}
