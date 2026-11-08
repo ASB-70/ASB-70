@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1d5c63">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%231d5c63%22/%3E%3Cpath d=%22M14 40h36v10H14z%22 fill=%22%23c9a24b%22/%3E%3Crect x=%2214%22 y=%2214%22 width=%2236%22 height=%2222%22 rx=%224%22 fill=%22%23fff%22/%3E%3C/svg%3E">
+<title>ملصق الأسعار</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* Layout: one working column — sticky toolbar, then a stack of product cards (preview beside its own fields on wide screens) */
+:root{
+  --bg:#f3f4f6; --surface:#ffffff; --line:#dcdfe5; --fg:#1b1f27; --muted:#646b78;
+  --accent:#1d5c63; --accent-ink:#ffffff; --danger:#b3261e; --field:#f8f9fb;
+  --ui:"IBM Plex Sans Arabic",system-ui,"Segoe UI",Tahoma,sans-serif;
+  --display:"Cairo","IBM Plex Sans Arabic",Tahoma,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14171c; --surface:#1d2128; --line:#323844; --fg:#e8eaee; --muted:#9aa2b0;
+  --accent:#5fb3ba; --accent-ink:#0d1a1c; --danger:#f0857c; --field:#171a20; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14171c; --surface:#1d2128; --line:#323844; --fg:#e8eaee; --muted:#9aa2b0;
+  --accent:#5fb3ba; --accent-ink:#0d1a1c; --danger:#f0857c; --field:#171a20; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:15px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1040px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px}
+header h1{font-family:var(--display);font-size:1.6rem;margin:0;line-height:1.2;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted)}
+.bar{position:relative;top:env(safe-area-inset-top,0px);z-index:5;display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.btn{font:inherit;font-weight:600;border-radius:8px;padding:9px 16px;cursor:pointer;
+  border:1px solid var(--line);background:var(--surface);color:var(--fg);display:inline-flex;gap:6px;align-items:center}
+.btn:focus-visible,input:focus-visible,select:focus-visible,.pick:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost-danger{color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:default}
+.pick{position:relative;overflow:hidden}
+.pick input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;font-size:0}
+.count{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.9rem}
+.size{display:flex;align-items:center;gap:8px;color:var(--muted);margin-inline-start:auto}
+.size input{width:110px;accent-color:var(--accent)}
+.status{color:var(--muted);font-size:.9rem;min-height:1.4em;font-variant-numeric:tabular-nums}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted)}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+.cards{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (min-width:721px){.bar{position:sticky}}
+@media (max-width:720px){.card{grid-template-columns:minmax(0,1fr)}.size{margin-inline-start:0}}
+.preview{min-width:0;display:flex;flex-direction:column;gap:8px}
+.preview img{display:block;width:100%;min-height:120px;border-radius:6px;border:1px solid var(--line);background:#fff}
+.meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.num{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums}
+.tag{font-size:.78rem;background:var(--field);border:1px solid var(--line);border-radius:99px;padding:1px 10px;color:var(--muted);
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;align-content:start;min-width:0}
+.fields .full{grid-column:1/-1}
+.group{grid-column:1/-1;font-size:.8rem;color:var(--muted);letter-spacing:.03em;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.88rem;font-weight:500;min-width:0}
+input[type=text],select{font:inherit;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;
+  background:var(--field);color:var(--fg)}
+.actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.hint{font-size:.85rem;color:var(--muted)}
+.brand{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 18px}
+@media (max-width:720px){.brand{grid-template-columns:minmax(0,1fr)}}
+.brand h2{grid-column:1/-1;margin:0;font-size:.95rem;font-family:var(--display)}
+.brand .full-row{grid-column:1/-1}
+.brand .box{display:flex;flex-direction:column;gap:10px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.logo-thumb{height:44px;max-width:120px;object-fit:contain;border:1px solid var(--line);border-radius:6px;background:#fff;padding:3px}
+.switch{flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:600}
+.switch input{width:18px;height:18px;accent-color:var(--accent)}
+.slider{flex-direction:row;align-items:center;gap:8px;color:var(--muted);font-weight:500}
+.slider input{width:120px;accent-color:var(--accent)}
+.empty{text-align:center;color:var(--muted);padding:28px 12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+.lock{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.lock-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px 22px;
+  display:flex;flex-direction:column;gap:14px}
+.lock-card h1{font-family:var(--display);margin:0;font-size:1.5rem;line-height:1.2}
+.lock-card p{margin:0;color:var(--muted)}
+input[type=password]{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--fg)}
+.err{color:var(--danger);font-size:.9rem;min-height:1.3em}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);font:inherit;font-size:.88rem;text-decoration:underline;cursor:pointer;align-self:flex-start}
+.linkbtn.danger{color:var(--danger)}
+.saved{font-size:.85rem;color:var(--muted)}
+.saved.busy{color:var(--accent)}
+details.acct{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;font-size:.95rem}
+.acct-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:12px}
+@media (max-width:720px){.acct-grid{grid-template-columns:minmax(0,1fr)}}
+.acct-grid form,.acct-grid .box{display:flex;flex-direction:column;gap:10px;min-width:0}
+.acct-grid h3{margin:0;font-size:.9rem}
+.note{font-size:.85rem;color:var(--muted);margin:0}
+</style>
+</head>
+<body>
+
+
+<div class="lock" id="lock">
+  <form class="lock-card" id="lockForm" autocomplete="on">
+    <h1>ملصق الأسعار</h1>
+    <p id="lockMsg">عم جهّز…</p>
+    <input type="text" name="username" value="ملصق الأسعار" autocomplete="username" hidden>
+    <label for="pw">كلمة السر<input type="password" id="pw" autocomplete="current-password" required></label>
+    <label for="pw2" id="pw2Wrap" hidden>أعد كتابة كلمة السر<input type="password" id="pw2" autocomplete="new-password"></label>
+    <button class="btn primary" type="submit" id="lockBtn" disabled>دخول</button>
+    <p class="err" id="lockErr" aria-live="polite"></p>
+    <button type="button" class="linkbtn" id="forgot" hidden>نسيت كلمة السر؟</button>
+  </form>
+</div>
+<div class="wrap" id="app" dir="rtl" lang="ar" hidden>
+  <header>
+    <h1>ملصق الأسعار</h1>
+    <p>ارفع صور المنتجات وعبّي معلومات كل صورة. كل شي بينحفظ لحاله على هالجهاز، ومشفّر بكلمة السر.</p>
+  </header>
+
+  <div class="bar">
+    <label class="btn primary pick" for="file">＋ إضافة صور
+      <input id="file" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple>
+    </label>
+    <button class="btn" id="saveAll" type="button">تنزيل الكل (ZIP)</button>
+    <button class="btn ghost-danger" id="clearAll" type="button">حذف الكل</button>
+    <span class="count" id="count"></span>
+    <span class="saved" id="saved"></span>
+    <button class="btn" id="lockNow" type="button">قفل</button>
+    <label class="size" for="scale">حجم الخط <input id="scale" type="range" min="70" max="140" value="100"></label>
+  </div>
+  <section class="brand" aria-label="الشعار والعلامة المائية">
+    <h2>شكل الشريط والشعار والعلامة المائية — بيتطبقوا على كل الصور</h2>
+    <div class="box full-row">
+      <div class="row">
+        <label class="slider" for="barStyle">شكل الشريط
+          <select id="barStyle" style="width:auto">
+            <option value="dark">داكن مع إبراز السعر</option>
+            <option value="light">فاتح مع إبراز السعر</option>
+            <option value="classic">بسيط (أبيض ونص أسود)</option>
+          </select></label>
+        <label class="slider" for="barColor">لون الشريط <input id="barColor" type="color" value="#1f2a37" style="width:44px;height:34px;padding:0;border:0;background:none"></label>
+        <label class="slider" for="accColor">لون الإبراز <input id="accColor" type="color" value="#c9a24b" style="width:44px;height:34px;padding:0;border:0;background:none"></label>
+      </div>
+    </div>
+    <div class="box">
+      <div class="row">
+        <label class="btn pick" for="logoFile">اختيار اللوغو
+          <input id="logoFile" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.svg"></label>
+        <img id="logoThumb" class="logo-thumb" alt="اللوغو" hidden>
+        <button class="btn ghost-danger" id="logoDel" type="button" hidden>إزالة</button>
+      </div>
+      <div class="row">
+        <label class="switch" for="logoOn"><input id="logoOn" type="checkbox"> إظهار اللوغو (الزاوية اليمنى فوق)</label>
+        <label class="slider" for="logoSize">الحجم <input id="logoSize" type="range" min="8" max="40" value="18"></label>
+      </div>
+    </div>
+    <div class="box">
+      <label for="wmText">نص العلامة المائية
+        <input type="text" id="wmText" placeholder="مثال: شركة الثقة — اتركه فاضي لتصير العلامة المائية هي اللوغو" autocomplete="off"></label>
+      <div class="row">
+        <label class="switch" for="wmOn"><input id="wmOn" type="checkbox"> إظهار العلامة المائية</label>
+        <label class="slider" for="wmAlpha">الشفافية <input id="wmAlpha" type="range" min="8" max="50" value="20"></label>
+      </div>
+    </div>
+  </section>
+  <details class="acct" id="acct">
+    <summary>كلمة السر والنسخة الاحتياطية</summary>
+    <div class="acct-grid">
+      <form id="pwForm">
+        <h3>تغيير كلمة السر</h3>
+        <input type="text" name="username" value="ملصق الأسعار" autocomplete="username" hidden>
+        <label for="oldPw">كلمة السر الحالية<input type="password" id="oldPw" autocomplete="current-password" required></label>
+        <label for="newPw">كلمة السر الجديدة<input type="password" id="newPw" autocomplete="new-password" required></label>
+        <label for="newPw2">أعد كتابة الجديدة<input type="password" id="newPw2" autocomplete="new-password" required></label>
+        <button class="btn primary" type="submit" id="pwBtn">تغيير</button>
+      </form>
+      <div class="box">
+        <h3>نسخة احتياطية</h3>
+        <p class="note">الصور والمعلومات محفوظة على هالجهاز وهالمتصفح بس. لتنقلها لجهاز تاني أو تحميها من الضياع، نزّل نسخة احتياطية وافتحها على الجهاز التاني.</p>
+        <div class="row">
+          <button class="btn" type="button" id="backupBtn">تنزيل نسخة احتياطية</button>
+          <label class="btn pick" for="restoreFile">استرجاع من نسخة
+            <input id="restoreFile" type="file" accept=".zip,application/zip"></label>
+        </div>
+        <p class="note" id="usage"></p>
+      </div>
+    </div>
+  </details>
+  <div class="status" id="status" aria-live="polite"></div>
+
+  <div class="drop" id="drop">على الكمبيوتر فيك تسحب الصور لهون، أو تلصقها بـ Ctrl+V</div>
+
+  <div class="cards" id="cards"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const MAX_FULL = 2000, THUMB = 720;
+const UNITS = ['قطعة','عدد','طقم','دستة','دزينة','طرد','كرتونة'];
+const IMG_EXT = /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i;
+const items = [];
+let uid = 0, loadChain = Promise.resolve();
+const $ = s => document.querySelector(s);
+const cardsEl = $('#cards'), statusEl = $('#status');
+const setStatus = t => statusEl.textContent = t;
+
+/* ---------- image helpers ---------- */
+async function decode(blob){
+  if(window.createImageBitmap){
+    try{ return await createImageBitmap(blob,{imageOrientation:'from-image'}); }catch(e){}
+    try{ return await createImageBitmap(blob); }catch(e){}
+  }
+  return await new Promise((res,rej)=>{
+    const u = URL.createObjectURL(blob), i = new Image();
+    i.onload = ()=>{ URL.revokeObjectURL(u); res(i); };
+    i.onerror = ()=>{ URL.revokeObjectURL(u); rej(new Error('decode')); };
+    i.src = u;
+  });
+}
+const dims = s => [s.naturalWidth||s.width, s.naturalHeight||s.height];
+const toBlob = (c,q=0.9) => new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('blob')),'image/jpeg',q));
+async function shrink(src,max){
+  const [w,h] = dims(src), s = Math.min(1, max/w);
+  const c = document.createElement('canvas');
+  c.width = Math.round(w*s); c.height = Math.round(h*s);
+  const x = c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height);
+  x.drawImage(src,0,0,c.width,c.height);
+  const b = await toBlob(c,0.9); c.width = c.height = 0; return b;
+}
+async function prepare(src){
+  const full = await shrink(src,MAX_FULL), thumb = await shrink(src,THUMB);
+  if(src.close) src.close();
+  return {full, thumb};
+}
+
+/* ---------- logo + watermark (global) ---------- */
+const brand = {style:'dark', barColor:'#1f2a37', accColor:'#c9a24b', logo:null, logoOn:false, logoSize:18, wmText:'', wmOn:false, wmAlpha:20};
+function drawBrand(x,W,H){
+  if(brand.wmOn && (brand.wmText.trim() || brand.logo)){
+    x.save(); x.beginPath(); x.rect(0,0,W,H); x.clip();
+    x.globalAlpha = brand.wmAlpha/100; x.translate(W/2,H/2); x.rotate(-Math.PI/8);
+    const t = brand.wmText.trim();
+    if(t){
+      let f = Math.round(W*0.11); const font = n=>`700 ${n}px Cairo, "IBM Plex Sans Arabic", Tahoma, sans-serif`;
+      x.font = font(f); while(x.measureText(t).width > W*0.95 && f > 10){ f -= 2; x.font = font(f); }
+      x.textAlign='center'; x.textBaseline='middle'; try{ x.direction='rtl'; }catch(e){}
+      x.lineWidth = Math.max(2,f*0.05); x.strokeStyle='#000'; x.fillStyle='#fff';
+      for(const dy of [-H*0.32, 0, H*0.32]) say(x,t,0,dy,true);
+    } else {
+      const [lw0,lh0] = dims(brand.logo); const lw = W*0.6, lh = lw*lh0/lw0;
+      x.drawImage(brand.logo,-lw/2,-lh/2,lw,lh);
+    }
+    x.restore();
+  }
+  if(brand.logoOn && brand.logo){
+    const [lw0,lh0] = dims(brand.logo); const m = W*0.025;
+    let lw = W*brand.logoSize/100, lh = lw*lh0/lw0;
+    if(lh > H*0.3){ lh = H*0.3; lw = lh*lw0/lh0; }
+    x.drawImage(brand.logo, W-m-lw, m, lw, lh);
+  }
+}
+/* ---------- drawing the label bar ---------- */
+function lum(hex){ const n=parseInt(hex.slice(1),16); const ch=[n>>16&255,n>>8&255,n&255].map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)}); return .2126*ch[0]+.7152*ch[1]+.0722*ch[2]; }
+const AR = /[\u0600-\u06FF]/;
+function say(x,t,cx,y,stroke){
+  // lay out Arabic runs and Latin/number words ourselves, so mixed text never flips
+  const ink=(s,px,dir,al)=>{ try{ x.direction=dir; }catch(e){} x.textAlign=al; if(stroke) x.strokeText(s,px,y); x.fillText(s,px,y); };
+  const wid=(s,dir)=>{ try{ x.direction=dir; }catch(e){} return x.measureText(s).width; };
+  const re=/[0-9A-Za-z$€£#][0-9A-Za-z$€£#\-\/.,:+ ]*[0-9A-Za-z$€£#]|[0-9A-Za-z$]/g;
+  const segs=[]; let last=0, m;
+  if(!AR.test(t)) segs.push([t,'ltr']);
+  else {
+    while((m=re.exec(t))){ if(m.index>last) segs.push([t.slice(last,m.index),'rtl']); segs.push([m[0],'ltr']); last=re.lastIndex; }
+    if(last<t.length) segs.push([t.slice(last),'rtl']);
+  }
+  const ws=segs.map(sg=>wid(sg[0],sg[1]));
+  let cur=cx+ws.reduce((a,b)=>a+b,0)/2;
+  segs.forEach((sg,i)=>{
+    if(sg[1]==='rtl') ink(sg[0],cur,'rtl','right');
+    else { let lx=cur-ws[i]; for(const w of sg[0].split(/(\s+)/)){ if(!w) continue; const ww=wid(w,'ltr'); if(w.trim()) ink(w,lx,'ltr','left'); lx+=ww; } }
+    cur-=ws[i];
+  });
+  x.textAlign='center';
+}
+function fmtPrice(raw, cur){
+  let s = (raw||'').replace(/[$]|ل\.?\s?س\.?|ليرة(\s*سورية)?|دولار/g,'').trim();
+  if(!s) return '';
+  const nums = s.match(/[0-9٠-٩][0-9٠-٩.,]*/g); if(!nums) return raw.trim();
+  const toEn = n => n.replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  if(cur==='syp'){
+    s = s.replace(/[0-9٠-٩][0-9٠-٩.,]*/g, n=>{ const v = +toEn(n).replace(/,/g,''); return isNaN(v) ? n : v.toLocaleString('en-US'); });
+    return s.replace(/\s+/g,' ') + ' ل.س';
+  }
+  return s.replace(/[0-9٠-٩][0-9٠-٩.,]*/g, n=>toEn(n)+'$').replace(/\s+/g,' ');
+}
+function withAl(u){ u=u.trim(); if(!u) return ''; return u.startsWith('ال') ? u : 'ال'+u; }
+function draw(src,it){
+  const [W,H] = dims(src);
+  const k = (+$('#scale').value)/100;
+  const fs = Math.round(W*0.036*k);
+  const classic = brand.style==='classic';
+  const barH = Math.round(fs*(classic?2.75:3.3));
+  const c = document.createElement('canvas'); c.width = W; c.height = H+barH;
+  const x = c.getContext('2d');
+  x.fillStyle='#fff'; x.fillRect(0,0,W,c.height); x.drawImage(src,0,0,W,H);
+  drawBrand(x,W,H);
+  try{ x.direction='rtl'; }catch(e){}
+  x.textAlign='center'; x.textBaseline='middle';
+  const pc = it.packCount.trim(), pu = it.packUnit.trim(), pr = fmtPrice(it.price, it.cur), code = it.code.trim(), desc = it.desc.trim();
+  const font = (w,n)=>`${w} ${n}px Cairo, "IBM Plex Sans Arabic", Tahoma, sans-serif`;
+  const fit = (t,w,size,maxW)=>{ let f=size; x.font=font(w,f); while(x.measureText(t).width>maxW && f>8){ f-=2; x.font=font(w,f); } };
+  if(classic){
+    x.fillStyle='#111';
+    const cols = [
+      {cx:W*5/6, lines:[desc, code ? 'كود '+code : '']},
+      {cx:W/2,   lines:[pc ? ('تعبئة '+pc+' '+pu).trim() : '']},
+      {cx:W/6,   lines:[it.priceUnit.trim() ? 'سعر '+withAl(it.priceUnit) : (pr?'السعر':''), pr]},
+    ];
+    for(const col of cols){
+      const lines = col.lines.filter(Boolean);
+      lines.forEach((t,i)=>{ fit(t,600,fs,W/3-W*0.03);
+        say(x,t, col.cx, lines.length===1 ? H+barH/2 : H+barH*(i===0?0.31:0.72)); });
+    }
+    return c;
+  }
+  // modern styles: three cells, small label over a bold value, price cell highlighted
+  const dark = brand.style!=='light';
+  const bar = brand.barColor, acc = brand.accColor;
+  const ink = col => lum(col) > 0.55 ? '#14171c' : '#ffffff';
+  const bg = dark ? bar : '#ffffff';
+  x.fillStyle = bg; x.fillRect(0,H,W,barH);
+  const strip = Math.max(2,Math.round(W*0.005));
+  x.fillStyle = acc; x.fillRect(0,H,W,strip);
+  const top = H+strip, h = barH-strip, cw = W/3;
+  const txt = dark ? ink(bar) : '#1b1f27';
+  const sub = dark ? (ink(bar)==='#ffffff' ? 'rgba(255,255,255,.7)' : 'rgba(20,23,28,.65)') : '#6b7280';
+  const cells = [
+    {cx:W-cw/2, label: desc&&code ? 'كود '+code : (desc ? 'المنتج' : (code?'الكود':'')), value: desc || code},
+    {cx:W/2,    label: pc ? 'التعبئة بالطرد' : '', value: pc ? (pc+' '+pu).trim() : ''},
+    {cx:cw/2,   label: pr ? (it.priceUnit.trim() ? 'سعر '+withAl(it.priceUnit) : 'السعر') : '', value: pr, price:true},
+  ];
+  // price highlight
+  if(pr){
+    const pad = h*0.14, rx = pad*0.5, r = h*0.16;
+    const pf = dark ? acc : bar;
+    x.fillStyle = pf; x.beginPath();
+    if(x.roundRect) x.roundRect(rx, top+pad, cw-rx*2, h-pad*2, r); else x.rect(rx, top+pad, cw-rx*2, h-pad*2);
+    x.fill(); cells[2].txt = ink(pf); cells[2].sub = ink(pf)==='#ffffff' ? 'rgba(255,255,255,.78)' : 'rgba(20,23,28,.7)';
+  }
+  // dividers
+  x.fillStyle = dark ? 'rgba(255,255,255,.18)' : '#e3e5e9';
+  const dw = Math.max(1,Math.round(W*0.0015));
+  if(pc || desc || code) x.fillRect(W-cw-dw/2, top+h*0.22, dw, h*0.56);
+  if(!pr) x.fillRect(cw-dw/2, top+h*0.22, dw, h*0.56);
+  for(const cl of cells){
+    if(!cl.value) continue;
+    const maxW = cw - W*0.05;
+    if(cl.label){
+      x.fillStyle = cl.sub || sub; fit(cl.label,500,Math.round(fs*0.66),maxW);
+      say(x,cl.label, cl.cx, top+h*0.33);
+      x.fillStyle = cl.txt || txt; fit(cl.value,700,Math.round(fs*1.05),maxW);
+      say(x,cl.value, cl.cx, top+h*0.66);
+    } else {
+      x.fillStyle = cl.txt || txt; fit(cl.value,700,Math.round(fs*1.05),maxW);
+      say(x,cl.value, cl.cx, top+h/2);
+    }
+  }
+  return c;
+}
+async function getFull(it){
+  if(it.full) return it.full;
+  const rec = await dbGet('blobs', it.id);
+  if(!rec) throw new Error('missing');
+  return openBlob(rec.f);
+}
+async function renderFull(it){
+  const src = await decode(await getFull(it)); const c = draw(src,it); if(src.close) src.close();
+  const b = await toBlob(c,0.92); c.width = c.height = 0; return b;
+}
+
+/* ---------- previews: only for cards on screen ---------- */
+async function updatePreview(it){
+  if(it.busy){ it.again = true; return; }
+  it.busy = true;
+  try{
+    do{
+      it.again = false; it.dirty = false;
+      const src = await decode(it.thumb); const c = draw(src,it); if(src.close) src.close();
+      const b = await toBlob(c,0.85); c.width = c.height = 0;
+      if(it.url) URL.revokeObjectURL(it.url);
+      it.url = URL.createObjectURL(b);
+      const el = document.getElementById('prev-'+it.id); if(el) el.src = it.url;
+    }while(it.again);
+  }catch(e){} finally{ it.busy = false; }
+}
+function schedule(it,delay=150){
+  it.dirty = true; it.shareBlob = null; clearTimeout(it.t);
+  if(it.visible) it.t = setTimeout(()=>updatePreview(it), delay);
+}
+const io = new IntersectionObserver(entries=>{
+  for(const en of entries){
+    const it = items.find(i=>i.id==en.target.dataset.id); if(!it) continue;
+    it.visible = en.isIntersecting;
+    if(it.visible && it.dirty) schedule(it,0);
+  }
+},{rootMargin:'800px 0px'});
+
+/* ---------- cards ---------- */
+function field(it,key,label,ph,cls=''){
+  return `<label class="${cls}" for="f-${key}-${it.id}">${label}
+    <input type="text" id="f-${key}-${it.id}" data-key="${key}" placeholder="${ph}" autocomplete="off"></label>`;
+}
+function unitField(it,key,label){
+  return `<label for="f-${key}-${it.id}">${label}
+    <select id="f-${key}-${it.id}" data-unit="${key}">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}<option value="__other">غير ذلك…</option></select>
+    <input type="text" id="f-${key}-o-${it.id}" data-other="${key}" placeholder="اكتب الوحدة" hidden autocomplete="off"></label>`;
+}
+function syncUnit(d,it,k){
+  const sel = d.querySelector(`[data-unit=${k}]`), other = d.querySelector(`[data-other=${k}]`), v = it[k];
+  if(UNITS.includes(v)){ sel.value = v; other.hidden = true; }
+  else { sel.value = '__other'; other.hidden = false; other.value = v; }
+}
+function esc(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function addCard(it){
+  const d = document.createElement('div');
+  d.className = 'card'; d.id = 'card-'+it.id; d.dataset.id = it.id;
+  d.innerHTML = `
+    <div class="preview">
+      <div class="meta"><span class="num"></span>
+        <span class="tag">${esc(it.name||'')}</span></div>
+      <img id="prev-${it.id}" alt="معاينة الصورة مع المعلومات">
+    </div>
+    <div class="fields">
+      <div class="group">المنتج</div>
+      ${field(it,'desc','وصف المنتج','مثال: طقم فناجين قهوة','full')}
+      ${field(it,'code','كود المنتج','845')}
+      <span></span>
+      <div class="group">السعر</div>
+      ${field(it,'price','السعر (رقم أو رقمين متل 17 / 16)','17 / 16','full')}
+      <label for="f-cur-${it.id}">العملة
+        <select id="f-cur-${it.id}" data-cur><option value="usd">دولار $</option><option value="syp">ليرة سورية ل.س</option></select></label>
+      ${unitField(it,'priceUnit','السعر لكل')}
+      <div class="group">التعبئة داخل الطرد</div>
+      ${field(it,'packCount','العدد','6')}
+      ${unitField(it,'packUnit','وحدة التعبئة')}
+      <div class="actions">
+        <button class="btn primary" type="button" data-act="save">تنزيل الصورة</button>
+        <button class="btn" type="button" data-act="share" ${canShareFiles?'':'hidden'}>مشاركة</button>
+        <button class="btn ghost-danger" type="button" data-act="del">حذف</button>
+      </div>
+    </div>`;
+  cardsEl.appendChild(d);
+  for(const inp of d.querySelectorAll('input[data-key]')){
+    inp.value = it[inp.dataset.key];
+    inp.addEventListener('input',()=>{ it[inp.dataset.key] = inp.value; schedule(it); queueSave(it); });
+  }
+  const curSel = d.querySelector('[data-cur]'); curSel.value = it.cur;
+  curSel.addEventListener('change',()=>{ it.cur = curSel.value; lastUnits.cur = it.cur; schedule(it); queueSave(it); saveBrand(); });
+  const setUnit = (k,v)=>{
+    if(k==='priceUnit' && it.packUnit===it.priceUnit){ it.packUnit = v; syncUnit(d,it,'packUnit'); }
+    it[k] = v; lastUnits[k] = v; schedule(it); queueSave(it); saveBrand();
+  };
+  for(const k of ['priceUnit','packUnit']){
+    syncUnit(d,it,k);
+    const sel = d.querySelector(`[data-unit=${k}]`), other = d.querySelector(`[data-other=${k}]`);
+    sel.addEventListener('change',()=>{
+      if(sel.value==='__other'){ other.hidden=false; other.value=''; other.focus(); setUnit(k,''); }
+      else { other.hidden=true; setUnit(k,sel.value); }
+    });
+    other.addEventListener('input',()=>setUnit(k,other.value));
+  }
+  d.querySelector('[data-act=save]').onclick = ()=>saveOne(it);
+  d.querySelector('[data-act=share]').onclick = ()=>shareOne(it);
+  d.querySelector('[data-act=del]').onclick = ()=>removeItem(it);
+  io.observe(d);
+  it.dirty = true; it.shareBlob = null;
+}
+var lastUnits = {priceUnit:'قطعة', packUnit:'قطعة', cur:'usd'};
+function blankItem(){ return {desc:'', code:'', price:'', packCount:'', priceUnit:lastUnits.priceUnit, packUnit:lastUnits.packUnit, cur:lastUnits.cur}; }
+async function newItem(p,name,extra={}){
+  const it = {id:++uid, name, full:p.full, thumb:p.thumb, ...blankItem(), ...extra};
+  items.push(it); addCard(it); renumber();
+  await persistNew(it);
+  return it;
+}
+function removeItem(it){
+  const i = items.indexOf(it); if(i>-1) items.splice(i,1);
+  clearTimeout(it.t); if(it.url) URL.revokeObjectURL(it.url);
+  const d = document.getElementById('card-'+it.id); if(d){ io.unobserve(d); d.remove(); }
+  renumber();
+  if(!it.keepStored) track(Promise.all([dbDel('fields',it.id), dbDel('blobs',it.id)]));
+}
+function renumber(){
+  items.forEach((it,i)=>{ const n = document.querySelector(`#card-${it.id} .num`); if(n) n.textContent = (i+1); });
+  const real = items.length;
+  $('#count').textContent = real ? `عدد الصور: ${real}` : '';
+  let e = $('#emptyNote');
+  if(!items.length){
+    if(!e){ e = document.createElement('div'); e.id='emptyNote'; e.className='empty';
+      e.textContent = 'ما في صور لسا. اضغط «إضافة صور» واختار صورة أو أكتر من جهازك.'; cardsEl.appendChild(e); }
+  } else if(e) e.remove();
+}
+
+/* ---------- loading many files, one at a time ---------- */
+const isImg = f => (f.type && f.type.startsWith('image/')) || IMG_EXT.test(f.name);
+function loadFiles(files){
+  const list = [...files].filter(isImg);
+  if(!list.length){ setStatus('الملفات اللي اخترتها مو صور.'); return; }
+  loadChain = loadChain.then(async()=>{
+    let ok = 0; const bad = [];
+    for(let n=0;n<list.length;n++){
+      setStatus(`عم حمّل الصور… ${n+1} من ${list.length}`);
+      try{
+        const src = await decode(list[n]);
+        const p = await prepare(src);
+        await newItem(p, list[n].name.replace(/\.[^.]+$/,'')); ok++;
+      }catch(e){ bad.push(list[n].name); }
+      if(n%4===3) await new Promise(r=>setTimeout(r,0));
+    }
+    setStatus(`تمت إضافة ${ok} صورة` + (bad.length ? ` — ما قدرت أفتح ${bad.length}: ${bad.slice(0,3).join('، ')}${bad.length>3?'…':''} (جرّب تحوّلها لـ JPG)` : ''));
+  });
+}
+
+/* ---------- saving ---------- */
+function fileBase(it,n){
+  const clean = s => (s||'').replace(/[\\/:*?"<>|]+/g,'').trim().slice(0,60);
+  return clean(it.code ? 'كود '+it.code : it.desc) || clean(it.name) || ('منتج '+n);
+}
+function offerDownload(blob,name){
+  const u = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = u; a.download = name; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u), 60000);
+}
+const canShareFiles = (()=>{ try{ return !!(navigator.canShare && navigator.canShare({files:[new File([new Blob(['x'],{type:'image/jpeg'})],'a.jpg',{type:'image/jpeg'})]})); }catch(e){ return false; } })();
+async function saveOne(it){
+  setStatus('عم جهّز الصورة…');
+  try{ const b = await renderFull(it); offerDownload(b, fileBase(it,items.indexOf(it)+1)+'.jpg'); setStatus('نزلت الصورة'); }
+  catch(e){ setStatus('صار خطأ بتجهيز الصورة.'); }
+}
+async function shareOne(it){
+  try{
+    let b = it.shareBlob;
+    if(!b){ setStatus('عم جهّز الصورة…'); b = await renderFull(it); }
+    const f = new File([b], fileBase(it,items.indexOf(it)+1)+'.jpg', {type:'image/jpeg'});
+    try{ await navigator.share({files:[f]}); it.shareBlob = null; setStatus(''); }
+    catch(e){
+      if(e && e.name==='AbortError'){ setStatus(''); return; }
+      if(e && e.name==='NotAllowedError'){ it.shareBlob = b; setStatus('الصورة جاهزة، اضغط «مشاركة» مرة تانية.'); return; }
+      setStatus('ما قدرت أشارك الصورة.');
+    }
+  }catch(e){ setStatus('صار خطأ بتجهيز الصورة.'); }
+}
+async function saveAll(){
+  const list = items.slice();
+  if(!list.length){ setStatus('ما في صور لتنزيلها.'); return; }
+  if(!window.JSZip){ setStatus('ما قدرت حمّل أداة الضغط. تأكد من الإنترنت وحدّث الصفحة.'); return; }
+  const btn = $('#saveAll'); btn.disabled = true;
+  try{
+    const zip = new JSZip(), used = {};
+    for(let n=0;n<list.length;n++){
+      setStatus(`عم جهّز الصور… ${n+1} من ${list.length}`);
+      let base = fileBase(list[n],n+1);
+      if(used[base]) base += ' ('+(++used[base])+')'; else used[base]=1;
+      zip.file(base+'.jpg', await renderFull(list[n]));
+    }
+    setStatus('عم جهّز ملف ZIP…');
+    const blob = await zip.generateAsync({type:'blob', compression:'STORE'});
+    offerDownload(blob,'صور-المنتجات.zip');
+    setStatus(`نزل ملف فيه ${list.length} صورة`);
+  }catch(e){ setStatus('صار خطأ بتجهيز الملف.'); }
+  finally{ btn.disabled = false; }
+}
+
+/* ---------- wiring ---------- */
+$('#file').addEventListener('change', e=>{ loadFiles(e.target.files); e.target.value=''; });
+$('#saveAll').onclick = saveAll;
+$('#lockNow').onclick = ()=>location.reload();
+let clearArmed = 0;
+$('#clearAll').onclick = ()=>{
+  const b = $('#clearAll');
+  if(!items.length) return;
+  if(!clearArmed){ b.textContent='اضغط مرة تانية للتأكيد'; clearArmed = setTimeout(()=>{ b.textContent='حذف الكل'; clearArmed=0; },3000); return; }
+  clearTimeout(clearArmed); clearArmed = 0; b.textContent='حذف الكل';
+  items.slice().forEach(it=>{ it.keepStored = true; removeItem(it); });
+  track(Promise.all([dbClear('fields'), dbClear('blobs')])); setStatus('انحذفت كل الصور.');
+};
+$('#scale').oninput = ()=> items.forEach(it=>schedule(it,250));
+const drop = $('#drop');
+document.addEventListener('dragover',e=>{ e.preventDefault(); drop.classList.add('over'); });
+document.addEventListener('dragleave',e=>{ if(!e.relatedTarget) drop.classList.remove('over'); });
+document.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer && e.dataTransfer.files.length) loadFiles(e.dataTransfer.files); });
+document.addEventListener('paste',e=>{ if(e.clipboardData && e.clipboardData.files.length) loadFiles(e.clipboardData.files); });
+
+/* brand controls, remembered in this browser */
+const brandData = ()=>({logo:brand.logoData||null, logoOn:brand.logoOn, logoSize:brand.logoSize, style:brand.style, barColor:brand.barColor, accColor:brand.accColor, wmText:brand.wmText, wmOn:brand.wmOn, wmAlpha:brand.wmAlpha, lastUnits});
+let brandT = 0;
+function saveBrand(){ clearTimeout(brandT); brandT = setTimeout(()=>track((async()=>dbPut('meta', await sealJSON(brandData()), 'brand'))()), 400); }
+const redrawAll = (d=200)=> items.forEach(it=>schedule(it,d));
+async function setLogo(dataUrl){
+  const img = new Image();
+  await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=dataUrl; });
+  brand.logo = img; brand.logoData = dataUrl;
+  $('#logoThumb').src = dataUrl; $('#logoThumb').hidden = false; $('#logoDel').hidden = false;
+}
+$('#logoFile').addEventListener('change', async e=>{
+  const f = e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const src = await decode(f); const [w,h] = dims(src); const s = Math.min(1, 800/Math.max(w,h));
+    const c = document.createElement('canvas'); c.width = Math.round(w*s); c.height = Math.round(h*s);
+    c.getContext('2d').drawImage(src,0,0,c.width,c.height); if(src.close) src.close();
+    await setLogo(c.toDataURL('image/png'));
+    brand.logoOn = true; $('#logoOn').checked = true;
+    saveBrand(); redrawAll(0); setStatus('تمت إضافة اللوغو');
+  }catch(err){ setStatus('ما قدرت أفتح صورة اللوغو. جرّب PNG أو JPG.'); }
+});
+$('#logoDel').onclick = ()=>{ brand.logo=null; brand.logoData=null; $('#logoThumb').hidden=true; $('#logoDel').hidden=true; saveBrand(); redrawAll(0); };
+$('#logoOn').onchange = e=>{ brand.logoOn = e.target.checked; if(brand.logoOn && !brand.logo) setStatus('اختار صورة اللوغو أولاً.'); saveBrand(); redrawAll(0); };
+$('#logoSize').oninput = e=>{ brand.logoSize = +e.target.value; saveBrand(); redrawAll(); };
+$('#wmText').oninput = e=>{ brand.wmText = e.target.value; saveBrand(); redrawAll(); };
+$('#wmOn').onchange = e=>{ brand.wmOn = e.target.checked; if(brand.wmOn && !brand.wmText.trim() && !brand.logo) setStatus('اكتب نص العلامة المائية أو اختار لوغو.'); saveBrand(); redrawAll(0); };
+$('#barStyle').onchange = e=>{ brand.style = e.target.value; saveBrand(); redrawAll(0); };
+$('#barColor').oninput = e=>{ brand.barColor = e.target.value; saveBrand(); redrawAll(); };
+$('#accColor').oninput = e=>{ brand.accColor = e.target.value; saveBrand(); redrawAll(); };
+$('#wmAlpha').oninput = e=>{ brand.wmAlpha = +e.target.value; saveBrand(); redrawAll(); };
+async function applyBrand(s){
+  if(!s) return;
+  Object.assign(brand,{style:s.style||'dark', barColor:s.barColor||'#1f2a37', accColor:s.accColor||'#c9a24b', logoOn:!!s.logoOn, logoSize:s.logoSize||18, wmText:s.wmText||'', wmOn:!!s.wmOn, wmAlpha:s.wmAlpha||20});
+  if(s.lastUnits) Object.assign(lastUnits, s.lastUnits);
+  $('#logoOn').checked = brand.logoOn; $('#logoSize').value = brand.logoSize; $('#wmText').value = brand.wmText;
+  $('#wmOn').checked = brand.wmOn; $('#wmAlpha').value = brand.wmAlpha;
+  $('#barStyle').value = brand.style; $('#barColor').value = brand.barColor; $('#accColor').value = brand.accColor;
+  if(s.logo){ try{ await setLogo(s.logo); }catch(e){} }
+  redrawAll(0);
+}
+
+renumber();
+
+if(document.fonts){ document.fonts.load('600 40px Cairo','سعر').then(()=>items.forEach(it=>schedule(it,0))).catch(()=>{}); }
+
+
+/* ---------- storage: IndexedDB on this device, everything sealed with the password (AES-GCM) ---------- */
+const enc = new TextEncoder(), dec = new TextDecoder();
+const FIELDS = ['name','desc','code','price','cur','priceUnit','packCount','packUnit'];
+const ITER = 250000;
+let KEY = null, dbp = null;
+function idb(){
+  if(dbp) return dbp;
+  dbp = new Promise((res,rej)=>{
+    const r = indexedDB.open('price-label', 1);
+    r.onupgradeneeded = ()=>{ const d = r.result;
+      if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+      if(!d.objectStoreNames.contains('fields')) d.createObjectStore('fields',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs',{keyPath:'id'}); };
+    r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error);
+  });
+  return dbp;
+}
+function done(st,r){ return new Promise((res,rej)=>{ const tx = st.transaction; tx.oncomplete = ()=>res(r.result); tx.onerror = tx.onabort = ()=>rej(tx.error||r.error); }); }
+async function os(name,mode){ return (await idb()).transaction(name,mode).objectStore(name); }
+const dbGet = async(s,k)=>{ const st = await os(s,'readonly'); return done(st, st.get(k)); };
+const dbAll = async(s)=>{ const st = await os(s,'readonly'); return done(st, st.getAll()); };
+const dbPut = async(s,v,k)=>{ const st = await os(s,'readwrite'); return done(st, k===undefined ? st.put(v) : st.put(v,k)); };
+const dbDel = async(s,k)=>{ const st = await os(s,'readwrite'); return done(st, st.delete(k)); };
+const dbClear = async(s)=>{ const st = await os(s,'readwrite'); return done(st, st.clear()); };
+
+async function deriveKey(pass,salt,iter=ITER){
+  const base = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+async function seal(buf,key=KEY){ const iv = crypto.getRandomValues(new Uint8Array(12)); return {iv, data: await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, buf)}; }
+const unseal = (o,key=KEY)=>crypto.subtle.decrypt({name:'AES-GCM', iv:o.iv}, key, o.data);
+const sealJSON = (v,key)=>seal(enc.encode(JSON.stringify(v)), key);
+const openJSON = async(o,key)=>JSON.parse(dec.decode(await unseal(o,key)));
+const sealBlob = async(b,key)=>seal(await b.arrayBuffer(), key);
+const openBlob = async(o,key)=>new Blob([await unseal(o,key)], {type:'image/jpeg'});
+const pick = it=>Object.fromEntries(FIELDS.map(k=>[k, it[k]]));
+
+/* save indicator */
+let pending = 0, failed = false;
+function showSaved(){
+  const el = $('#saved'); if(!el) return;
+  el.classList.toggle('busy', pending>0);
+  el.textContent = failed ? 'ما انحفظ آخر تعديل!' : (pending>0 ? 'عم احفظ…' : (items.length ? 'كل شي محفوظ ✓' : ''));
+}
+function track(p){
+  pending++; showSaved();
+  return Promise.resolve(p).then(r=>{ failed = false; return r; }, e=>{
+    failed = true;
+    setStatus(e && e.name==='QuotaExceededError' ? 'مساحة التخزين على الجهاز خلصت. نزّل نسخة احتياطية واحذف صور قديمة.' : 'صار خطأ بالحفظ على الجهاز.');
+  }).finally(()=>{ pending--; showSaved(); });
+}
+window.addEventListener('beforeunload', e=>{ if(pending>0){ e.preventDefault(); e.returnValue=''; } });
+
+async function persistNew(it){
+  await track((async()=>{
+    const f = await sealBlob(it.full), th = await sealBlob(it.thumb);
+    await dbPut('blobs', {id:it.id, f, t:th});
+    await dbPut('fields', {id:it.id, ...(await sealJSON(pick(it)))});
+    if(items.includes(it)) it.full = null; else { await dbDel('fields',it.id); await dbDel('blobs',it.id); }
+  })());
+}
+function queueSave(it){
+  clearTimeout(it.st);
+  it.st = setTimeout(()=>{ if(items.includes(it)) track((async()=>dbPut('fields', {id:it.id, ...(await sealJSON(pick(it)))}))()); }, 400);
+}
+
+async function loadAll(){
+  const recs = (await dbAll('fields')).sort((a,b)=>a.id-b.id);
+  let n = 0, bad = 0;
+  for(const r of recs){
+    n++; if(n%5===1) setStatus(`عم افتح الصور المحفوظة… ${n} من ${recs.length}`);
+    try{
+      const fields = await openJSON(r);
+      const b = await dbGet('blobs', r.id);
+      const thumb = await openBlob(b.t);
+      const it = {id:r.id, full:null, thumb, ...blankItem(), ...fields};
+      items.push(it); addCard(it); uid = Math.max(uid, r.id);
+    }catch(e){ bad++; }
+  }
+  renumber(); showSaved();
+  setStatus(recs.length ? `انفتحت ${recs.length-bad} صورة محفوظة` + (bad ? ` (${bad} ما انفتحت)` : '') : '');
+}
+
+async function showUsage(){
+  try{
+    if(!navigator.storage || !navigator.storage.estimate) return;
+    const {usage, quota} = await navigator.storage.estimate();
+    const mb = v=>(v/1048576).toFixed(0);
+    $('#usage').textContent = `المساحة المستعملة على الجهاز: ${mb(usage)} ميغا من أصل ${mb(quota)} ميغا تقريباً.`;
+  }catch(e){}
+}
+
+/* ---------- lock screen ---------- */
+let AUTH = null;
+const lockErr = t=>$('#lockErr').textContent = t;
+async function initLock(){
+  if(!window.isSecureContext || !window.crypto || !crypto.subtle || !window.indexedDB){
+    $('#lockMsg').textContent = 'هالمتصفح ما بيدعم الحفظ المشفّر. افتح الموقع بـ Chrome أو Safari حديث.'; return;
+  }
+  try{ AUTH = await dbGet('meta','auth'); }catch(e){ $('#lockMsg').textContent = 'المتصفح مانع التخزين (يمكن وضع التصفح الخفي). افتح الموقع بنافذة عادية.'; return; }
+  if(!AUTH){
+    $('#lockMsg').textContent = 'أول مرة على هالجهاز: اختار كلمة سر. رح تحتاجها كل ما تفتح الموقع، وما في طريقة لاسترجاعها إذا نسيتها.';
+    $('#pw2Wrap').hidden = false; $('#pw2').required = true; $('#lockBtn').textContent = 'إنشاء كلمة السر والدخول';
+    $('#pw').autocomplete = 'new-password';
+  } else {
+    $('#lockMsg').textContent = 'اكتب كلمة السر لتفتح صورك ومعلوماتك.';
+    $('#forgot').hidden = false;
+  }
+  $('#lockBtn').disabled = false; $('#pw').focus();
+}
+$('#lockForm').addEventListener('submit', async e=>{
+  e.preventDefault(); lockErr('');
+  const pw = $('#pw').value, btn = $('#lockBtn');
+  btn.disabled = true;
+  try{
+    if(!AUTH){
+      if(pw.length < 4){ lockErr('كلمة السر لازم تكون 4 أحرف أو أكتر.'); return; }
+      if(pw !== $('#pw2').value){ lockErr('كلمتين السر مو متطابقين.'); return; }
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      KEY = await deriveKey(pw, salt);
+      AUTH = {salt, iter:ITER, check: await sealJSON('price-label-ok')};
+      await dbPut('meta', AUTH, 'auth');
+    } else {
+      const k = await deriveKey(pw, AUTH.salt, AUTH.iter);
+      try{ await openJSON(AUTH.check, k); }catch(_){ lockErr('كلمة السر غلط.'); $('#pw').select(); return; }
+      KEY = k;
+    }
+    await unlock();
+  }catch(err){ lockErr('صار خطأ، جرّب كمان مرة.'); }
+  finally{ btn.disabled = false; }
+});
+let forgotArmed = 0;
+$('#forgot').onclick = async()=>{
+  const b = $('#forgot');
+  if(!forgotArmed){
+    b.classList.add('danger'); b.textContent = 'هيك رح تنمسح كل الصور والمعلومات المحفوظة على هالجهاز. اضغط مرة تانية للتأكيد';
+    forgotArmed = setTimeout(()=>{ forgotArmed = 0; b.classList.remove('danger'); b.textContent = 'نسيت كلمة السر؟'; }, 6000);
+    return;
+  }
+  clearTimeout(forgotArmed);
+  try{ (await idb()).close(); }catch(e){}
+  const r = indexedDB.deleteDatabase('price-label');
+  r.onsuccess = r.onerror = r.onblocked = ()=>location.reload();
+};
+async function unlock(){
+  $('#pw').value = ''; $('#pw2').value = '';
+  $('#lock').hidden = true; $('#app').hidden = false;
+  try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+  try{ const b = await dbGet('meta','brand'); if(b) await applyBrand(await openJSON(b)); }catch(e){}
+  await loadAll();
+  showUsage();
+}
+
+/* change password: re-seal everything with the new key */
+$('#pwForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const o = $('#oldPw').value, n1 = $('#newPw').value, n2 = $('#newPw2').value, btn = $('#pwBtn');
+  if(n1.length < 4){ setStatus('كلمة السر الجديدة لازم تكون 4 أحرف أو أكتر.'); return; }
+  if(n1 !== n2){ setStatus('كلمتين السر الجديدة مو متطابقين.'); return; }
+  btn.disabled = true;
+  try{
+    const ok = await deriveKey(o, AUTH.salt, AUTH.iter);
+    try{ await openJSON(AUTH.check, ok); }catch(_){ setStatus('كلمة السر الحالية غلط.'); return; }
+    setStatus('عم غيّر كلمة السر وأعيد تشفير الصور…');
+    const salt = crypto.getRandomValues(new Uint8Array(16)), nk = await deriveKey(n1, salt);
+    const fl = await dbAll('fields'), bl = await dbAll('blobs');
+    const nf = [], nb = [];
+    for(const r of fl) nf.push({id:r.id, ...(await seal(await unseal(r,ok), nk))});
+    for(const r of bl) nb.push({id:r.id, f: await seal(await unseal(r.f,ok), nk), t: await seal(await unseal(r.t,ok), nk)});
+    const br = await dbGet('meta','brand');
+    const nbr = br ? await seal(await unseal(br,ok), nk) : null;
+    const newAuth = {salt, iter:ITER, check: await sealJSON('price-label-ok', nk)};
+    const d = await idb();
+    await new Promise((res,rej)=>{
+      const tx = d.transaction(['meta','fields','blobs'],'readwrite');
+      nf.forEach(r=>tx.objectStore('fields').put(r)); nb.forEach(r=>tx.objectStore('blobs').put(r));
+      if(nbr) tx.objectStore('meta').put(nbr,'brand');
+      tx.objectStore('meta').put(newAuth,'auth');
+      tx.oncomplete = res; tx.onerror = tx.onabort = ()=>rej(tx.error);
+    });
+    AUTH = newAuth; KEY = nk;
+    $('#pwForm').reset(); setStatus('تغيّرت كلمة السر.');
+  }catch(err){ setStatus('ما قدرت غيّر كلمة السر. ما تغيّر شي.'); }
+  finally{ btn.disabled = false; }
+});
+
+/* backup: a zip with data.json + images, can be restored on any device */
+$('#backupBtn').onclick = async()=>{
+  if(!window.JSZip){ setStatus('ما قدرت حمّل أداة الضغط. تأكد من الإنترنت وحدّث الصفحة.'); return; }
+  const btn = $('#backupBtn'); btn.disabled = true;
+  try{
+    const zip = new JSZip(), data = {app:'price-label', v:1, brand:brandData(), items:[]};
+    for(let n=0;n<items.length;n++){
+      setStatus(`عم جهّز النسخة الاحتياطية… ${n+1} من ${items.length}`);
+      const it = items[n], rec = await dbGet('blobs', it.id);
+      zip.file(`images/${n+1}.jpg`, await openBlob(rec.f));
+      zip.file(`thumbs/${n+1}.jpg`, await openBlob(rec.t));
+      data.items.push({...pick(it), img:n+1});
+    }
+    zip.file('data.json', JSON.stringify(data));
+    const blob = await zip.generateAsync({type:'blob', compression:'STORE'});
+    const d = new Date(), day = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    offerDownload(blob, `نسخة-احتياطية-ملصق-الأسعار-${day}.zip`);
+    setStatus(`نزلت النسخة الاحتياطية (${items.length} صورة). احتفظ فيها بمكان آمن، لأنها مو مشفّرة.`);
+  }catch(e){ setStatus('ما قدرت جهّز النسخة الاحتياطية.'); }
+  finally{ btn.disabled = false; }
+};
+$('#restoreFile').addEventListener('change', async e=>{
+  const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+  if(!window.JSZip){ setStatus('ما قدرت حمّل أداة الضغط. تأكد من الإنترنت وحدّث الصفحة.'); return; }
+  try{
+    const zip = await JSZip.loadAsync(f);
+    const dj = zip.file('data.json'); if(!dj) throw new Error('bad');
+    const data = JSON.parse(await dj.async('string'));
+    if(data.app!=='price-label') throw new Error('bad');
+    if(data.brand && !brand.logoData && !brand.wmText){ await applyBrand(data.brand); saveBrand(); }
+    let n = 0;
+    for(const r of data.items||[]){
+      n++; setStatus(`عم استرجع… ${n} من ${data.items.length}`);
+      const fi = zip.file(`images/${r.img}.jpg`); if(!fi) continue;
+      const full = new Blob([await fi.async('arraybuffer')], {type:'image/jpeg'});
+      const ti = zip.file(`thumbs/${r.img}.jpg`);
+      const thumb = ti ? new Blob([await ti.async('arraybuffer')], {type:'image/jpeg'}) : await shrink(await decode(full), THUMB);
+      const fields = Object.fromEntries(FIELDS.filter(k=>k!=='name' && r[k]!=null).map(k=>[k, String(r[k])]));
+      await newItem({full, thumb}, r.name||'', fields);
+    }
+    setStatus(`تم استرجاع ${n} صورة`);
+    showUsage();
+  }catch(err){ setStatus('هالملف مو نسخة احتياطية من ملصق الأسعار.'); }
+});
+
+initLock();
+</script>
+
+</body>
+</html>
