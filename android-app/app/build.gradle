@@ -1,0 +1,36 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.altheqa.pricelabel'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.altheqa.pricelabel'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+    signingConfigs {
+        release {
+            storeFile file('../keystore/release.jks')
+            storePassword '2dU3tshP1z8eYlAQjQKzWhIJ'
+            keyAlias 'pricelabel'
+            keyPassword '2dU3tshP1z8eYlAQjQKzWhIJ'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.13.1'
+}

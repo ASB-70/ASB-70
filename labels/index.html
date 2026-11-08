@@ -121,7 +121,8 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
 .acct-grid form,.acct-grid .box{display:flex;flex-direction:column;gap:10px;min-width:0}
 .acct-grid h3{margin:0;font-size:.9rem}
 .note{font-size:.85rem;color:var(--muted);margin:0}
-.lock-card .installBtn{justify-content:center}
+.lock-card .installBtn,.lock-card .apkBtn{justify-content:center}
+a.btn{text-decoration:none}
 .setup{background:var(--surface);border:2px solid var(--accent);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .setup h2{margin:0;font-family:var(--display);font-size:1.1rem}
 .setup p{margin:0}
@@ -141,6 +142,7 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
     <label class="switch" for="keep"><input type="checkbox" id="keep" checked> خليني داخل على هالجهاز</label>
     <button class="btn primary" type="submit" id="lockBtn" disabled>دخول</button>
     <p class="err" id="lockErr" aria-live="polite"></p>
+    <a class="btn apkBtn" href="app/price-label.apk" download="ملصق-الأسعار.apk" hidden>⬇️ تنزيل تطبيق أندرويد (APK)</a>
     <button type="button" class="btn installBtn" hidden>📲 تثبيت كتطبيق على الموبايل</button>
     <p class="note installHelp" hidden></p>
   </form>
@@ -249,6 +251,7 @@ details.acct summary{cursor:pointer;font-family:var(--display);font-weight:700;f
         </div>
         <p class="note" id="usage"></p>
         <p class="note">حسابك: <span id="whoami" dir="ltr"></span></p>
+        <a class="btn apkBtn" href="app/price-label.apk" download="ملصق-الأسعار.apk" hidden>⬇️ تنزيل تطبيق أندرويد (APK)</a>
       </div>
     </div>
   </details>
@@ -666,12 +669,28 @@ function fileBase(it,n){
   const clean = s => (s||'').replace(/[\\/:*?"<>|]+/g,'').trim().slice(0,60);
   return clean(it.code ? 'كود '+it.code : it.desc) || clean(it.name) || ('منتج '+n);
 }
+const NATIVE = (window.AndroidBridge && typeof window.AndroidBridge.saveFile==='function') ? window.AndroidBridge : null;
+function blobToB64(blob){ return new Promise((res,rej)=>{ const r = new FileReader(); r.onload = ()=>res(String(r.result).split(',')[1]); r.onerror = ()=>rej(r.error); r.readAsDataURL(blob); }); }
+async function shareFileList(files){
+  if(NATIVE){
+    const arr = [];
+    for(const f of files) arr.push({name:f.name, data: await blobToB64(f)});
+    if(!NATIVE.shareFiles(JSON.stringify(arr))){ const e = new Error('share'); e.name = 'NativeError'; throw e; }
+    return;
+  }
+  return navigator.share({files});
+}
 function offerDownload(blob,name){
+  if(NATIVE){
+    const mime = /\.zip$/i.test(name) ? 'application/zip' : 'image/jpeg';
+    blobToB64(blob).then(b=>{ if(!NATIVE.saveFile(b, name, mime)) setStatus('ما انحفظ الملف. إذا طلب التطبيق إذن، اسمحله وجرّب مرة تانية.'); });
+    return;
+  }
   const u = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = u; a.download = name; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(u), 60000);
 }
-const canShareFiles = (()=>{ try{ return !!(navigator.canShare && navigator.canShare({files:[new File([new Blob(['x'],{type:'image/jpeg'})],'a.jpg',{type:'image/jpeg'})]})); }catch(e){ return false; } })();
+const canShareFiles = (()=>{ if(NATIVE) return true; try{ return !!(navigator.canShare && navigator.canShare({files:[new File([new Blob(['x'],{type:'image/jpeg'})],'a.jpg',{type:'image/jpeg'})]})); }catch(e){ return false; } })();
 async function saveOne(it){
   setStatus('عم جهّز الصورة…');
   try{ const b = await renderFull(it); offerDownload(b, fileBase(it,items.indexOf(it)+1)+'.jpg'); setStatus('نزلت الصورة'); }
@@ -682,7 +701,7 @@ async function shareOne(it){
     let b = it.shareBlob;
     if(!b){ setStatus('عم جهّز الصورة…'); b = await renderFull(it); }
     const f = new File([b], fileBase(it,items.indexOf(it)+1)+'.jpg', {type:'image/jpeg'});
-    try{ await navigator.share({files:[f]}); it.shareBlob = null; setStatus(''); }
+    try{ await shareFileList([f]); it.shareBlob = null; setStatus(''); }
     catch(e){
       if(e && e.name==='AbortError'){ setStatus(''); return; }
       if(e && e.name==='NotAllowedError'){ it.shareBlob = b; setStatus('الصورة جاهزة، اضغط «مشاركة» مرة تانية.'); return; }
@@ -767,8 +786,8 @@ $('#selShare').onclick = async()=>{
         files.push(new File([b], fileBase(list[n], items.indexOf(list[n])+1)+'.jpg', {type:'image/jpeg'}));
       }
     }
-    if(navigator.canShare && !navigator.canShare({files})){ setStatus('الجهاز ما بيقبل مشاركة هالعدد مرة وحدة. خفّف التحديد أو نزّلهم ZIP.'); return; }
-    try{ await navigator.share({files}); sharePrepared = null; setStatus(''); }
+    if(!NATIVE && navigator.canShare && !navigator.canShare({files})){ setStatus('الجهاز ما بيقبل مشاركة هالعدد مرة وحدة. خفّف التحديد أو نزّلهم ZIP.'); return; }
+    try{ await shareFileList(files); sharePrepared = null; setStatus(''); }
     catch(e){
       if(e && e.name==='AbortError'){ setStatus(''); return; }
       if(e && e.name==='NotAllowedError'){ sharePrepared = {key, files}; setStatus('الصور جاهزة، اضغط «مشاركة المحدد» مرة تانية.'); return; }
@@ -1299,6 +1318,7 @@ document.querySelectorAll('.installBtn').forEach(b=>b.addEventListener('click', 
   });
 }));
 showInstall();
+if(/android/i.test(navigator.userAgent) && !NATIVE) document.querySelectorAll('.apkBtn').forEach(a=>a.hidden = false);
 </script>
 
 </body>
