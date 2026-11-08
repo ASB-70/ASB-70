@@ -586,6 +586,8 @@ function addCard(it){
       <div class="actions">
         <button class="btn primary" type="button" data-act="save">تنزيل الصورة</button>
         <button class="btn" type="button" data-act="share" ${canShareFiles?'':'hidden'}>مشاركة</button>
+        <label class="btn pick" for="rep-${it.id}">🔄 استبدال الصورة
+          <input type="file" id="rep-${it.id}" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" data-act="replace"></label>
         <button class="btn ghost-danger" type="button" data-act="del">حذف</button>
       </div>
     </div>`;
@@ -614,6 +616,7 @@ function addCard(it){
   d.querySelector('[data-act=save]').onclick = ()=>saveOne(it);
   d.querySelector('[data-act=share]').onclick = ()=>shareOne(it);
   d.querySelector('[data-act=del]').onclick = ()=>removeItem(it);
+  d.querySelector('[data-act=replace]').addEventListener('change', e=>{ const f = e.target.files[0]; e.target.value = ''; if(f) replaceImage(it, f); });
   io.observe(d);
   it.dirty = true; it.shareBlob = null;
 }
@@ -986,6 +989,7 @@ async function upload(path, blob){
 }
 async function fetchImage(it, which){
   if(!it.sid){ const op = await dbGet('outbox','new-'+it.lkey); if(op) return which==='img' ? op.full : op.thumb; }
+  else { const op = await dbGet('outbox','img-'+it.sid); if(op) return which==='img' ? op.full : op.thumb; }
   const p = it[which==='img' ? 'imgPath' : 'thumbPath'];
   try{ const c = await dbGet('cache', p); if(c) return c; }catch(e){}
   const r = await sb(`/storage/v1/object/authenticated/${SB.bucket}/${p}`);
@@ -1022,7 +1026,7 @@ async function queueDelete(list){
   for(const it of list){
     clearTimeout(it.st);
     try{ await dbDel('outbox','new-'+it.lkey); }catch(e){}
-    if(it.sid){ sids.push(it.sid); ps.push(it.imgPath, it.thumbPath); try{ await dbDel('outbox','upd-'+it.sid); }catch(e){} }
+    if(it.sid){ sids.push(it.sid); ps.push(it.imgPath, it.thumbPath); try{ await dbDel('outbox','upd-'+it.sid); await dbDel('outbox','img-'+it.sid); }catch(e){} }
     else it.gone = true;
   }
   if(sids.length) await putOp({lid:'del-'+newKey(), kind:'del', sids, paths:ps});
@@ -1041,7 +1045,12 @@ async function runOp(op){
     const cur = await dbGet('outbox', op.lid);
     if(!cur){ await putOp({lid:'del-'+newKey(), kind:'del', sids:[row.id], paths:[p.img,p.thumb]}); return 'keep'; }
     if(it){ it.sid = row.id; it.imgPath = p.img; it.thumbPath = p.thumb; }
-    if(cur.s !== op.s){ await dbDel('outbox', op.lid); await putOp({lid:'upd-'+row.id, kind:'upd', sid:row.id, fields:cur.fields}); return 'keep'; }
+    if(cur.s !== op.s){
+      await dbDel('outbox', op.lid);
+      await putOp({lid:'upd-'+row.id, kind:'upd', sid:row.id, fields:cur.fields});
+      if((cur.iv||0) !== (op.iv||0)) await putOp({lid:'img-'+row.id, kind:'img', sid:row.id, lkey:newKey(), full:cur.full, thumb:cur.thumb, old:[p.img, p.thumb]});
+      return 'keep';
+    }
   } else if(op.kind==='upd'){
     await sb(`/rest/v1/label_items?id=eq.${op.sid}`, {method:'PATCH', headers:{'Content-Type':'application/json', Prefer:'return=minimal'},
       body:JSON.stringify({data:op.fields, updated_at:new Date().toISOString()})});
@@ -1053,6 +1062,20 @@ async function runOp(op){
       try{ await sb(`/storage/v1/object/${SB.bucket}`, {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prefixes:op.paths.slice(i,i+100)})}); }catch(e){ if(e.offline) throw e; }
       for(const p of op.paths.slice(i,i+100)) try{ await dbDel('cache', p); }catch(e){}
     }
+  } else if(op.kind==='img'){
+    const p = {img:`${S.uid}/${op.lkey}.jpg`, thumb:`${S.uid}/${op.lkey}_t.jpg`};
+    await upload(p.img, op.full); await upload(p.thumb, op.thumb);
+    await sb(`/rest/v1/label_items?id=eq.${op.sid}`, {method:'PATCH', headers:{'Content-Type':'application/json', Prefer:'return=minimal'},
+      body:JSON.stringify({img_path:p.img, thumb_path:p.thumb, updated_at:new Date().toISOString()})});
+    try{ await dbPut('cache', op.full, p.img); await dbPut('cache', op.thumb, p.thumb); }catch(e){}
+    const it = items.find(i=>i.sid===op.sid);
+    const cur = await dbGet('outbox', op.lid);
+    if(it && (!cur || cur.s===op.s)){ it.imgPath = p.img; it.thumbPath = p.thumb; it.lkey = op.lkey; }
+    if(op.old && op.old.length){
+      try{ await sb(`/storage/v1/object/${SB.bucket}`, {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prefixes:op.old})}); }catch(e){ if(e.offline) throw e; }
+      for(const o of op.old) try{ await dbDel('cache', o); }catch(e){}
+    }
+    if(cur && cur.s!==op.s){ cur.old = [p.img, p.thumb]; await dbPut('outbox', cur); return 'keep'; }   // replaced again meanwhile
   } else if(op.kind==='brand'){
     await sb(`/rest/v1/label_settings?on_conflict=user_id`, {method:'POST', headers:{'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal'},
       body:JSON.stringify({user_id:S.uid, data:op.data, updated_at:new Date().toISOString()})});
@@ -1116,11 +1139,12 @@ async function loadAll(){
   const ops = (await dbAll('outbox')).filter(o=>o.uid===S.uid);
   const delSet = new Set(ops.filter(o=>o.kind==='del').flatMap(o=>o.sids));
   const upd = Object.fromEntries(ops.filter(o=>o.kind==='upd').map(o=>[o.sid, o.fields]));
+  const imgOps = Object.fromEntries(ops.filter(o=>o.kind==='img').map(o=>[o.sid, o]));
   items.slice().forEach(it=>{ it.keepStored = true; removeItem(it); });
   for(const r of rows){
     if(delSet.has(r.id)) continue;
     const lkey = (r.img_path.split('/').pop()||'').replace(/\.jpg$/,'');
-    const it = {id:++uid, lkey, sid:r.id, pos:r.pos, imgPath:r.img_path, thumbPath:r.thumb_path, full:null, thumb:null, ...blankItem(), ...(r.data||{}), ...(upd[r.id]||{})};
+    const it = {id:++uid, lkey, sid:r.id, pos:r.pos, imgPath:r.img_path, thumbPath:r.thumb_path, full:null, thumb:(imgOps[r.id] ? imgOps[r.id].thumb : null), ...blankItem(), ...(r.data||{}), ...(upd[r.id]||{})};
     items.push(it); addCard(it); posSeed = Math.max(posSeed, r.pos);
   }
   for(const o of ops.filter(o=>o.kind==='new').sort((a,b)=>a.pos-b.pos)){
@@ -1397,6 +1421,32 @@ async function pullShared(){
   });
 }
 window.__androidShared = ()=>pullShared();
+
+/* ---------- replace the photo of one product, keeping its details ---------- */
+async function replaceImage(it, file){
+  if(!isImg(file)){ setStatus('الملف اللي اخترته مو صورة.'); return; }
+  setStatus('عم استبدل الصورة…');
+  let p;
+  try{ p = await prepare(await decode(file)); }
+  catch(e){ setStatus('ما قدرت افتح الصورة. جرّب تحوّلها لـ JPG.'); return; }
+  if(!items.includes(it)) return;
+  try{
+    if(!it.sid){
+      const op = await dbGet('outbox','new-'+it.lkey);
+      if(op){ op.full = p.full; op.thumb = p.thumb; op.iv = (op.iv||0)+1; await putOp(op); }
+      else if(!it.sid){ setStatus('الصورة عم تنرفع هلق، جرّب الاستبدال بعد ثواني.'); return; }
+    }
+    if(it.sid){
+      const prev = await dbGet('outbox','img-'+it.sid);
+      await putOp({lid:'img-'+it.sid, kind:'img', sid:it.sid, lkey:newKey(), full:p.full, thumb:p.thumb,
+        old: prev ? prev.old : [it.imgPath, it.thumbPath], t: prev ? prev.t : undefined});
+    }
+    it.full = null; it.thumb = p.thumb; it.name = (file.name||'').replace(/\.[^.]+$/,'') || it.name;
+    const tag = document.querySelector(`#card-${it.id} .tag`); if(tag) tag.textContent = it.name;
+    sharePrepared = null; it.shareBlob = null; schedule(it,0); queueSave(it);
+    setStatus('تم استبدال الصورة، والمعلومات ضلت متل ما هي.');
+  }catch(e){ failNote(e); }
+}
 </script>
 
 </body>
