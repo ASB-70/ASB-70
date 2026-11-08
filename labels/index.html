@@ -829,7 +829,7 @@ document.addEventListener('paste',e=>{ if(e.clipboardData && e.clipboardData.fil
 /* brand controls, remembered in this browser */
 const brandData = ()=>({v:2, res:brand.res, size:brand.size, fit:brand.fit, logo:brand.logoData||null, logoOn:brand.logoOn, logoSize:brand.logoSize, style:brand.style, barColor:brand.barColor, accColor:brand.accColor, wmText:brand.wmText, wmOn:brand.wmOn, wmAlpha:brand.wmAlpha, lastUnits});
 let brandT = 0;
-function saveBrand(){ clearTimeout(brandT); brandT = setTimeout(()=>putOp({lid:'brand', kind:'brand', data:brandData()}), 600); }
+function saveBrand(){ clearTimeout(brandT); brandT = setTimeout(()=>{ const d = brandData(); if(S) dbPut('cache', d, 'brand:'+S.uid).catch(()=>{}); putOp({lid:'brand', kind:'brand', data:d}); }, 600); }
 const redrawAll = (d=200)=> items.forEach(it=>schedule(it,d));
 async function setLogo(dataUrl){
   const img = new Image();
@@ -1006,7 +1006,7 @@ async function runOp(op){
       body:JSON.stringify({user_id:S.uid, pos:op.pos, data:op.fields, img_path:p.img, thumb_path:p.thumb})});
     const row = (await jsonOf(r))[0];
     const it = items.find(i=>i.lkey===op.lkey);
-    try{ await dbPut('cache', op.thumb, p.thumb); }catch(e){}
+    try{ await dbPut('cache', op.thumb, p.thumb); await dbPut('cache', op.full, p.img); }catch(e){}
     const cur = await dbGet('outbox', op.lid);
     if(!cur){ await putOp({lid:'del-'+newKey(), kind:'del', sids:[row.id], paths:[p.img,p.thumb]}); return 'keep'; }
     if(it){ it.sid = row.id; it.imgPath = p.img; it.thumbPath = p.thumb; }
@@ -1046,6 +1046,7 @@ async function flush(){
       }
     }while(again);
     offline = false; failed = false; waiting = 0;
+    cacheRows();
   }catch(e){
     if(e instanceof AuthError){ toLogin('انتهت الجلسة، ادخل مرة تانية.'); }
     else if(missingTable(e) || (e.body && /Bucket not found/i.test(e.body))){ showSetup(); }
@@ -1069,14 +1070,17 @@ window.addEventListener('beforeunload', e=>{ if(flushing || waiting){ e.preventD
 /* ---------- loading everything after login ---------- */
 async function loadAll(){
   setStatus('عم حمّل صورك…');
-  let rows = [];
+  let rows = [], wasOffline = false;
   try{
     const r = await sb(`/rest/v1/label_items?select=id,pos,data,img_path,thumb_path&order=pos.asc&limit=5000`);
     rows = await jsonOf(r) || [];
+    try{ await dbPut('cache', rows, 'rows:'+S.uid); }catch(_){}
   }catch(e){
     if(missingTable(e)){ showSetup(); return false; }
     if(e instanceof AuthError) throw e;
-    setStatus(e.offline ? 'ما في إنترنت. عم اعرض بس الشي اللي لسا ما انرفع.' : 'ما قدرت حمّل الصور: '+(e.message||'').slice(0,120));
+    wasOffline = !!e.offline;
+    try{ rows = (await dbGet('cache', 'rows:'+S.uid)) || []; }catch(_){ rows = []; }
+    setStatus(e.offline ? 'ما في إنترنت: عم تشتغل على النسخة المحفوظة عالجهاز، وأي تعديل بينرفع لما يرجع النت.' : 'ما قدرت حمّل الصور: '+(e.message||'').slice(0,120));
   }
   const ops = (await dbAll('outbox')).filter(o=>o.uid===S.uid);
   const delSet = new Set(ops.filter(o=>o.kind==='del').flatMap(o=>o.sids));
@@ -1094,18 +1098,31 @@ async function loadAll(){
     items.push(it); addCard(it);
   }
   renumber();
-  if(rows.length || items.length) setStatus(`انفتحت ${items.length} صورة`);
+  if(wasOffline) {}
+  else if(rows.length || items.length) setStatus(`انفتحت ${items.length} صورة`);
   else setStatus('');
   return true;
 }
+function cacheRows(){
+  // the list as it stands now, so the app can open with no internet
+  if(!S) return;
+  const rows = items.filter(i=>i.sid).map(i=>({id:i.sid, pos:i.pos, data:pick(i), img_path:i.imgPath, thumb_path:i.thumbPath}));
+  dbPut('cache', rows, 'rows:'+S.uid).catch(()=>{});
+}
 async function loadSettings(){
+  let saved = null;
   try{
     const r = await sb(`/rest/v1/label_settings?select=data&user_id=eq.${S.uid}`);
     const j = await jsonOf(r);
-    const pendingBrand = await dbGet('outbox','brand');
-    const d = pendingBrand ? pendingBrand.data : (j && j[0] && j[0].data);
-    if(d) await applyBrand(d);
-  }catch(e){ if(e instanceof AuthError) throw e; }
+    saved = j && j[0] && j[0].data;
+    if(saved) try{ await dbPut('cache', saved, 'brand:'+S.uid); }catch(_){}
+  }catch(e){
+    if(e instanceof AuthError) throw e;
+    try{ saved = await dbGet('cache', 'brand:'+S.uid); }catch(_){}
+  }
+  let pendingBrand = null; try{ pendingBrand = await dbGet('outbox','brand'); }catch(_){}
+  const d = pendingBrand ? pendingBrand.data : saved;
+  if(d) await applyBrand(d);
 }
 
 /* ---------- setup SQL (run once in Supabase) ---------- */
