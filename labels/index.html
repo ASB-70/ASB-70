@@ -230,6 +230,24 @@ a.btn{text-decoration:none}
     <div class="row"><button class="btn primary" type="button" id="copySql">نسخ الكود</button>
       <button class="btn" type="button" id="retrySetup">جرّب مرة تانية</button></div>
   </section>
+  <details class="acct" id="syncBox">
+    <summary>حالة المزامنة <span id="syncBadge" class="saved"></span></summary>
+    <div class="acct-grid">
+      <div class="box">
+        <p class="note">الحساب: <b id="syncWho" dir="ltr"></b></p>
+        <p class="note">صور محفوظة أونلاين على هالحساب: <b id="syncServer">…</b></p>
+        <p class="note">صور وتعديلات لسا عالجهاز وما انرفعت: <b id="syncPending">…</b></p>
+        <p class="note">آخر مشكلة بالرفع: <b id="syncErr" dir="auto">ما في</b></p>
+        <div class="row"><button class="btn primary" type="button" id="syncNow">مزامنة الآن</button></div>
+      </div>
+      <div class="box">
+        <p class="note">إذا الصور ما بتبين على جهاز تاني:</p>
+        <p class="note">١. تأكد إنك داخل بنفس الإيميل على الجهازين.</p>
+        <p class="note">٢. إذا في صور «لسا عالجهاز»، افتح هالقسم على الجهاز اللي ضفت منه الصور واضغط «مزامنة الآن»، واقرأ «آخر مشكلة».</p>
+        <p class="note">٣. إذا المشكلة فيها كلمة security أو Bucket، معناها لازم تشغّل كود الإعداد مرة تانية بـ Supabase (بيطلعلك تحت).</p>
+      </div>
+    </div>
+  </details>
   <details class="acct" id="acct">
     <summary>كلمة السر والنسخة الاحتياطية</summary>
     <div class="acct-grid">
@@ -1100,11 +1118,11 @@ async function flush(){
       }
     }while(again);
     offline = false; failed = false; waiting = 0;
-    cacheRows();
+    cacheRows(); noteErr(null);
   }catch(e){
     if(e instanceof AuthError){ toLogin('انتهت الجلسة، ادخل مرة تانية.'); }
-    else if(missingTable(e) || (e.body && /Bucket not found/i.test(e.body))){ showSetup(); }
-    else { if(e.offline) offline = true; else { failed = true; setStatus('ما قدرت ارفع آخر تعديل: '+(e.message||'').slice(0,120)); } retryT = setTimeout(flush, 15000); }
+    else if(missingTable(e) || (e.body && /Bucket not found|row-level security|violates|permission denied|not authorized|Unauthorized/i.test(e.body))){ noteErr(e); showSetup(); retryT = setTimeout(flush, 30000); }
+    else { if(e.offline) offline = true; else { failed = true; noteErr(e); setStatus('ما قدرت ارفع آخر تعديل: '+(e.message||'').slice(0,120)); } retryT = setTimeout(flush, 15000); }
     try{ waiting = (await dbAll('outbox')).filter(o=>o.uid===S.uid).length; }catch(_){}
   }finally{ flushing = false; showSaved(); }
 }
@@ -1250,7 +1268,7 @@ async function enter(){
     await loadSettings();
     const ok = await loadAll();
     if(ok) kick();
-    pullShared();
+    pullShared(); refreshSync();
   }catch(e){ if(e instanceof AuthError) toLogin('انتهت الجلسة، ادخل مرة تانية.'); }
   showUsage();
 }
@@ -1447,6 +1465,36 @@ async function replaceImage(it, file){
     setStatus('تم استبدال الصورة، والمعلومات ضلت متل ما هي.');
   }catch(e){ failNote(e); }
 }
+
+/* ---------- sync status panel ---------- */
+function noteErr(e){
+  const msg = e ? `${e.status ? 'HTTP '+e.status+': ' : ''}${(e.body || e.message || '').slice(0,300)}` : '';
+  try{ if(msg) localStorage.setItem('pl-lasterr', new Date().toLocaleString('ar')+' — '+msg); else localStorage.removeItem('pl-lasterr'); }catch(_){}
+  refreshSync();
+}
+async function refreshSync(){
+  if(!S || $('#syncBox').hidden) return;
+  $('#syncWho').textContent = S.email || '';
+  let pend = 0; try{ pend = (await dbAll('outbox')).filter(o=>o.uid===S.uid && o.kind!=='brand').length; }catch(_){}
+  $('#syncPending').textContent = pend;
+  let le = ''; try{ le = localStorage.getItem('pl-lasterr') || ''; }catch(_){}
+  $('#syncErr').textContent = le || 'ما في';
+  $('#syncBadge').textContent = pend ? `— ${pend} لسا ما انرفع` : '— تمام ✓';
+  $('#syncBadge').classList.toggle('off', !!pend);
+}
+async function countServer(){
+  try{
+    const r = await sb(`/rest/v1/label_items?select=id`, {headers:{Prefer:'count=exact', Range:'0-0'}});
+    const cr = r.headers.get('content-range') || ''; const n = cr.split('/')[1];
+    $('#syncServer').textContent = n || '?';
+  }catch(e){ $('#syncServer').textContent = e.offline ? 'ما في إنترنت' : 'ما قدرت اعرف ('+(e.status||'')+')'; if(!e.offline) noteErr(e); }
+}
+$('#syncBox').addEventListener('toggle', ()=>{ if($('#syncBox').open){ refreshSync(); countServer(); } });
+$('#syncNow').onclick = async()=>{
+  setStatus('عم زامن…'); failed = false; kick();
+  setTimeout(async()=>{ await refreshSync(); await countServer(); setStatus(''); }, 4000);
+};
+setInterval(()=>{ if(S) refreshSync(); }, 5000);
 </script>
 
 </body>
