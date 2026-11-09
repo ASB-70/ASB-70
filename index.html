@@ -482,7 +482,7 @@ function openSend(){FORCE=true;buildImg();$("pvt").textContent="إرسال ال�
  if(APK){$("ps").style.display="";$("pd").style.display="none";$("ps").textContent="📤 إرسال الفاتورة (صورة + نص) إلى الشركة";$("pst").innerHTML="<b>تُرسل الفاتورة صورة ونصاً مباشرة إلى واتساب الشركة فقط</b> <b dir=\"ltr\">"+SET.phone+"</b>."}
  else{$("ps").style.display="none";$("pd").style.display="";$("pst").innerHTML="<b>الخطوة 1:</b> احفظ صورة الفاتورة بالجهاز (زر الحفظ أدناه أو اضغط مطولاً على الصورة)، وبعدها يظهر زر الإرسال إلى واتساب الشركة.";$("pok").style.display="block"}
  $("pv").hidden=false}
-$("ps").onclick=function(){if(!APK)return;try{Android.sendToCompany(N,msg(),"فاتورة-"+INVN().replace("#","")+".png","image/png",IMD.split(",")[1]);toast("تم فتح محادثة الشركة، اضغط إرسال");$("pv").hidden=true;FORCE=false}catch(e){toast("تعذر الإرسال")}};
+$("ps").onclick=function(){if(!APK)return;try{Android.sendToCompany(N,msg(),"فاتورة-"+INVN().replace("#","")+".png","image/png",IMD.split(",")[1]);toast("تم فتح محادثة الشركة");$("ps").textContent="🔁 الفاتورة ما ظهرت بالمحادثة؟ اضغط لإعادة الإرسال";$("pst").innerHTML="<b>اضغط إرسال بواتساب.</b> إذا انفتحت المحادثة بدون الفاتورة، ارجع هون واضغط الزر مرة ثانية."}catch(e){toast("تعذر الإرسال")}};
 $("pok").onclick=unlock;
 $("pd").onclick=function(){
  try{var a=document.createElement("a");a.href=URL.createObjectURL(IMB);a.download="فاتورة-"+INVN().replace("#","")+".png";document.body.appendChild(a);a.click();document.body.removeChild(a);toast("إذا ما انحفظت، اضغط مطولاً على الصورة واختر حفظ");unlock()}catch(e){toast("اضغط مطولاً على الصورة واختر حفظ")}

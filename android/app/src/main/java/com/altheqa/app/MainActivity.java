@@ -191,7 +191,9 @@ public class MainActivity extends Activity {
                             i.putExtra(Intent.EXTRA_STREAM, uri);
                             i.putExtra(Intent.EXTRA_TEXT, text);
                             i.putExtra("jid", num + "@s.whatsapp.net");
+                            i.setClipData(android.content.ClipData.newRawUri("invoice", uri));
                             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                            grantUriPermission(pk, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                             startActivity(i);
                             return;
                         } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {}
