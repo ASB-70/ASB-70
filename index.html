@@ -384,15 +384,14 @@ body.pb>*{visibility:hidden}
     <input id="so" placeholder="اسم مكتب الشحن" hidden>
   </div>
   <a id="sw" class="big" href="#" target="_blank" rel="noopener"></a>
-  <div class="two"><button type="button" class="big ghost" id="im">🖼 الفاتورة كصورة</button><button type="button" class="big ghost" id="pib">🖨 طباعة الفاتورة</button></div>
-  <div class="two"><button type="button" class="big ghost" id="cp">نسخ الفاتورة</button><button type="button" class="big ghost" id="cc">تفريغ الفاتورة</button></div>
+    <div class="two"><button type="button" class="big ghost" id="cc" style="grid-column:1/-1">تفريغ الفاتورة</button></div>
 </section>
 
 <div class="toast" id="toast"></div>
 
 <div class="ov" id="pd2" hidden><div class="pn"><div class="ph2"><b id="pdt">طباعة</b><button type="button" id="pdx">إغلاق ✕</button></div><div class="fl"><select id="prs"><option value="a4">A4 (210×297 مم) – الأكثر استخداماً</option><option value="a5">A5 (148×210 مم)</option><option value="a3">A3 (297×420 مم)</option><option value="b5">B5 (176×250 مم)</option><option value="letter">Letter (216×279 مم)</option><option value="legal">Legal (216×356 مم)</option><option value="t80">إيصال حراري 80 مم</option><option value="t58">إيصال حراري 58 مم</option></select><select id="pro"><option value="portrait">اتجاه الورقة: عمودي</option><option value="landscape">اتجاه الورقة: أفقي</option></select></div><div class="m" id="pdn"></div><button type="button" class="o" id="pdb">🖨 طباعة</button></div></div>
 <div id="prc"></div>
-<div class="ov" id="pv" hidden><div class="pn"><div class="ph2"><b id="pvt">صورة الفاتورة</b><button type="button" id="pc">إغلاق ✕</button></div><div class="m" id="pst" style="margin-bottom:8px;font-size:.92rem;line-height:1.7"></div><img id="pi2" alt=""><button type="button" class="o" id="ps">📤 مشاركة الصورة</button><button type="button" class="o2" id="pd">💾 حفظ الصورة في الجهاز</button><button type="button" class="o2" id="pok" style="display:none">✔ حفظت الصورة (اضغط لعرض الخطوة 2)</button><a class="o" id="pwa" href="#" target="_blank" style="display:none"></a><button type="button" class="o2" id="pnum" style="display:none">نسخ رقم واتساب الشركة</button><button type="button" class="o2" id="pw">فتح الصورة في صفحة جديدة</button><div class="m" style="margin-top:8px"><b>للحفظ بشكل مضمون:</b> اضغط على الصورة مطولاً واختر <b>حفظ الصورة</b>. بعدها أرسلها بنفس محادثة واتساب مع رسالة الفاتورة.</div></div></div>
+<div class="ov" id="pv" hidden><div class="pn"><div class="ph2"><b id="pvt">صورة الفاتورة</b><button type="button" id="pc">إغلاق ✕</button></div><div class="m" id="pst" style="margin-bottom:8px;font-size:.92rem;line-height:1.7"></div><img id="pi2" alt=""><button type="button" class="o" id="ps">📤 مشاركة الصورة</button><button type="button" class="o2" id="pd">💾 حفظ الصورة في الجهاز</button><button type="button" class="o2" id="pok" style="display:none">✔ حفظت الصورة (اضغط لعرض الخطوة 2)</button><a class="o" id="pwa" href="#" target="_blank" style="display:none"></a><div class="m" style="margin-top:8px"><b>للحفظ بشكل مضمون:</b> اضغط على الصورة مطولاً واختر <b>حفظ الصورة</b>. بعدها أرسلها بنفس محادثة واتساب مع رسالة الفاتورة.</div></div></div>
 
 <script>
 var WI='<svg class="ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>',N="963945215551",R=[],I=[],SET={"name":"شركة الثقة","wa":"963945215551","phone":"+963 945 215 551","addr1":"مدينة حلب – جامع الكبير","addr2":"أول مدخل سوق السويقة، مقابل جامع الخير","map":"https://maps.app.goo.gl/SZYeQEW2VGgwGrcg6?g_st=awb","fb":"altheqa19944","ig":"altheqa1994","date":"2/11/2026","note":"","pay":["عبر تطبيق شام كاش","عبر مكتب حوالات","كاش","حوالة ضد الدفع"],"ship":["شركة شنن للشحن","شركة مسارات للشحن","شركة العودة للشحن","شركة نهر الكوثر للشحن","شركة القدموس للشحن"],"qr":""},CATS=[],EMB=false;
@@ -421,7 +420,6 @@ fx();
 FI.forEach(function(x){$(x).addEventListener("input",function(){fx();sf();sm()});$(x).addEventListener("change",function(){fx();sf();sm()})});
 $("sw").addEventListener("click",function(e){var need=[["ph","رقم الزبون"],["gv","المحافظة"],["pm","طريقة الدفع"],["sh","مكتب الشحن"]];for(var k=0;k<need.length;k++){var el=$(need[k][0]);if(!el.value.trim()||(need[k][0]==="ph"&&el.value.replace(/\D/g,"").length<7)){e.preventDefault();toast("يرجى تعبئة: "+need[k][1]);el.focus();return}}if($("sh").value==="__other"&&!$("so").value.trim()){e.preventDefault();toast("يرجى كتابة اسم مكتب الشحن");$("so").focus();return}ordSend();mkS();e.preventDefault();openSend()});
 $("sw").innerHTML=WI+"إرسال الفاتورة عبر واتساب";
-$("cp").onclick=function(){mkS();var m=msg();if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(m).then(function(){toast("تم نسخ الفاتورة")},function(){toast("تعذّر النسخ")})}else{toast("تعذّر النسخ")}};
 $("cc").onclick=function(){var b=this;if(!b.getAttribute("data-s")){b.setAttribute("data-s","1");b.textContent="اضغط مرة ثانية للتأكيد";setTimeout(function(){b.removeAttribute("data-s");b.textContent=cl()},3000);return}b.removeAttribute("data-s");var was=S.s;if(S.s){S.n++;S.s=false;sS()}CT={};CP={};sv();closeC();render();bar();toast(was?"فاتورة جديدة: "+INVN():"تم تفريغ الفاتورة")};
 var S={n:1,s:false};try{var s0=JSON.parse(localStorage.getItem("inv")||"null");if(s0&&s0.n>=1)S=s0}catch(e){}
 function sS(){try{localStorage.setItem("inv",JSON.stringify(S))}catch(e){}}
@@ -478,25 +476,16 @@ function buildImg(){
  $("pi2").src=IMD}
 var FORCE=false;
 function canSh(){return !!(IMF&&navigator.canShare&&navigator.canShare({files:[IMF]})&&navigator.share)}
-function unlock(){if(!FORCE)return;$("pwa").href=wa(msg());$("pwa").innerHTML=WI+"الخطوة 2: أرسل نص الفاتورة";$("pwa").style.display="block";$("pnum").style.display="block";$("pst").innerHTML="✔ تم حفظ الصورة. <b>الخطوة 2:</b> افتح محادثة الشركة بالزر أدناه، <b>أرفق الصورة المحفوظة</b> ثم أرسل النص."}
-function openSend(){FORCE=true;buildImg();$("pvt").textContent="إرسال الفاتورة";$("pwa").style.display="none";$("pnum").style.display="none";$("pok").style.display="none";
- if(canSh()){$("ps").textContent="📤 إرسال الصورة + نص الفاتورة عبر واتساب";$("pst").innerHTML="<b>الفاتورة تُرسل صورة ونصاً معاً.</b> اضغط الزر أدناه، اختر <b>واتساب</b>، ثم اختر محادثة الشركة <b dir=\"ltr\">"+SET.phone+"</b>."}
- else{$("ps").textContent="📤 مشاركة الصورة";$("pst").innerHTML="<b>الخطوة 1:</b> احفظ صورة الفاتورة بالجهاز (زر الحفظ أدناه أو اضغط مطولاً على الصورة)، وبعدها يظهر زر إرسال النص."
-  $("pok").style.display="block"}
+function unlock(){if(!FORCE)return;$("pwa").href=wa(msg());$("pwa").innerHTML=WI+"الخطوة 2: أرسل نص الفاتورة";$("pwa").style.display="block";$("pst").innerHTML="✔ تم حفظ الصورة. <b>الخطوة 2:</b> اضغط الزر أدناه لفتح محادثة الشركة فقط، <b>أرفق الصورة المحفوظة</b> ثم أرسل النص."}
+var APK=!!(window.Android&&window.Android.sendToCompany);
+function openSend(){FORCE=true;buildImg();$("pvt").textContent="إرسال الفاتورة";$("pwa").style.display="none";$("pok").style.display="none";
+ if(APK){$("ps").style.display="";$("pd").style.display="none";$("ps").textContent="📤 إرسال الفاتورة (صورة + نص) إلى الشركة";$("pst").innerHTML="<b>تُرسل الفاتورة صورة ونصاً مباشرة إلى واتساب الشركة فقط</b> <b dir=\"ltr\">"+SET.phone+"</b>."}
+ else{$("ps").style.display="none";$("pd").style.display="";$("pst").innerHTML="<b>الخطوة 1:</b> احفظ صورة الفاتورة بالجهاز (زر الحفظ أدناه أو اضغط مطولاً على الصورة)، وبعدها يظهر زر الإرسال إلى واتساب الشركة.";$("pok").style.display="block"}
  $("pv").hidden=false}
-$("im").onclick=function(){
- if(!chk())return;
- mkS();FORCE=false;$("pvt").textContent="صورة الفاتورة";$("pst").textContent="";$("pwa").style.display="none";$("pnum").style.display="none";$("pok").style.display="none";$("ps").textContent="📤 مشاركة الصورة";
- buildImg();$("pv").hidden=false
-};
-$("ps").onclick=function(){if(FORCE&&canSh()){navigator.share({files:[IMF],text:msg(),title:"فاتورة طلب جملة – شركة الثقة"}).then(function(){toast("تم. تأكد إنك اخترت محادثة الشركة");$("pv").hidden=true;FORCE=false}).catch(function(){});return}if(!shr())toast("المشاركة المباشرة غير مدعومة هنا، استخدم حفظ الصورة")};
+$("ps").onclick=function(){if(!APK)return;try{Android.sendToCompany(N,msg(),"فاتورة-"+INVN().replace("#","")+".png","image/png",IMD.split(",")[1]);toast("تم فتح محادثة الشركة، اضغط إرسال");$("pv").hidden=true;FORCE=false}catch(e){toast("تعذر الإرسال")}};
 $("pok").onclick=unlock;
-$("pnum").onclick=function(){var n=SET.phone;if(navigator.clipboard)navigator.clipboard.writeText(n).then(function(){toast("تم نسخ الرقم")},function(){toast(n)});else toast(n)};
 $("pd").onclick=function(){
  try{var a=document.createElement("a");a.href=URL.createObjectURL(IMB);a.download="فاتورة-"+INVN().replace("#","")+".png";document.body.appendChild(a);a.click();document.body.removeChild(a);toast("إذا ما انحفظت، اضغط مطولاً على الصورة واختر حفظ");unlock()}catch(e){toast("اضغط مطولاً على الصورة واختر حفظ")}
-};
-$("pw").onclick=function(){
- try{var w=window.open("","_blank");if(!w){toast("اضغط مطولاً على الصورة واختر حفظ");return}unlock();w.document.write('<title>فاتورة</title><body style="margin:0;background:#222"><img src="'+IMD+'" style="width:100%;display:block"></body>')}catch(e){toast("اضغط مطولاً على الصورة واختر حفظ")}
 };
 $("pc").onclick=function(){$("pv").hidden=true};
 var PS={a4:["A4",12],a5:["A5",10],a3:["A3",15],b5:["B5",11],letter:["letter",12],legal:["legal",12],t80:["80mm 297mm",11],t58:["58mm 297mm",9]},PM="inv",PG=document.createElement("style");document.head.appendChild(PG);
@@ -526,7 +515,6 @@ function prList(k){
  return h+'</tbody></table>'+PFh()+'<div class="pf">الأسعار بالدولار للوحدة المذكورة · نشرة '+SET.date+'</div></div>'}
 function onSz(){var th=$("prs").value.charAt(0)==="t";$("pro").hidden=th;$("pdn").textContent=th?"إيصال حراري: اختر نفس حجم الورق في إعدادات الطابعة.":"في نافذة الطباعة اختر نفس مقاس الورق، وفعّل «طباعة الخلفيات» لتظهر ألوان الجدول."}
 function openPD(m){PM=m;$("pdt").textContent=m==="inv"?"طباعة الفاتورة":"طباعة قائمة الأسعار ("+VIS.length+" منتج)";$("pd2").hidden=false;onSz()}
-$("pib").onclick=function(){if(!keys().length){toast("الفاتورة فارغة");return}openPD("inv")};
 $("plb").onclick=function(){if(!VIS.length){toast("لا توجد منتجات للطباعة");return}openPD("list")};
 $("prs").addEventListener("change",onSz);
 $("pdx").onclick=function(){$("pd2").hidden=true};

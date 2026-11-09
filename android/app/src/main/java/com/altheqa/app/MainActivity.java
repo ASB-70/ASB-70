@@ -173,6 +173,37 @@ public class MainActivity extends Activity {
             });
         }
 
+        @JavascriptInterface public void sendToCompany(String number, String text, String name, String mime, String b64) {
+            ui.post(() -> {
+                String num = number == null ? "" : number.replaceAll("\\D", "");
+                try {
+                    File dir = new File(getCacheDir(), "shared"); dir.mkdirs();
+                    File f = new File(dir, safeName(name));
+                    try (FileOutputStream o = new FileOutputStream(f)) { o.write(Base64.decode(b64, Base64.DEFAULT)); }
+                    Uri uri = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".fp", f);
+                    String[] pkgs = {"com.whatsapp", "com.whatsapp.w4b"};
+                    for (String pk : pkgs) {
+                        try {
+                            getPackageManager().getPackageInfo(pk, 0);
+                            Intent i = new Intent(Intent.ACTION_SEND);
+                            i.setType(mime);
+                            i.setPackage(pk);
+                            i.putExtra(Intent.EXTRA_STREAM, uri);
+                            i.putExtra(Intent.EXTRA_TEXT, text);
+                            i.putExtra("jid", num + "@s.whatsapp.net");
+                            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                            startActivity(i);
+                            return;
+                        } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {}
+                    }
+                    toast("واتساب غير مثبت. سيتم فتح المحادثة بالنص فقط");
+                } catch (Exception e) { toast("تعذر فتح واتساب"); }
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/" + num + "?text=" + Uri.encode(text))));
+                } catch (Exception ignored) {}
+            });
+        }
+
         @JavascriptInterface public void saveFile(String name, String mime, String b64) {
             try {
                 byte[] data = Base64.decode(b64, Base64.DEFAULT);
