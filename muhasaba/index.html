@@ -409,7 +409,7 @@ function renderSettings(){
 
 /* ---------- sheets ---------- */
 function openSheet(html){$('#sheet').innerHTML=html;$('#scrim').hidden=false;const f=$('#sheet input,#sheet select');if(f)f.focus()}
-function closeSheet(){$('#scrim').hidden=true;$('#sheet').innerHTML='';S.draft=null;S.count=null}
+function closeSheet(){$('#scrim').hidden=true;$('#sheet').innerHTML='';S.draft=null;S.count=null;S.imp=null}
 function customerSheet(c){
   openSheet(`<h2>${c?'تعديل بيانات الزبون':'زبون جديد'}</h2><form id="cform" data-id="${c?esc(c.id):''}">
    <div class="field"><label for="c-name">اسم الزبون</label><input id="c-name" required value="${esc(c?.name||'')}"></div>
@@ -534,7 +534,7 @@ const lineCart=it=>nv(it.pack)>0?nv(it.qty)/nv(it.pack):0;
 const invTotal=d=>r2((d.items||[]).reduce((s,it)=>s+lineTot(it),0));
 const invCart=d=>(d.items||[]).reduce((s,it)=>s+lineCart(it),0);
 const pr=n=>'$'+nv(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4});
-function loadImgs(){if(!S.imgP)S.imgP=S.db.collection('pimg').get().then(s=>{for(const d of s.docs)for(const e of (d.data().list||[]))S.img[e.c]=e.d}).catch(()=>{S.imgP=null});return S.imgP}
+function loadImgs(){if(!S.imgP)S.imgP=S.db.collection('pimg').get().then(s=>{const rk=id=>id[0]==='m'?3:id[0]==='u'?2:1;for(const d of [...s.docs].sort((a,b)=>rk(a.id)-rk(b.id)||(a.id<b.id?-1:1)))for(const e of (d.data().list||[]))S.img[e.c]=e.d}).catch(()=>{S.imgP=null});return S.imgP}
 const f1=n=>(Math.round(n*10)/10).toLocaleString('en-US',{maximumFractionDigits:1});
 function nextNo(){const L=(S.ledger||[]).filter(t=>t.k==='inv'&&/^\d+$/.test(t.ref||''));return L.length?String(+L[L.length-1].ref+1):'1'}
 function invSheet(inv){
@@ -682,10 +682,11 @@ async function addLog(entries){S.slog=[...entries,...S.slog].slice(0,300);try{aw
 function loadInvStats(){if(S.invStats||!S.db)return;S.db.collection('invoices').limit(1000).get().then(s=>{const m=today().slice(0,7);let profit=0,n=0;for(const d of s.docs){const v=d.data();if((v.date||'').startsWith(m)&&v.profit!=null){profit+=v.profit;n++}}S.invStats={profit:r2(profit),n};if(S.view==='stock')renderCover()}).catch(()=>{})}
 function renderStock(){
   const el=$('#slist'),q=S.stockF.q.trim(),ql=q.toLowerCase(),f=S.stockF.f;if(S.stockF.wh!=='all'&&!S.wh.some(w=>w.id===S.stockF.wh))S.stockF.wh='all';const wid=S.stockF.wh;
-  if(!Object.keys(S.products).length){el.innerHTML='<div class="empty">لا توجد مواد في لائحة الأسعار بعد.</div>';return}
+  if(!Object.keys(S.products).length){el.innerHTML=`<div class="grid2" style="margin-bottom:6px"><button class="btn primary" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn primary" type="button" data-act="imp-open">استيراد من إكسل</button></div><div class="empty"><b>لا توجد مواد بعد</b><span>أضف المواد واحدة واحدة، أو استورد لائحة كاملة مع الكميات والتكلفة من ملف إكسل.</span></div>`;return}
   const L=Object.entries(S.products).filter(([k,p])=>{const qty=wq(k,wid);if(f==='in'&&!(qty>0))return false;if(f==='out'&&qty>0)return false;if(f==='nocost'&&nv((S.stock[k]||{}).cost)>0)return false;return !q||k.toLowerCase().includes(ql)||(p.name||'').includes(q)});
   el.innerHTML=`<div class="seg" style="margin-bottom:10px" role="group" aria-label="المستودع"><button type="button" data-wh="all" aria-pressed="${wid==='all'}">كل المستودعات</button>${S.wh.map(w=>`<button type="button" data-wh="${esc(w.id)}" aria-pressed="${wid===w.id}">${esc(w.name)}</button>`).join('')}</div>
    <div class="grid2" style="margin-bottom:6px"><button class="btn primary" type="button" data-act="count-open">جرد مستودع</button><button class="btn" type="button" data-act="wh-open">إدارة المستودعات</button></div>
+   <div class="grid2" style="margin-bottom:6px"><button class="btn" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn" type="button" data-act="imp-open">استيراد من إكسل</button></div>
    <div class="sechead" style="margin-bottom:8px"><small>${L.length} مادة · ${S.stockMeta.lastCount?'آخر جرد '+dmy(S.stockMeta.lastCount):'لم يُسجَّل جرد بعد'}</small><small>اضغط المادة للإدخال أو النقل</small></div>`+
    (L.length?`<div class="list">${L.map(([k,p])=>{const qty=wq(k,wid),c=nv((S.stock[k]||{}).cost);return `<button class="row" type="button" data-act="prod" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="46" height="46" loading="lazy" style="border-radius:8px;object-fit:cover;flex:none">`:''}<span class="who"><b>${esc(p.name)}</b><small><span class="num">${esc(k)}</span>${c>0?`<span>التكلفة <span class="num">${pr(c)}</span></span>`:'<span class="chip c-due">بدون تكلفة</span>'}</small></span>
      <span class="amt"><b class="${qty>0?'':'t-debt'}">${f1(qty)}</b><small>${esc(p.unit||'')}</small></span></button>`}).join('')}</div>`:'<div class="empty">لا توجد مادة مطابقة</div>');
@@ -703,6 +704,7 @@ function prodSheet(code){
     <div class="field"><label for="p-q">${m==='in'?'الكمية الواردة':m==='set'?'الكمية الفعلية الآن في هذا المستودع':'الكمية المنقولة'}</label><input id="p-q" type="number" step="any" min="0" inputmode="decimal"></div>
     <span class="small muted">${m==='in'?'عند إدخال بضاعة بتكلفة مختلفة تُحسب التكلفة كمتوسط بين القديم والجديد.':m==='set'?'اترك الكمية فارغة إذا أردت تعديل التكلفة فقط.':'النقل لا يغيّر الإجمالي ولا رأس المال.'}</span>
     <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إغلاق</button></div></form>
+   <button class="btn" type="button" data-act="prod-edit" data-code="${esc(code)}">تعديل بيانات المادة (الاسم، السعر، الصورة)</button>
    ${logs.length?`<div class="sec"><b class="small">آخر الحركات اليدوية</b><div class="list">${logs.map(l=>`<div class="row"><span class="who"><b>${KL[l.kind]||''}</b><small><span class="num">${dmy((l.t||'').slice(0,10))}</span>${l.w?`<span>${esc(whName(l.w))}${l.w2?' ← '+esc(whName(l.w2)):''}</span>`:''}</small></span><span class="amt"><b>${l.d>0?'+':''}${f1(nv(l.d))}</b><small>الإجمالي <span class="num">${f1(nv(l.q))}</span></small></span></div>`).join('')}</div></div>`:''}`);
 }
 async function saveProd(code){const s=S.stock[code]||{},q0=nv(s.q),c0=nv(s.cost),wid=$('#p-w').value,qs=$('#p-q').value,ce=$('#p-c'),cs=ce?ce.value:'',hasQ=qs!=='',hasC=cs!=='',st={...S.stock},cur=wq(code,wid),m=S.pmode;S.pw=wid;
@@ -832,7 +834,7 @@ function hoursFrom(type,tm){if(!tm)return 0;const [h,m]=tm.split(':').map(Number
 const hourRate=(e,cur)=>nv((e||{})[cur])/(WD*HD);
 const AVA='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" fill="#C9D1E3"/><circle cx="40" cy="31" r="14" fill="#7C89A8"/><path d="M12 80c2-18 14-27 28-27s26 9 28 27z" fill="#7C89A8"/></svg>');
 const ava=(e,sz)=>`<img src="${e&&e.photo?e.photo:AVA}" alt="" width="${sz}" height="${sz}" style="border-radius:50%;object-fit:cover;flex:none">`;
-function readPhoto(file){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=rej;r.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{const z=Math.min(im.naturalWidth,im.naturalHeight),c=document.createElement('canvas');c.width=c.height=260;c.getContext('2d').drawImage(im,(im.naturalWidth-z)/2,(im.naturalHeight-z)/2,z,z,0,0,260,260);res(c.toDataURL('image/jpeg',0.8))};im.src=r.result};r.readAsDataURL(file)})}
+function readPhoto(file,sz){sz=sz||260;return new Promise((res,rej)=>{const r=new FileReader();r.onerror=rej;r.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{const z=Math.min(im.naturalWidth,im.naturalHeight),c=document.createElement('canvas');c.width=c.height=sz;c.getContext('2d').drawImage(im,(im.naturalWidth-z)/2,(im.naturalHeight-z)/2,z,z,0,0,sz,sz);res(c.toDataURL('image/jpeg',0.8))};im.src=r.result};r.readAsDataURL(file)})}
 const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return isoD(d)};
 const wkStart=s=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+1)%7));return isoD(d)};
@@ -934,6 +936,112 @@ async function doRestore(){const o=S.rest;if(!o)return;const ok=/^[A-Za-z0-9_\-.
   const m=$('#rmsg');let n=0;for(const [p,d] of jobs){for(let k=0;;k++){try{await S.db.doc(p).set(d);break}catch(e){if(k>=3)throw e;await new Promise(r=>setTimeout(r,1500*(k+1)))}}n++;if(m&&n%5===0)m.textContent=`جارٍ الاسترجاع ${n} من ${jobs.length}… لا تغلق الصفحة`}
   S.rest=null;if(m)m.textContent='';toast('اكتمل الاسترجاع: '+n+' سجل. أغلق البرنامج وافتحه من جديد.')}
 
+/* ---------- products: manual add/edit and Excel import ---------- */
+const nrm=s=>String(s??'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/\s+/g,' ').trim().toLowerCase();
+function colKind(h,whNames){const t=nrm(h);if(!t)return null;
+  if(/كود|code|رمز/.test(t))return'code';
+  if(/صور|image|photo/.test(t))return'img';
+  if(/تكلف|كلفه|كلفة|راس المال|شراء|cost/.test(t))return'cost';
+  if(/سعر|price/.test(t))return /طرد|كرتون/.test(t)?'p2':'price';
+  if(/تعبئ|pack|داخل الطرد|بالطرد/.test(t))return'pack';
+  if(/وحده|وحدة|unit/.test(t))return'unit';
+  if(/اقل كميه|اقل كمية|حد ادني/.test(t))return'min';
+  if(whNames.some(n=>nrm(n)===t)||/^مستودع/.test(t))return'wh';
+  if(/كميه|كمية|مخزون|جرد|عدد|رصيد|qty|stock|quantity/.test(t))return'qty';
+  if(/وصف|اسم|ماده|مادة|بيان|صنف|name|item|desc/.test(t))return'name';
+  return null}
+function parseBook(X,data,type,whNames){
+  const wb=X.read(data,{type});let best=null;
+  for(const sn of wb.SheetNames){const ws=wb.Sheets[sn];if(!ws||!ws['!ref'])continue;const r0=X.utils.decode_range(ws['!ref']).s.r,rows=X.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:true});
+    for(let i=0;i<Math.min(rows.length,20);i++){const kinds=(rows[i]||[]).map(h=>typeof h==='string'?colKind(h,whNames):null);
+      if(kinds.includes('code')&&kinds.filter(k=>k&&k!=='img'&&k!=='code').length>=1){best={sn,rows,hi:i,kinds,r0};break}}
+    if(best)break}
+  if(!best)return{error:'nohead'};
+  const col={},whCols=[];best.kinds.forEach((k,j)=>{if(!k)return;if(k==='wh')whCols.push({j,name:String(best.rows[best.hi][j]).replace(/\s+/g,' ').trim()});else if(col[k]===undefined)col[k]=j});
+  const toN=v=>{if(v==null||v==='')return null;const n=typeof v==='number'?v:parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:null};
+  const items=[],seen={},dups=[];
+  for(let i=best.hi+1;i<best.rows.length;i++){const r=best.rows[i]||[];let code=r[col.code];if(code==null||String(code).trim()==='')continue;code=String(code).trim();
+    const num=k=>col[k]===undefined?null:toN(r[col[k]]),str=k=>{if(col[k]===undefined)return null;const v=r[col[k]];return v==null?null:String(v).replace(/\s+/g,' ').trim()||null};
+    const name=str('name');if(name&&name.startsWith('مثال:'))continue;
+    if(seen[code]){dups.push(code);let k=2;while(seen[code+'-'+k])k++;code=code+'-'+k}seen[code]=1;
+    const wq={};for(const w of whCols){const n=toN(r[w.j]);if(n!==null)wq[w.name]=n}
+    items.push({code,name,price:num('price'),p2:num('p2'),pack:num('pack'),unit:str('unit'),min:str('min'),qty:num('qty'),cost:num('cost'),wq,xr:best.r0+i+1})}
+  return{sheet:best.sn,si:wb.SheetNames.indexOf(best.sn),col,whCols:whCols.map(w=>w.name),items,dups}}
+function bookImages(X,u8,si,items){const out={};try{
+  const z=X.CFB.read(u8,{type:'array'}),dec=new TextDecoder(),raw=p=>{const f=X.CFB.find(z,p)||X.CFB.find(z,'/'+p);if(!f||!f.content)return null;return f.content instanceof Uint8Array?f.content:new Uint8Array(f.content)},txt=p=>{const b=raw(p);return b?dec.decode(b):''};
+  const rels=x=>{const m={};for(const t of x.match(/<Relationship\b[^>]*>/g)||[]){const id=/\bId="([^"]+)"/.exec(t),tg=/\bTarget="([^"]+)"/.exec(t);if(id&&tg)m[id[1]]=tg[1]}return m};
+  const rid=[...txt('xl/workbook.xml').matchAll(/<sheet\b[^>]*?r:id="([^"]+)"/g)].map(m=>m[1])[si],tg=rels(txt('xl/_rels/workbook.xml.rels'))[rid];if(!tg)return out;
+  const sx=txt('xl/'+tg.replace(/^\/?xl\//,'').replace(/^\//,'')),rowVm={};
+  for(const m of sx.matchAll(/<c\b([^>]*)>/g)){const a=m[1],r=/\br="[A-Z]+(\d+)"/.exec(a),v=/\bvm="(\d+)"/.exec(a);if(r&&v&&!rowVm[r[1]])rowVm[r[1]]=+v[1]}
+  const bk=[...txt('xl/metadata.xml').matchAll(/<xlrd:rvb i="(\d+)"\/>/g)].map(m=>+m[1]),rv=[...txt('xl/richData/rdrichvalue.xml').matchAll(/<rv\b[^>]*><v>(\d+)<\/v>/g)].map(m=>+m[1]);
+  const rl=[...txt('xl/richData/richValueRel.xml').matchAll(/<rel r:id="([^"]+)"\/>/g)].map(m=>m[1]),rt=rels(txt('xl/richData/_rels/richValueRel.xml.rels'));
+  const MT={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',bmp:'image/bmp'};
+  for(const it of items){const vm=rowVm[it.xr];if(!vm)continue;const t=rt[rl[rv[bk[vm-1]]]];if(!t)continue;const p='xl/'+t.replace(/^\.\.\//,'').replace(/^\/?xl\//,''),b=raw(p),mt=MT[(p.split('.').pop()||'').toLowerCase()];if(b&&mt)out[it.code]={bytes:b,mime:mt}}
+  }catch(e){}return out}
+function thumbOf(bytes,mime){return new Promise(res=>{const u=URL.createObjectURL(new Blob([bytes],{type:mime})),im=new Image();
+  im.onload=()=>{const sc=Math.min(1,128/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*sc));c.height=Math.max(1,Math.round(im.naturalHeight*sc));const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.72))};
+  im.onerror=()=>{URL.revokeObjectURL(u);res(null)};im.src=u})}
+function loadXLSX(){if(window.XLSX)return Promise.resolve();if(!S.xp)S.xp=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=()=>res();sc.onerror=()=>{S.xp=null;rej(new Error('lib'))};document.head.appendChild(sc)});return S.xp}
+const imgDocId=code=>{const h=[...code].map(ch=>ch.charCodeAt(0).toString(16).padStart(4,'0')).join('');return h.length<=190?'m'+h:'m'+newId()};
+const CL={code:'الكود',name:'الاسم',price:'سعر الجملة',p2:'سعر الطرد',pack:'التعبئة',unit:'الوحدة',min:'أقل كمية',qty:'الكمية',cost:'التكلفة'};
+function impSheet(){openSheet(`<h2>استيراد المواد والمخزون من إكسل</h2>
+   <span class="small muted">الملف يحتاج عمود <b>الكود</b> ومعه ما تريد من: اسم المادة، سعر الجملة، سعر الطرد، التعبئة داخل الطرد، الوحدة، الكمية، التكلفة. لتوزيع الكمية على أكثر من مستودع اجعل عنوان كل عمود اسم المستودع. صور المواد الموجودة داخل الخلايا تُستورد أيضاً.</span>
+   <div class="field"><label for="xfile">ملف الإكسل (xlsx أو csv)</label><input id="xfile" type="file" accept=".xlsx,.xls,.csv" style="padding:8px;font-size:13px"></div>
+   ${S.dl?'<button class="btn sm" type="button" data-act="imp-tpl">تنزيل نموذج جاهز للتعبئة</button>':''}
+   <div id="ibox" class="sec"></div><button class="btn" type="button" data-act="close">إغلاق</button>`);S.imp={}}
+async function readImport(file){const box=$('#ibox');if(!box)return;box.innerHTML='<div class="empty">جارٍ قراءة الملف…</div>';
+  try{await loadXLSX()}catch(e){box.innerHTML='<div class="note">تعذّر تحميل قارئ الإكسل. تحقق من الإنترنت وحاول ثانية.</div>';return}
+  let R,imgs={};try{const csv=/\.csv$/i.test(file.name);
+    if(csv)R=parseBook(window.XLSX,await file.text(),'string',S.wh.map(w=>w.name));
+    else{const u8=new Uint8Array(await file.arrayBuffer());R=parseBook(window.XLSX,u8,'array',S.wh.map(w=>w.name));if(!R.error)imgs=bookImages(window.XLSX,u8,R.si,R.items)}
+  }catch(e){box.innerHTML='<div class="note">تعذّرت قراءة الملف. تأكد أنه ملف إكسل سليم.</div>';return}
+  if(!$('#ibox'))return;
+  if(R.error||!R.items.length){box.innerHTML=`<div class="note">${R.error?'لم أجد سطر عناوين فيه عمود «الكود» مع عمود آخر معروف (الاسم، السعر، الكمية، التكلفة).':'الملف لا يحتوي مواد تحت سطر العناوين.'} نزّل النموذج وقارن العناوين.</div>`;return}
+  R.imgs=imgs;S.imp=R;S.armed=null;const nw=R.items.filter(i=>!S.products[i.code]).length,ni=Object.keys(imgs).length,noName=R.items.filter(i=>!S.products[i.code]&&!i.name).length;
+  const cols=Object.keys(R.col).filter(k=>CL[k]).map(k=>CL[k]).concat(R.whCols.map(n=>'مستودع: '+n));
+  box.innerHTML=`<div class="card"><b>${R.items.length} مادة في ورقة «${esc(R.sheet)}»</b>
+     <span class="small muted">${nw} مادة جديدة · ${R.items.length-nw} موجودة ستُحدَّث${ni?` · ${ni} صورة`:''}</span>
+     <span class="small">الأعمدة المقروءة: ${cols.map(esc).join('، ')}</span>
+     ${R.col.qty!==undefined&&!R.whCols.length?`<div class="field"><label for="imp-wh">الكميات تدخل إلى مستودع</label><select id="imp-wh">${whOpts(S.stockF.wh!=='all'?S.stockF.wh:'main')}</select></div>`:''}
+     ${R.col.qty!==undefined||R.whCols.length?'<span class="small muted">الكمية في الملف تصبح هي كمية المادة في المستودع (تستبدل الموجود). المواد غير المذكورة في الملف لا تتغير.</span>':''}
+     ${R.dups.length?`<span class="note">كود مكرر في الملف (أُضيف له رقم): ${R.dups.slice(0,8).map(esc).join('، ')}${R.dups.length>8?' …':''}</span>`:''}
+     ${noName?`<span class="note">${noName} مادة جديدة بدون اسم، ستدخل باسم الكود.</span>`:''}</div>
+   <div class="list">${R.items.slice(0,5).map(i=>`<div class="row"><span class="who"><b>${esc(i.name||(S.products[i.code]||{}).name||i.code)}</b><small><span class="num">${esc(i.code)}</span>${i.pack!=null?`<span>الطرد ${f1(i.pack)}</span>`:''}${i.qty!=null?`<span>الكمية ${f1(i.qty)}</span>`:''}${Object.entries(i.wq).map(([n,q])=>`<span>${esc(n)}: ${f1(q)}</span>`).join('')}${i.cost!=null?`<span>التكلفة ${pr(i.cost)}</span>`:''}</small></span><span class="amt"><b>${i.price!=null?pr(i.price):''}</b></span></div>`).join('')}</div>
+   ${R.items.length>5?`<span class="small muted">هذه أول 5 مواد للتأكد من القراءة.</span>`:''}
+   <button class="btn primary" type="button" data-act="imp-go">استيراد ${R.items.length} مادة</button><span class="small" id="imsg"></span>`}
+async function doImport(){const R=S.imp;if(!R||!R.items)return;const msg=t=>{const m=$('#imsg');if(m)m.textContent=t},P={...S.products},st={...S.stock},oldWh=S.wh;let wh=S.wh.slice();
+  for(const n of R.whCols)if(!wh.some(w=>w.name===n))wh.push({id:'w'+newId(),name:n});
+  const wid=n=>wh.find(w=>w.name===n).id,selWh=($('#imp-wh')||{}).value||'main';
+  for(const it of R.items){const o=P[it.code]||{},p={name:it.name||o.name||it.code,pack:it.pack??o.pack??0,unit:(it.unit==='القطعة'?'قطعة':it.unit)||o.unit||'قطعة',price:it.price??o.price??0};
+    const p2=it.p2??o.p2;if(p2>0&&Math.abs(p2-p.price)>1e-9)p.p2=p2;const mn=it.min??o.min;if(mn)p.min=mn;P[it.code]=p;
+    for(const [n,q] of Object.entries(it.wq))setW(st,it.code,wid(n),q);
+    if(!R.whCols.length&&it.qty!=null)setW(st,it.code,selWh,it.qty);
+    if(it.cost!=null){if(!st[it.code]||st[it.code]===S.stock[it.code])setW(st,it.code,'main',nv(getW(st[it.code]).main));st[it.code].cost=it.cost}}
+  msg('جارٍ حفظ المواد…');await S.db.doc('meta/products').set({items:P});S.products=P;
+  if(R.col.qty!==undefined||R.col.cost!==undefined||R.whCols.length){S.wh=wh;try{await saveStock(st)}catch(e){S.wh=oldWh;throw e}}
+  const codes=Object.keys(R.imgs||{});let ni=0;if(codes.length){const ts='u'+Date.now().toString(36);let cur=[],sz=0,k=0;const flush=async()=>{if(cur.length){await S.db.doc('pimg/'+ts+'_'+String(k++).padStart(3,'0')).set({list:cur});cur=[];sz=0}};
+    for(const c of codes){msg(`جارٍ تجهيز الصور ${ni+1} من ${codes.length}…`);const d=await thumbOf(R.imgs[c].bytes,R.imgs[c].mime);if(!d)continue;if(sz+d.length>170000)await flush();cur.push({c,d});sz+=d.length;S.img[c]=d;ni++}
+    await flush()}
+  const n=R.items.length;closeSheet();refresh();toast(`اكتمل الاستيراد: ${n} مادة${ni?' و'+ni+' صورة':''}`)}
+function prodForm(code){const p=code?S.products[code]:null;S.pphoto=null;S.armed=null;const f=(id,l,v,attr)=>`<div class="field"><label for="${id}">${l}</label><input id="${id}" value="${esc(v??'')}" ${attr||''}></div>`,nm='type="number" step="any" min="0" inputmode="decimal"';
+  openSheet(`<h2>${p?'تعديل بيانات المادة':'مادة جديدة'}</h2><form id="mform" data-code="${esc(code||'')}">
+   <div style="display:flex;gap:12px;align-items:center"><img id="m-prev" alt="صورة المادة" ${code&&S.img[code]?`src="${S.img[code]}"`:''} width="72" height="72" style="border-radius:10px;object-fit:cover;background:var(--sunk);flex:none">
+     <div class="field" style="flex:1;min-width:0"><label for="m-photo">صورة المادة</label><input id="m-photo" type="file" accept="image/*" style="padding:8px;font-size:13px"></div></div>
+   <div class="grid2">${p?`<div class="field"><label>كود المادة</label><input value="${esc(code)}" disabled dir="ltr"></div>`:f('m-code','كود المادة','','required dir="ltr" autocomplete="off" autocapitalize="characters"')}${f('m-name','اسم المادة',p?.name,'required')}</div>
+   <div class="grid2">${f('m-price','سعر الجملة ($)',p?.price,nm+' required')}${f('m-p2','سعر الطرد وأكثر ($)',p?.p2,nm)}</div>
+   <div class="grid2">${f('m-pack','التعبئة داخل الطرد',p?.pack||'',nm)}<div class="field"><label for="m-unit">الوحدة</label><select id="m-unit">${[...new Set([...UNITS,(p&&p.unit)||'قطعة'])].map(u=>`<option ${u===((p&&p.unit)||'قطعة')?'selected':''}>${esc(u)}</option>`).join('')}</select></div></div>
+   ${f('m-min','ملاحظة أقل كمية للطلب (اختياري)',p?.min)}
+   ${p?'':`<div class="grid2">${f('m-qty','الكمية الموجودة الآن','',nm)}${f('m-cost','تكلفة الوحدة ($)','',nm)}</div>${S.wh.length>1?`<div class="field"><label for="m-wh">في مستودع</label><select id="m-wh">${whOpts(S.stockF.wh!=='all'?S.stockF.wh:'main')}</select></div>`:''}`}
+   <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div>
+   ${p?`<button class="btn danger" type="button" data-act="prod-del" data-code="${esc(code)}">حذف المادة</button>`:''}</form>`)}
+async function saveProdForm(f){const isNew=!f.dataset.code,code=(isNew?$('#m-code').value:f.dataset.code).trim(),name=$('#m-name').value.trim();if(!code||!name){toast('أدخل الكود والاسم');return}
+  if(isNew&&S.products[code]){toast('هذا الكود موجود مسبقاً');return}
+  const p={name,pack:nv($('#m-pack').value),unit:$('#m-unit').value,price:nv($('#m-price').value)},p2=nv($('#m-p2').value),mn=$('#m-min').value.trim();if(p2>0&&p2!==p.price)p.p2=p2;if(mn)p.min=mn;
+  const P={...S.products,[code]:p};await S.db.doc('meta/products').set({items:P});S.products=P;
+  if(isNew){const q=nv($('#m-qty').value),c=nv($('#m-cost').value);if(q>0||c>0){const st={...S.stock};setW(st,code,($('#m-wh')||{}).value||'main',q);st[code].cost=c;await saveStock(st)}}
+  if(S.pphoto){await S.db.doc('pimg/'+imgDocId(code)).set({list:[{c:code,d:S.pphoto}]});S.img[code]=S.pphoto}
+  closeSheet();refresh();toast(isNew?'أُضيفت المادة':'حُفظت بيانات المادة')}
+
 /* ---------- writes ---------- */
 async function guard(fn){if(S.busy||!S.db)return;S.busy=true;try{await fn()}catch(e){fail(e)}finally{S.busy=false}}
 async function saveLedger(tx){
@@ -981,6 +1089,7 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
     toast(Math.abs(v.closed.usd-b.usd)<0.005&&Math.abs(v.closed.syp-b.syp)<0.005?'أُغلق اليوم: الكاش مطابق':'أُغلق اليوم مع فرق في الكاش')});
   if(f.id==='iform')guard(saveInvoice);
   if(f.id==='kform')guard(saveCount);
+  if(f.id==='mform')guard(()=>saveProdForm(f));
   if(f.id==='wform')guard(async()=>{const name=$('#w-name').value.trim();if(!name)return;if(S.wh.some(w=>w.name===name)){toast('يوجد مستودع بهذا الاسم');return}
     S.wh=[...S.wh,{id:'w'+Date.now().toString(36),name}];await saveStock(S.stock);toast('أُضيف المستودع');whSheet();refresh()});
   if(f.id==='pform')guard(()=>saveProd(f.dataset.code));
@@ -989,12 +1098,19 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
     await S.db.doc('settings/main').set(s);S.settings=s;renderCover();toast('حُفظت الإعدادات')});
 });
 document.addEventListener('click',e=>{
-  if(e.target.id==='scrim'){if(!S.draft&&!S.count)closeSheet();return}
+  if(e.target.id==='scrim'){if(!S.draft&&!S.count&&!S.imp)closeSheet();return}
   const b=e.target.closest('[data-view],[data-open],[data-act],[data-type],[data-k],[data-quick],[data-n],[data-st],[data-pm],[data-wh],[data-pc],[data-cfs],[data-fx],[data-emp],[data-lfs]');if(!b)return;
   if(b.dataset.st){S.stockF.f=b.dataset.st;document.querySelectorAll('#stseg button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderStock();return}
   if(b.dataset.pm){S.pmode=b.dataset.pm;const f=$('#pform');if(f)prodSheet(f.dataset.code);return}
   if(b.dataset.act==='prod'){prodSheet(b.dataset.code);return}
   if(b.dataset.act==='count-open'){countSheet();return}
+  if(b.dataset.act==='prod-new'){prodForm(null);return}
+  if(b.dataset.act==='prod-edit'){prodForm(b.dataset.code);return}
+  if(b.dataset.act==='imp-open'){impSheet();return}
+  if(b.dataset.act==='imp-go'){b.disabled=true;guard(async()=>{try{await doImport()}finally{b.disabled=false}});return}
+  if(b.dataset.act==='imp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد المواد.csv',data:'\ufeffكود المادة,اسم المادة,سعر الجملة,سعر الطرد وأكثر,التعبئة داخل الطرد,الوحدة,الكمية,التكلفة\nA-1,مثال: صحن بورسلان (احذف هذا السطر),1.5,1.4,48,قطعة,480,1.1\n'}).catch(()=>{});return}
+  if(b.dataset.act==='prod-del'){const code=b.dataset.code;if(S.wh.some(w=>wq(code,w.id)!==0)){toast('صفّر كمية المادة في كل المستودعات أولاً');return}if(S.armed!=='pd'){S.armed='pd';b.textContent='اضغط ثانية لتأكيد الحذف';return}
+    guard(async()=>{const P={...S.products};delete P[code];await S.db.doc('meta/products').set({items:P});S.products=P;if(S.stock[code]){const st={...S.stock};delete st[code];await saveStock(st)}delete S.img[code];try{await S.db.doc('pimg/'+imgDocId(code)).delete()}catch(er){}closeSheet();refresh();toast('حُذفت المادة')});return}
   if(b.dataset.wh){S.stockF.wh=b.dataset.wh;refresh();return}
   if(b.dataset.act==='wh-open'){whSheet();return}
   if(b.dataset.act==='wh-del'){const id=b.dataset.id;if(Object.keys(S.stock).some(k=>nv(getW(S.stock[k])[id])!==0)){toast('المستودع فيه بضاعة. انقلها أولاً.');return}
@@ -1083,9 +1199,9 @@ $('#sq').addEventListener('input',e=>{S.stockF.q=e.target.value;renderStock()});
 $('#q').addEventListener('input',e=>{S.f.q=e.target.value;renderList()});
 $('#cityf').addEventListener('change',e=>{S.f.city=e.target.value;renderList()});
 $('#sortf').addEventListener('change',e=>{S.f.sort=e.target.value;renderList()});
-document.addEventListener('change',e=>{if(e.target.id==='rfile'&&e.target.files[0])readRestore(e.target.files[0])});
+document.addEventListener('change',e=>{const t=e.target;if(t.id==='rfile'&&t.files[0])readRestore(t.files[0]);if(t.id==='xfile'&&t.files[0])readImport(t.files[0]);if(t.id==='m-photo'&&t.files[0])readPhoto(t.files[0],128).then(u=>{S.pphoto=u;const p=$('#m-prev');if(p)p.src=u}).catch(()=>toast('تعذّرت قراءة الصورة، جرّب صورة أخرى'))});
 $('#sheet').addEventListener('change',e=>{if(e.target.id==='e-photo'&&e.target.files[0]){readPhoto(e.target.files[0]).then(u=>{S.ephoto=u;const p=$('#e-prev');if(p)p.src=u}).catch(()=>toast('تعذّرت قراءة الصورة، جرّب صورة أخرى'));return}if(e.target.id==='cw'&&S.count){S.cw=e.target.value;S.count={};renderCount()}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden&&!S.draft&&!S.count)closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden&&!S.draft&&!S.count&&!S.imp)closeSheet()});
 
 /* ---------- boot ---------- */
 $('#locklogo').src=LOGO;if(EXT&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
