@@ -1,0 +1,27 @@
+{
+ "name": "محاسبة شركة الثقة",
+ "short_name": "محاسبة الثقة",
+ "description": "برنامج محاسبة شركة الثقة: الذمم والفواتير والمخزون والصندوق والموظفون",
+ "lang": "ar",
+ "dir": "rtl",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#13265C",
+ "theme_color": "#13265C",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any maskable"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}
