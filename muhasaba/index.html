@@ -684,11 +684,12 @@ async function addLog(entries){S.slog=[...entries,...S.slog].slice(0,300);try{aw
 function loadInvStats(){if(S.invStats||!S.db)return;S.db.collection('invoices').limit(1000).get().then(s=>{const m=today().slice(0,7);let profit=0,n=0;for(const d of s.docs){const v=d.data();if((v.date||'').startsWith(m)&&v.profit!=null){profit+=v.profit;n++}}S.invStats={profit:r2(profit),n};if(S.view==='stock')renderCover()}).catch(()=>{})}
 function renderStock(){
   const el=$('#slist'),q=S.stockF.q.trim(),ql=q.toLowerCase(),f=S.stockF.f;if(S.stockF.wh!=='all'&&!S.wh.some(w=>w.id===S.stockF.wh))S.stockF.wh='all';const wid=S.stockF.wh;
-  if(!Object.keys(S.products).length){el.innerHTML=`<div class="grid2" style="margin-bottom:6px"><button class="btn primary" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn primary" type="button" data-act="imp-open">استيراد من إكسل</button></div><div class="empty"><b>لا توجد مواد بعد</b><span>أضف المواد واحدة واحدة، أو استورد لائحة كاملة مع الكميات والتكلفة من ملف إكسل.</span></div>`;return}
+  const np=Object.keys(S.products).length,top=`<div class="sechead" style="margin-bottom:6px"><h2>المستودعات</h2><button class="btn sm primary" type="button" data-act="wh-open">＋ إضافة مستودع</button></div>
+   <div class="seg" style="margin-bottom:10px" role="group" aria-label="المستودع"><button type="button" data-wh="all" aria-pressed="${wid==='all'}">الكل</button>${S.wh.map(w=>`<button type="button" data-wh="${esc(w.id)}" aria-pressed="${wid===w.id}">${esc(w.name)}</button>`).join('')}</div>
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px"><button class="btn sm" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn sm" type="button" data-act="imp-open">استيراد إكسل</button><button class="btn sm" type="button" data-act="count-open" ${np?'':'disabled'}>جرد مستودع</button></div>`;
+  if(!np){el.innerHTML=top+'<div class="empty"><b>لا توجد مواد بعد</b><span>أضف المواد واحدة واحدة، أو استورد لائحة كاملة مع الكميات والتكلفة من ملف إكسل.</span></div>';return}
   const L=Object.entries(S.products).filter(([k,p])=>{const qty=wq(k,wid);if(f==='in'&&!(qty>0))return false;if(f==='out'&&qty>0)return false;if(f==='nocost'&&nv((S.stock[k]||{}).cost)>0)return false;return !q||k.toLowerCase().includes(ql)||(p.name||'').includes(q)});
-  el.innerHTML=`<div class="seg" style="margin-bottom:10px" role="group" aria-label="المستودع"><button type="button" data-wh="all" aria-pressed="${wid==='all'}">كل المستودعات</button>${S.wh.map(w=>`<button type="button" data-wh="${esc(w.id)}" aria-pressed="${wid===w.id}">${esc(w.name)}</button>`).join('')}</div>
-   <div class="grid2" style="margin-bottom:6px"><button class="btn primary" type="button" data-act="count-open">جرد مستودع</button><button class="btn" type="button" data-act="wh-open">إدارة المستودعات</button></div>
-   <div class="grid2" style="margin-bottom:6px"><button class="btn" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn" type="button" data-act="imp-open">استيراد من إكسل</button></div>
+  el.innerHTML=top+`
    <div class="sechead" style="margin-bottom:8px"><small>${L.length} مادة · ${S.stockMeta.lastCount?'آخر جرد '+dmy(S.stockMeta.lastCount):'لم يُسجَّل جرد بعد'}</small><small>اضغط المادة للإدخال أو النقل</small></div>`+
    (L.length?`<div class="list">${L.map(([k,p])=>{const qty=wq(k,wid),c=nv((S.stock[k]||{}).cost);return `<button class="row" type="button" data-act="prod" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="46" height="46" loading="lazy" style="border-radius:8px;object-fit:cover;flex:none">`:''}<span class="who"><b>${esc(p.name)}</b><small><span class="num">${esc(k)}</span>${c>0?`<span>التكلفة <span class="num">${pr(c)}</span></span>`:'<span class="chip c-due">بدون تكلفة</span>'}</small></span>
      <span class="amt"><b class="${qty>0?'':'t-debt'}">${f1(qty)}</b><small>${esc(p.unit||'')}</small></span></button>`}).join('')}</div>`:'<div class="empty">لا توجد مادة مطابقة</div>');
@@ -737,11 +738,14 @@ async function saveCount(){const st={...S.stock},logs=[],now=new Date().toISOStr
   if(!n&&!nc){toast('لم تُدخل أي كمية');return}
   await saveStock(st,n?{lastCount:today()}:{});if(logs.length)await addLog(logs);closeSheet();refresh();
   toast(n?`اعتُمد جرد ${whName(wid)}: ${n} مادة · فرق القيمة ${money(r2(diff))}`:`حُفظت تكلفة ${nc} مادة`)}
-function whSheet(){
-  openSheet(`<h2>المستودعات</h2><div class="list">${S.wh.map(w=>{const t=stockTotals(w.id);return `<div class="row"><span class="who"><b>${esc(w.name)}</b><small><span>${t.inStock} مادة متوفرة</span><span>رأس المال <span class="num">${money(t.cap)}</span></span></small></span>${w.id==='main'?'<span class="chip c-zero">الرئيسي</span>':`<button class="btn sm danger" type="button" data-act="wh-del" data-id="${esc(w.id)}">حذف</button>`}</div>`}).join('')}</div>
-   <form id="wform"><div class="field"><label for="w-name">اسم مستودع فرعي جديد</label><input id="w-name" required placeholder="مثال: مستودع الأميري"></div>
-   <div class="grid2"><button class="btn primary" type="submit">إضافة المستودع</button><button class="btn" type="button" data-act="close">إغلاق</button></div></form>
-   <span class="small muted">يُحذف المستودع الفرعي فقط إذا كان فارغاً. انقل بضاعته أولاً من صفحة المادة.</span>`)}
+const whType=w=>w.type||(w.id==='main'?'main':'sub');
+function whSheet(editId){const ed=editId?S.wh.find(w=>w.id===editId):null,cur=ed?whType(ed):'sub';
+  openSheet(`<h2>المستودعات</h2><div class="list">${S.wh.map(w=>{const t=stockTotals(w.id);return `<div class="row"><span class="who"><b>${esc(w.name)}</b><small><span class="chip ${whType(w)==='main'?'c-credit':'c-zero'}">${whType(w)==='main'?'رئيسي':'فرعي'}</span><span>${t.inStock} مادة</span><span>رأس المال <span class="num">${money(t.cap)}</span></span></small></span><button class="btn sm" type="button" data-act="wh-edit" data-id="${esc(w.id)}">تعديل</button>${w.id==='main'?'':`<button class="btn sm danger" type="button" data-act="wh-del" data-id="${esc(w.id)}">حذف</button>`}</div>`}).join('')}</div>
+   <form id="wform" data-id="${ed?esc(ed.id):''}" class="card"><b>${ed?'تعديل «'+esc(ed.name)+'»':'إضافة مستودع جديد'}</b>
+    <div class="field"><label for="w-name">اسم المستودع</label><input id="w-name" required value="${ed?esc(ed.name):''}" placeholder="مثال: مستودع الأميري"></div>
+    <div class="seg" id="wtseg" role="group" aria-label="نوع المستودع"><button type="button" data-wt="main" aria-pressed="${cur==='main'}">مستودع رئيسي</button><button type="button" data-wt="sub" aria-pressed="${cur==='sub'}">مستودع فرعي</button></div>
+    <div class="grid2"><button class="btn primary" type="submit">${ed?'حفظ التعديل':'إضافة المستودع'}</button>${ed?'<button class="btn" type="button" data-act="wh-open">إلغاء التعديل</button>':'<button class="btn" type="button" data-act="close">إغلاق</button>'}</div></form>
+   <span class="small muted">أضف أي عدد من المستودعات الرئيسية والفرعية. يُحذف المستودع فقط إذا كان فارغاً، فانقل بضاعته أولاً من صفحة المادة. المستودع الأول لا يُحذف لكن يمكنك تغيير اسمه.</span>`)}
 
 /* ---------- daily cash box (USD + SYP) ---------- */
 const sy=n=>(n<0?'−':'')+Math.abs(n).toLocaleString('en-US',{maximumFractionDigits:2})+' ل.س';
@@ -1175,8 +1179,8 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
   if(f.id==='iform')guard(saveInvoice);
   if(f.id==='kform')guard(saveCount);
   if(f.id==='mform')guard(()=>saveProdForm(f));
-  if(f.id==='wform')guard(async()=>{const name=$('#w-name').value.trim();if(!name)return;if(S.wh.some(w=>w.name===name)){toast('يوجد مستودع بهذا الاسم');return}
-    S.wh=[...S.wh,{id:'w'+Date.now().toString(36),name}];await saveStock(S.stock);toast('أُضيف المستودع');whSheet();refresh()});
+  if(f.id==='wform')guard(async()=>{const name=$('#w-name').value.trim(),type=$('#wtseg button[aria-pressed=true]').dataset.wt,id=f.dataset.id;if(!name)return;if(S.wh.some(w=>w.name===name&&w.id!==id)){toast('يوجد مستودع بهذا الاسم');return}
+    const old=S.wh;S.wh=id?S.wh.map(w=>w.id===id?{...w,name,type}:w):[...S.wh,{id:'w'+Date.now().toString(36),name,type}];try{await saveStock(S.stock)}catch(er){S.wh=old;throw er}toast(id?'حُفظ التعديل':'أُضيف المستودع');whSheet();refresh()});
   if(f.id==='pform')guard(()=>saveProd(f.dataset.code));
   if(f.id==='sform')guard(async()=>{await S.db.doc('customers/'+S.cid).update({dueAt:$('#r-at').value,repeat:+$('#r-rep').value});closeSheet();toast('حُفظ موعد التذكير')});
   if(f.id==='setform')guard(async()=>{const s={...S.settings,company:$('#s-company').value.trim()||DEF.company,template:$('#s-tpl').value.trim()||DEF.template};
@@ -1184,7 +1188,7 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
 });
 document.addEventListener('click',e=>{
   if(e.target.id==='scrim'){if(!S.draft&&!S.count&&!S.imp)closeSheet();return}
-  const b=e.target.closest('[data-view],[data-open],[data-act],[data-type],[data-k],[data-quick],[data-n],[data-st],[data-pm],[data-wh],[data-pc],[data-cfs],[data-fx],[data-emp],[data-lfs]');if(!b)return;
+  const b=e.target.closest('[data-view],[data-open],[data-act],[data-type],[data-k],[data-quick],[data-n],[data-st],[data-pm],[data-wh],[data-pc],[data-cfs],[data-fx],[data-emp],[data-lfs],[data-wt]');if(!b)return;
   if(b.dataset.st){S.stockF.f=b.dataset.st;document.querySelectorAll('#stseg button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderStock();return}
   if(b.dataset.pm){S.pmode=b.dataset.pm;const f=$('#pform');if(f)prodSheet(f.dataset.code);return}
   if(b.dataset.act==='prod'){prodSheet(b.dataset.code);return}
@@ -1202,6 +1206,8 @@ document.addEventListener('click',e=>{
     guard(async()=>{const P={...S.products};delete P[code];await S.db.doc('meta/products').set({items:P});S.products=P;if(S.stock[code]){const st={...S.stock};delete st[code];await saveStock(st)}delete S.img[code];try{await S.db.doc('pimg/'+imgDocId(code)).delete()}catch(er){}closeSheet();refresh();toast('حُذفت المادة')});return}
   if(b.dataset.wh){S.stockF.wh=b.dataset.wh;refresh();return}
   if(b.dataset.act==='wh-open'){whSheet();return}
+  if(b.dataset.act==='wh-edit'){whSheet(b.dataset.id);return}
+  if(b.dataset.wt){document.querySelectorAll('#wtseg button').forEach(x=>x.setAttribute('aria-pressed',x===b));return}
   if(b.dataset.act==='wh-del'){const id=b.dataset.id;if(Object.keys(S.stock).some(k=>nv(getW(S.stock[k])[id])!==0)){toast('المستودع فيه بضاعة. انقلها أولاً.');return}
     guard(async()=>{const old=S.wh;S.wh=S.wh.filter(w=>w.id!==id);try{await saveStock(S.stock)}catch(er){S.wh=old;throw er}if(S.stockF.wh===id)S.stockF.wh='all';toast('حُذف المستودع');whSheet();refresh()});return}
   if(b.dataset.n!==undefined){stmtSheet(+b.dataset.n);return}
