@@ -402,6 +402,7 @@ function renderSettings(){
      ${LK.pin?`<div class="field"><label for="pin-cur">الرمز الحالي</label><input id="pin-cur" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" required></div>`:''}
      <div class="field"><label for="pin-new">${LK.pin?'الرمز الجديد (اتركه فارغاً لإلغاء الرمز)':'الرمز الجديد'}</label><input id="pin-new" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" ${LK.pin?'':'required'}></div>
      <div class="grid2"><button class="btn primary" type="submit">حفظ الرمز</button>${LK.pin?'<button class="btn" type="button" data-act="lock-now">قفل الآن</button>':'<span></span>'}</div></form>
+   ${EXT?'<div class="card"><b>تنزيل البرنامج</b><span class="muted small">نسخة أندرويد ونسخة ويندوز 11. كلاهما يفتح نفس بياناتك.</span><a class="btn" href="../apk/muhasaba.apk">تطبيق أندرويد (APK)</a><a class="btn" href="app/Muhasaba-Althiqa.exe">برنامج ويندوز (EXE)</a></div>':''}
    ${EXT?'<div class="card"><b>الحساب</b><span class="muted small">أنت داخل بحسابك على قاعدة بيانات الشركة.</span><button class="btn danger" type="button" data-act="logout">تسجيل الخروج من هذا الجهاز</button></div>':''}
    <div class="card"><b>كيف يعمل التذكير</b><span class="muted small">حدّد لكل زبون يوماً وساعة. عند حلول الموعد يظهر الزبون في «التذكيرات» مع زر يفتح واتساب والرسالة جاهزة باسمه ومبلغه، وتضغط إرسال. واتساب لا يسمح لأي تطبيق بالإرسال من رقمك دون ضغطتك.</span></div>`;
 }
@@ -515,6 +516,7 @@ async function stmtSheet(n){
 function outBox(cv,name,extra){
   const box=$('#stmtbox');if(!box)return;S.stmtCv=cv;S.outName=name;const c=cust(S.cid),num=c?waNum(c.phone):'';
   box.className='sec';box.innerHTML=`${S.dl?`<div class="grid2"><button class="btn primary" type="button" data-act="save-stmt">حفظ كصورة</button><button class="btn primary" type="button" data-act="save-pdf">حفظ كملف PDF</button></div>`:`<div class="note">اضغط مطوّلاً على الصورة ثم «حفظ» أو «مشاركة».</div>`}
+    ${window.Android&&typeof window.Android.sendToCompany==='function'&&num?`<div class="grid2"><button class="btn wa" type="button" data-act="wa-direct" data-kind="png">إرسال الصورة لواتساب الزبون</button><button class="btn wa" type="button" data-act="wa-direct" data-kind="pdf">إرسال PDF لواتساب الزبون</button></div>`:''}
     ${num?`<a class="btn wa" href="https://wa.me/${num}" target="_blank" rel="noopener">فتح محادثة الزبون في واتساب</a>`:''}
     <span class="small muted">على الآيفون تظهر قائمة المشاركة وتختار واتساب مباشرة. على أندرويد يُحفظ الملف ثم ترفقه في محادثة الزبون.</span>
     ${extra||''}
@@ -1024,6 +1026,8 @@ document.addEventListener('click',e=>{
   if(a==='lg-del'){const id=b.dataset.id;if(S.armed!=='lg'+id){S.armed='lg'+id;renderEmp();return}const e=emp(S.eid),l=e&&(e.log||[]).find(x=>x.id===id);if(!l)return;
     guard(async()=>{await S.db.doc('staff/'+e.id).update({log:e.log.filter(x=>x.id!==id)});if(l.cash)await cashRemove(l.cash,x=>x.ltx===id);S.armed=null;toast('حُذفت')});return}
   if(a==='emp-del'){if(S.armed!=='emp'){S.armed='emp';renderEmp();return}guard(async()=>{await S.db.doc('staff/'+S.eid).delete();toast('حُذف الموظف');show('staff')});return}
+  if(a==='wa-direct'){const c=cust(S.cid),num=c&&waNum(c.phone);if(!num||!S.stmtCv)return;const send=(b64,ext,mime)=>window.Android.sendToCompany(num,S.outName,S.outName+' '+today()+'.'+ext,mime,b64);
+    try{if(b.dataset.kind==='png')send(S.stmtCv.toDataURL('image/png').split(',')[1],'png','image/png');else{const r=new FileReader();r.onload=()=>send(String(r.result).split(',')[1],'pdf','application/pdf');r.readAsDataURL(stmtPDF(S.stmtCv))}}catch(er){toast('تعذّر الإرسال المباشر')}return}
   if(a==='logout'){S.db.logout();location.reload();return}
   if(a==='backup'){if(S.dl)guard(doBackup);return}
   if(a==='restore'){if(S.armed!=='rest'){S.armed='rest';b.textContent='اضغط ثانية للتأكيد: سيُكتب فوق البيانات الحالية';return}b.disabled=true;guard(doRestore);return}

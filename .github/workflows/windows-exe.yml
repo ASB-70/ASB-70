@@ -1,0 +1,35 @@
+name: Build Windows EXE (محاسبة الثقة)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows-exe.yml'
+permissions:
+  contents: write
+concurrency:
+  group: windows-exe
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile
+        shell: cmd
+        run: |
+          if not exist muhasaba\app mkdir muhasaba\app
+          "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /codepage:65001 /target:winexe /platform:anycpu /optimize+ /win32icon:windows\app.ico /r:System.Windows.Forms.dll /out:muhasaba\app\Muhasaba-Althiqa.exe windows\Muhasaba.cs
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add muhasaba/app/Muhasaba-Althiqa.exe
+          git commit -m "Windows EXE build" || exit 0
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 10
+          done
+          exit 1

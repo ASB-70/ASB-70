@@ -27,12 +27,13 @@ jobs:
         id: build
         run: |
           set -o pipefail
-          gradle -p android assembleCustomerRelease assembleAdminRelease --no-daemon --stacktrace 2>&1 | tee build.log
+          gradle -p android assembleCustomerRelease assembleAdminRelease assembleAccountsRelease --no-daemon --stacktrace 2>&1 | tee build.log
       - name: Collect
         run: |
           mkdir -p apk
           cp android/app/build/outputs/apk/customer/release/*.apk apk/altheqa.apk
           cp android/app/build/outputs/apk/admin/release/*.apk apk/altheqa-admin.apk
+          cp android/app/build/outputs/apk/accounts/release/*.apk apk/muhasaba.apk
           rm -f apk/build.log
       - name: Publish build log on failure
         if: failure()
