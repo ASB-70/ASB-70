@@ -374,6 +374,7 @@ function renderHome(){
    +`<div class="sec"><div class="sechead"><h2>أعلى الذمم</h2><small>أكبر ٥ أرصدة</small></div><div class="list">${top.map(c=>rowHTML(c)).join('')||'<div class="row muted">لا توجد ذمم مفتوحة</div>'}</div></div>`
    +(cities.length?`<div class="sec"><div class="sechead"><h2>الذمم حسب المحافظة</h2><small>بالدولار</small></div><div class="bars">${cities.map(([n,v])=>`<div class="bar"><span>${esc(n)}</span><span class="track"><i style="width:${Math.max(2,v/max*100)}%"></i></span><b class="num">${money(r2(v))}</b></div>`).join('')}</div></div>`:'');
 }
+function sentChip(c){if(!c.lastSent)return'';const d=new Date(c.lastSent),n=new Date(),same=d.toDateString()===n.toDateString();return `<span class="chip c-credit">✓ أُرسل التذكير ${same?'اليوم':d.toLocaleDateString('ar-SY-u-nu-latn',{day:'numeric',month:'short'})}</span>`}
 function renderList(){
   const sel=$('#cityf');const cs=[...new Set(S.customers.map(c=>c.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
   const want='<option value="">كل المحافظات</option>'+cs.map(c=>`<option>${esc(c)}</option>`).join('');
@@ -388,7 +389,7 @@ function renderList(){
   const sum=r2(L.reduce((s,c)=>s+(c.balance||0),0));
   $('#clist').innerHTML=!S.loaded?'<div class="empty">جارٍ التحميل…</div>':!S.customers.length?emptyState():
     `<div class="sechead" style="margin-bottom:8px"><small>${L.length} زبون</small><small>المجموع <b class="num">${money(sum)}</b></small></div>`+
-    (L.length?`<div class="list">${L.map(c=>rowHTML(c,c.dueAt&&!isDue(c)?`<span>تذكير ${new Date(c.dueAt).toLocaleDateString('ar-SY-u-nu-latn',{day:'numeric',month:'short'})}</span>`:'')).join('')}</div>`:'<div class="empty">لا يوجد زبون يطابق البحث</div>');
+    (L.length?`<div class="list">${L.map(c=>rowHTML(c,(c.dueAt&&!isDue(c)?`<span>تذكير ${new Date(c.dueAt).toLocaleDateString('ar-SY-u-nu-latn',{day:'numeric',month:'short'})}</span>`:'')+sentChip(c))).join('')}</div>`:'<div class="empty">لا يوجد زبون يطابق البحث</div>');
 }
 function sendBlock(c){
   if(S.askSent===c.id)return `<div class="note">هل أرسلت الرسالة في واتساب؟</div><div class="grid2"><button class="btn primary" type="button" data-act="sent" data-id="${esc(c.id)}">نعم، أُرسلت</button><button class="btn" type="button" data-act="notsent">ليس بعد</button></div>`;
@@ -397,7 +398,7 @@ function sendBlock(c){
     :`<button class="btn" type="button" data-act="edit-customer" data-id="${esc(c.id)}">أضف رقم الزبون لإرسال التذكير</button>`}
 function dueCard(c){
   return `<div class="card duecard"><div class="sechead"><button class="btn sm" type="button" data-open="${esc(c.id)}" style="border:0;padding:0;background:none;font-size:15px">${esc(c.name)} ←</button><b class="num t-debt">${money(c.balance||0)}</b></div>
-    <div class="small muted">${esc(c.city||'')} · موعده ${whenTxt(c.dueAt)}</div>${sendBlock(c)}</div>`}
+    <div class="small muted">${esc(c.city||'')} · موعده ${whenTxt(c.dueAt)}</div>${c.lastSent?`<div>${sentChip(c)}</div>`:''}${sendBlock(c)}</div>`}
 function renderDue(){
   const el=$('#v-due');const due=S.customers.filter(isDue).sort((a,b)=>a.dueAt.localeCompare(b.dueAt));
   const next=S.customers.filter(c=>c.dueAt&&!isDue(c)).sort((a,b)=>a.dueAt.localeCompare(b.dueAt));
@@ -413,7 +414,7 @@ function renderDetail(){
   const stmt=tx?waLink(c,stmtMsg(c,tx)):'';
   el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="new-inv" ${tx?'':'disabled'}>＋ فاتورة جديدة</button><button class="btn primary" type="button" data-act="new-tx" data-k="pay">＋ دفعة أو حركة</button></div>
    <div class="card ${isDue(c)?'duecard':''}"><div class="sechead"><h2>تذكير الدفع</h2><button class="btn sm" type="button" data-act="schedule">${c.dueAt?'تعديل الموعد':'تحديد موعد'}</button></div>
-     <div class="small ${isDue(c)?'':'muted'}">${c.dueAt?(isDue(c)?'مستحق منذ ':'الموعد: ')+whenTxt(c.dueAt)+(c.repeat?` · يتكرر كل ${c.repeat} يوم`:''):'لا يوجد موعد محدد لهذا الزبون.'}${c.lastSent?`<br>آخر تذكير أُرسل: ${whenTxt(c.lastSent)}`:''}</div>
+     <div class="small ${isDue(c)?'':'muted'}">${c.dueAt?(isDue(c)?'مستحق منذ ':'الموعد: ')+whenTxt(c.dueAt)+(c.repeat?` · يتكرر كل ${c.repeat} يوم`:''):'لا يوجد موعد محدد لهذا الزبون.'}${c.lastSent?`<br>${sentChip(c)} <span class="muted">${whenTxt(c.lastSent)}</span>`:''}</div>
      ${sendBlock(c)}
      <button class="btn" type="button" data-act="stmt" ${tx?'':'disabled'}>إرسال كشف الحساب كصورة</button></div>
    <div class="sec"><div class="sechead"><h2>كشف الحساب</h2><small>${tx?tx.length+' حركة':''}</small></div>
@@ -635,6 +636,7 @@ function sugFor(t){const kind=t.dataset.sug;if(!kind)return;document.querySelect
 function fillItem(i,code){const p=S.products[code],d=S.draft;if(!p||!d||!d.items[i])return;Object.assign(d.items[i],{code,name:p.name||'',pack:p.pack||'',unit:p.unit||'قطعة',price:p.price||''});renderInv();const q=$(`#it-${i}-qty`);if(q)q.focus()}
 $('#sheet').addEventListener('change',e=>{if(e.target.id==='e-role'){const b=$('#e-salbox');if(b)b.hidden=['head','mgr'].includes(e.target.value)}});
 $('#v-reports').addEventListener('input',e=>{if(e.target.id!=='rep-q')return;S.rep.q=e.target.value;const q=nrm(S.rep.q),L=(S.rep.inv||[]).filter(v=>!q||nrm(v.no).includes(q)||nrm(v.cname).includes(q)||String(v.total).includes(q)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.no).localeCompare(String(a.no),'en',{numeric:true}));$('#replist').innerHTML=repInvList(L);$('#repcnt').textContent=L.length});
+$('#sheet').addEventListener('input',e=>{if(e.target.id==='crop-z')cropZoom(+e.target.value)});
 $('#sheet').addEventListener('focusin',e=>{const t=e.target;if(t.dataset&&t.dataset.sug)sugFor(t)});
 $('#sheet').addEventListener('change',e=>{const t=e.target,d=S.draft;if(d&&t.dataset.p==='code'){const k=t.value.trim(),it=d.items[+t.dataset.i];if(it&&S.products[k]&&!it.name)setTimeout(()=>{if(S.draft===d&&d.items[+t.dataset.i]===it&&!it.name)fillItem(+t.dataset.i,k)},250)}});
 $('#sheet').addEventListener('input',e=>{const t=e.target,d=S.draft;if(t.id==='pq'){S.pq=t.value;renderPick();return}if(t.id==='cq'){S.cq=t.value;renderCount();return}if(t.dataset.cf&&S.cf){S.cf[t.dataset.cf]=t.value;if(t.dataset.cf==='cname')S.cf.cid=null;if(t.dataset.sug)sugFor(t);cashHint();return}if(t.dataset.lf&&S.lf){S.lf[t.dataset.lf]=t.value;if(t.dataset.lf==='tm'){const h=hoursFrom(S.lf.type,t.value);S.lf.h=h||'';const eh=$('#lf-h');if(eh)eh.value=h||'';const a=r2(h*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||'';return}if(t.dataset.lf==='h'){const a=r2(nv(t.value)*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||''}return}if(t.dataset.fxf&&S.fx){S.fx[t.dataset.fxf]=t.value;fxHint();return}if(t.id==='cl-u'||t.id==='cl-s'){closeHint();return}if(t.dataset.cc&&S.count){(S.count[t.dataset.cc]||(S.count[t.dataset.cc]={}))[t.dataset.cp]=t.value;return}if(t.dataset.sug)sugFor(t);if(!d||!t.closest('#iform'))return;
@@ -942,10 +944,27 @@ function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.sta
     ${info('الراتب الأسبوعي',[nv(e.usd)?money(nv(e.usd)):'',nv(e.syp)?sy(nv(e.syp)):''].filter(Boolean).join(' + '),1)}${info('الحالة الصحية والأمراض',e.health)}${info('ملاحظات',e.note)}
     ${wa?`<a class="btn sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">مراسلته على واتساب</a>`:''}</div>
    <button class="btn danger" type="button" data-act="emp-del">${S.armed==='emp'?'اضغط ثانية لتأكيد حذف الموظف وكل سجله':'حذف الموظف'}</button>`}
-function empSheet(e){S.ephoto=null;const f=(id,l,v,attr)=>`<div class="field"><label for="${id}">${l}</label><input id="${id}" value="${esc(v||'')}" ${attr||''}></div>`;
+const CV=240;
+function cropDraw(){const C=S.crop;if(!C)return;const cv=$('#crop-cv');if(!cv)return;const x=cv.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,CV,CV);x.drawImage(C.im,C.ox,C.oy,C.im.naturalWidth*C.s,C.im.naturalHeight*C.s)}
+function cropClamp(){const C=S.crop,W=C.im.naturalWidth*C.s,H=C.im.naturalHeight*C.s;C.ox=Math.min(0,Math.max(CV-W,C.ox));C.oy=Math.min(0,Math.max(CV-H,C.oy))}
+function cropOpen(file){const u=URL.createObjectURL(file),im=new Image();im.onerror=()=>{URL.revokeObjectURL(u);toast('تعذّرت قراءة الصورة، جرّب صورة أخرى')};
+  im.onload=()=>{URL.revokeObjectURL(u);const s0=CV/Math.min(im.naturalWidth,im.naturalHeight);S.crop={im,s0,s:s0,ox:(CV-im.naturalWidth*s0)/2,oy:(CV-im.naturalHeight*s0)/2};
+    const box=$('#e-crop');if(!box)return;box.hidden=false;$('#crop-z').value=1;cropDraw();
+    const cv=$('#crop-cv');let drag=null;
+    cv.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,ox:S.crop.ox,oy:S.crop.oy};cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'};
+    cv.onpointermove=e=>{if(!drag||!S.crop)return;const k=CV/cv.getBoundingClientRect().width;S.crop.ox=drag.ox+(e.clientX-drag.x)*k;S.crop.oy=drag.oy+(e.clientY-drag.y)*k;cropClamp();cropDraw()};
+    cv.onpointerup=cv.onpointercancel=()=>{drag=null;cv.style.cursor='grab'};box.scrollIntoView({block:'nearest'})};
+  im.src=u}
+function cropZoom(z){const C=S.crop;if(!C)return;const cx=(CV/2-C.ox)/C.s,cy=(CV/2-C.oy)/C.s;C.s=C.s0*z;C.ox=CV/2-cx*C.s;C.oy=CV/2-cy*C.s;cropClamp();cropDraw()}
+function cropDone(){const C=S.crop;if(!C)return;const o=document.createElement('canvas');o.width=o.height=260;o.getContext('2d').drawImage(C.im,-C.ox/C.s,-C.oy/C.s,CV/C.s,CV/C.s,0,0,260,260);S.ephoto=o.toDataURL('image/jpeg',0.85);const p=$('#e-prev');if(p)p.src=S.ephoto;S.crop=null;const b=$('#e-crop');if(b)b.hidden=true;const f=$('#e-photo');if(f)f.value=''}
+function empSheet(e){S.crop=null;S.ephoto=null;const f=(id,l,v,attr)=>`<div class="field"><label for="${id}">${l}</label><input id="${id}" value="${esc(v||'')}" ${attr||''}></div>`;
   openSheet(`<h2>${e?'تعديل بيانات الموظف':'موظف جديد'}</h2><form id="eform" data-id="${e?esc(e.id):''}">
    <div style="display:flex;gap:12px;align-items:center"><img id="e-prev" alt="صورة الموظف" src="${e&&e.photo?e.photo:AVA}" width="84" height="84" style="border-radius:50%;object-fit:cover;background:var(--sunk);flex:none">
      <div class="field" style="flex:1;min-width:0"><label for="e-photo">صورة الموظف</label><input id="e-photo" type="file" accept="image/*" style="padding:8px;font-size:13px"></div></div>
+   <div id="e-crop" hidden style="display:flex;flex-direction:column;gap:10px;align-items:center"><span class="small muted">حرّك الصورة بإصبعك واستعمل الشريط للتكبير، ثم اضغط اعتماد.</span>
+     <div style="width:240px;height:240px;border-radius:50%;overflow:hidden;background:#000;touch-action:none;box-shadow:0 0 0 3px var(--line)"><canvas id="crop-cv" width="240" height="240" style="display:block;width:240px;height:240px;touch-action:none;cursor:grab"></canvas></div>
+     <input id="crop-z" type="range" min="1" max="4" step="0.01" value="1" aria-label="تكبير" style="width:240px">
+     <div class="grid2" style="width:100%"><button class="btn primary" type="button" data-act="crop-ok">اعتماد الصورة</button><button class="btn" type="button" data-act="crop-cancel">إلغاء</button></div></div>
    ${f('e-name','اسم الموظف',e?.name,'required')}
    <div class="field"><label for="e-role">المنصب في الشركة</label><select id="e-role">${Object.keys(ROLES).map(k=>`<option value="${k}" ${roleOf(e)===k?'selected':''}>${ROLES[k]}</option>`).join('')}</select></div>
    <div class="grid2">${f('e-father','اسم الأب',e?.father)}${f('e-mother','اسم الأم',e?.mother)}</div>
@@ -1353,6 +1372,8 @@ document.addEventListener('click',e=>{
   if(a==='rep-reload'){S.rep.inv=null;S.rep.cash=null;renderReports();loadReports(true);return}
   if(a==='rep-inv'){S.cid=b.dataset.cid||S.cid;if(!cust(S.cid)){toast('زبون هذه الفاتورة غير موجود');return}invView(b.dataset.id);return}
   if(a==='pick-contact'){pickContact();return}
+  if(a==='crop-ok'){cropDone();return}
+  if(a==='crop-cancel'){S.crop=null;const bx=$('#e-crop');if(bx)bx.hidden=true;const f=$('#e-photo');if(f)f.value='';return}
   if(a==='emp-new'){empSheet(null);return}
   if(a==='emp-edit'){empSheet(emp(S.eid));return}
   if(a==='emp-old'){S.showOld=!S.showOld;renderStaff();return}
@@ -1432,12 +1453,12 @@ $('#q').addEventListener('input',e=>{S.f.q=e.target.value;renderList()});
 $('#cityf').addEventListener('change',e=>{S.f.city=e.target.value;renderList()});
 $('#sortf').addEventListener('change',e=>{S.f.sort=e.target.value;renderList()});
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='rfile'&&t.files[0])readRestore(t.files[0]);if(t.id==='xfile'&&t.files[0])readImport(t.files[0]);if(t.id==='cxfile'&&t.files[0])readCustImport(t.files[0]);if(t.id==='m-photo'&&t.files[0])readPhoto(t.files[0],128).then(u=>{S.pphoto=u;const p=$('#m-prev');if(p)p.src=u}).catch(()=>toast('تعذّرت قراءة الصورة، جرّب صورة أخرى'))});
-$('#sheet').addEventListener('change',e=>{if(e.target.id==='e-photo'&&e.target.files[0]){readPhoto(e.target.files[0]).then(u=>{S.ephoto=u;const p=$('#e-prev');if(p)p.src=u}).catch(()=>toast('تعذّرت قراءة الصورة، جرّب صورة أخرى'));return}if(e.target.id==='cw'&&S.count){S.cw=e.target.value;S.count={};renderCount()}});
+$('#sheet').addEventListener('change',e=>{if(e.target.id==='e-photo'&&e.target.files[0]){cropOpen(e.target.files[0]);return}if(e.target.id==='cw'&&S.count){S.cw=e.target.value;S.count={};renderCount()}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden&&!S.draft&&!S.count&&!S.imp)closeSheet()});
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-2114';
+const BUILD='20261112-2131';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
