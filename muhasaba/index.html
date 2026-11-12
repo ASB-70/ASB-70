@@ -887,12 +887,12 @@ const wkStart=s=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-((d.getD
 const emp=id=>S.staff.find(e=>e.id===id);
 const empActive=e=>!e.end||e.end>=today();
 function weekCalc(e,ws){const we=addDays(ws,6),on=(!e.start||e.start<=we)&&(!e.end||e.end>=ws),z=()=>({usd:0,syp:0});
-  const r={sal:{usd:on?nv(e.usd):0,syp:on?nv(e.syp):0},ot:z(),late:z(),unp:z(),cut:z(),adv:z(),paid:z(),days:0,rows:[]};
+  const r={sal:{usd:on?nv(e.usd):0,syp:on?nv(e.syp):0},ot:z(),late:z(),unp:z(),cut:z(),adv:z(),draw:z(),paid:z(),days:0,rows:[]};
   for(const l of e.log||[]){if(l.type==='pay'){if(l.w===ws){r.paid.usd+=nv(l.usd);r.paid.syp+=nv(l.syp);r.rows.push(l)}continue}
     if(l.d<ws||l.d>we)continue;r.rows.push(l);
-    if(l.type==='ot')r.ot[l.cur]+=nv(l.a);else if(l.type==='late')r.late[l.cur]+=nv(l.a);else if(l.type==='advcut')r.cut[l.cur]+=nv(l.a);else if(l.type==='adv')r.adv[l.cur]+=nv(l.a);else if(l.type==='leave'&&!l.paid)r.days+=nv(l.days)}
-  for(const c of['usd','syp']){r.ot[c]=r2(r.ot[c]);r.late[c]=r2(r.late[c]);r.cut[c]=r2(r.cut[c]);r.adv[c]=r2(r.adv[c]);r.paid[c]=r2(r.paid[c]);r.unp[c]=r2(Math.min(r.days,WD)*r.sal[c]/WD)}
-  r.net={usd:r2(r.sal.usd+r.ot.usd-r.late.usd-r.unp.usd-r.cut.usd),syp:r2(r.sal.syp+r.ot.syp-r.late.syp-r.unp.syp-r.cut.syp)};
+    if(l.type==='ot')r.ot[l.cur]+=nv(l.a);else if(l.type==='late')r.late[l.cur]+=nv(l.a);else if(l.type==='advcut')r.cut[l.cur]+=nv(l.a);else if(l.type==='draw')r.draw[l.cur]+=nv(l.a);else if(l.type==='adv')r.adv[l.cur]+=nv(l.a);else if(l.type==='leave'&&!l.paid)r.days+=nv(l.days)}
+  for(const c of['usd','syp']){r.ot[c]=r2(r.ot[c]);r.late[c]=r2(r.late[c]);r.cut[c]=r2(r.cut[c]);r.draw[c]=r2(r.draw[c]);r.adv[c]=r2(r.adv[c]);r.paid[c]=r2(r.paid[c]);r.unp[c]=r2(Math.min(r.days,WD)*r.sal[c]/WD)}
+  r.net={usd:r2(r.sal.usd+r.ot.usd-r.late.usd-r.unp.usd-r.cut.usd-r.draw.usd),syp:r2(r.sal.syp+r.ot.syp-r.late.syp-r.unp.syp-r.cut.syp-r.draw.syp)};
   r.rem={usd:r2(r.net.usd-r.paid.usd),syp:r2(r.net.syp-r.paid.syp)};r.done=r.rows.some(l=>l.type==='pay')&&r.rem.usd<0.005&&r.rem.syp<0.005;return r}
 function advBal(e){const b={usd:0,syp:0};for(const l of e.log||[]){if(l.type==='adv')b[l.cur]+=nv(l.a);else if(l.type==='advcut')b[l.cur]-=nv(l.a)}return{usd:r2(b.usd),syp:r2(b.syp)}}
 function staffSub(){if(S.staffUnsub||!S.db)return;S.staffUnsub=S.db.collection('staff').limit(1000).onSnapshot(s=>{S.staff=s.docs.map(d=>({id:d.id,...d.data()}));S.staffLoaded=true;if(S.view==='staff'||S.view==='emp'||S.view==='home')refresh()},()=>{S.staffLoaded=true;S.staffUnsub=null;if(S.view==='staff')refresh()})}
@@ -903,7 +903,7 @@ function renderStaff(){const el=$('#v-staff');if(!S.staffLoaded){el.innerHTML='<
      <span class="amt"><b>${r.net.usd||!r.net.syp?money(r.net.usd):sy(r.net.syp)}</b>${r.net.usd&&r.net.syp?`<small class="num">${sy(r.net.syp)}</small>`:''}</span></button>`}).join('')}</div>`
     :`<div class="empty"><b>لا يوجد موظفون بعد</b><span>أضف أول موظف ببياناته وراتبه الأسبوعي.</span></div>`)+
    `<span class="small muted">الدوام من السبت إلى الخميس (${WD} أيام)، من 9:30 صباحاً حتى 9 مساءً، والجمعة عطلة. ما بعد 9 مساءً إضافي. بيانات الموظفين تظهر لك وحدك حتى لو شاركت الصفحة.</span>`}
-const LGL={ot:'إضافي',late:'حسم تأخير',leave:'إجازة',pay:'دفع راتب',adv:'سلفة',advcut:'خصم سلفة'};
+const LGL={ot:'إضافي',late:'حسم تأخير',leave:'إجازة',pay:'دفع راتب',adv:'سلفة',advcut:'خصم سلفة',draw:'استجرار'};
 function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.staffLoaded?'<div class="empty">هذا الموظف غير موجود.</div>':'<div class="empty">جارٍ التحميل…</div>';return}
   const ws=S.ews||wkStart(today()),we=addDays(ws,6),r=weekCalc(e,ws),isCur=ws===wkStart(today());
   const row=(l,o,sign,cls,t)=>`<span class="l ${t||''}">${l}</span><span class="n ${cls||''} ${t||''}">${sign}${money(o.usd)}</span><span class="n ${cls||''} ${t||''}">${sign}${sy(o.syp)}</span>`;
@@ -911,10 +911,11 @@ function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.sta
   const wa=waNum(e.phone);
   el.innerHTML=`<div class="sechead"><button class="btn sm" type="button" data-act="emp-week" data-d="-7">→ السابق</button><b class="small">${isCur?'هذا الأسبوع · ':''}<span class="num">${dmy(ws)}</span> إلى <span class="num">${dmy(addDays(ws,5))}</span></b>${isCur?'<span style="width:64px"></span>':'<button class="btn sm" type="button" data-act="emp-week" data-d="7">التالي ←</button>'}</div>
    <div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>
-    ${row('الراتب الأسبوعي',r.sal,'')}${row('الإضافي',r.ot,'+','t-credit')}${row('حسم التأخير',r.late,'−','t-debt')}${row(`إجازة غير مدفوعة${r.days?' ('+f1(r.days)+' يوم)':''}`,r.unp,'−','t-debt')}${row('خصم السلف',r.cut,'−','t-debt')}
+    ${row('الراتب الأسبوعي',r.sal,'')}${row('الإضافي',r.ot,'+','t-credit')}${row('حسم التأخير',r.late,'−','t-debt')}${row(`إجازة غير مدفوعة${r.days?' ('+f1(r.days)+' يوم)':''}`,r.unp,'−','t-debt')}${row('استجرار',r.draw,'−','t-debt')}${row('خصم السلف',r.cut,'−','t-debt')}
     ${row('الصافي',r.net,'')}${row('المدفوع',r.paid,'')}${row('المتبقي',r.rem,'','','t')}</div>
    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><button class="btn sm" type="button" data-act="lg-new" data-type="ot">＋ إضافي</button><button class="btn sm" type="button" data-act="lg-new" data-type="late">＋ حسم تأخير</button><button class="btn sm" type="button" data-act="lg-new" data-type="leave">＋ إجازة</button></div>
    <div class="grid2"><button class="btn sm" type="button" data-act="lg-new" data-type="adv">＋ سلفة</button><button class="btn sm" type="button" data-act="lg-new" data-type="advcut">− خصم سلفة</button></div>
+   <button class="btn sm" type="button" data-act="lg-new" data-type="draw">＋ استجرار (يُخصم من الراتب مباشرة)</button>
    ${(ab=>ab.usd||ab.syp?`<div class="note">السلف المتبقية على ${esc(e.name)}: <b class="num">${ab.usd?money(ab.usd):''}</b> ${ab.syp?'<b class="num">'+sy(ab.syp)+'</b>':''}</div>`:'')(advBal(e))}
    ${r.done?'<div class="chip c-credit" style="text-align:center;padding:8px">راتب هذا الأسبوع مدفوع بالكامل</div>':`<button class="btn wa" type="button" data-act="emp-pay">دفع راتب الأسبوع</button>`}
    <div class="sec"><div class="sechead"><h2>حركات الأسبوع</h2><small>${r.rows.length}</small></div>
@@ -945,15 +946,15 @@ function lgRender(){const f=S.lf,sg=(k,v,l)=>`<button type="button" data-lfs="${
    ${f.type==='leave'?`<div class="seg">${sg('kind','sick','مرضية')}${sg('kind','other','لسبب آخر')}</div><div class="seg">${sg('paid','true','مدفوعة')}${sg('paid','false','غير مدفوعة')}</div>
      <div class="grid2"><div class="field"><label for="lf-d">من تاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div><div class="field"><label for="lf-days">عدد الأيام</label><input id="lf-days" data-lf="days" type="number" step="0.5" min="0.5" inputmode="decimal" required value="${esc(f.days)}"></div></div>
      <span class="small muted">${String(f.paid)==='true'?'الإجازة المدفوعة لا تنقص الراتب.':`غير المدفوعة يُخصم عن كل يوم جزء من ${WD} من الراتب الأسبوعي.`}</span>`
-    :f.type==='adv'||f.type==='advcut'?`<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
-     ${f.type==='adv'?`<div class="seg">${sg('cashout','true','يخرج من الصندوق')}${sg('cashout','false','لا يمس الصندوق')}</div>`:`<span class="small muted">المتبقي عليه: <b class="num">${cm(f.cur,advBal(emp(S.eid))[f.cur])}</b>. الخصم ينقص من صافي راتب الأسبوع المعروض.</span>`}
+    :f.type==='adv'||f.type==='advcut'||f.type==='draw'?`<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
+     ${f.type==='draw'?`<span class="small muted">يُخصم كامل المبلغ من راتب هذا الأسبوع، ولا يدخل في رصيد السلف.</span>`:f.type==='adv'?`<div class="seg">${sg('cashout','true','يخرج من الصندوق')}${sg('cashout','false','لا يمس الصندوق')}</div>`:`<span class="small muted">المتبقي عليه: <b class="num">${cm(f.cur,advBal(emp(S.eid))[f.cur])}</b>. الخصم ينقص من صافي راتب الأسبوع المعروض.</span>`}
      <div class="grid2"><div class="field"><label for="lf-a">المبلغ ${f.cur==='usd'?'($)':'(ل.س)'}</label><input id="lf-a" data-lf="a" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.a)}"></div><div class="field"><label for="lf-d">التاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div></div>`
     :`<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
      <div class="grid2"><div class="field"><label for="lf-tm">${f.type==='ot'?'ساعة الخروج (بعد 9 مساءً)':'ساعة الحضور (بعد 9:30 صباحاً)'}</label><input id="lf-tm" data-lf="tm" type="time" value="${esc(f.tm||'')}"></div>
      <div class="field"><label for="lf-h">عدد الساعات</label><input id="lf-h" data-lf="h" type="number" step="any" min="0" inputmode="decimal" value="${esc(f.h||'')}"></div></div>
      <span class="small muted">أجر الساعة: <b class="num">${cm(f.cur,r4(hourRate(emp(S.eid),f.cur)))}</b> (الراتب الأسبوعي ÷ ${WD} أيام ÷ ${HD} ساعة). اكتب الساعة أو عدد الساعات فيُحسب المبلغ، ويمكنك تعديله يدوياً.</span>
      <div class="grid2"><div class="field"><label for="lf-a">المبلغ ${f.cur==='usd'?'($)':'(ل.س)'}</label><input id="lf-a" data-lf="a" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.a)}"></div><div class="field"><label for="lf-d">التاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div></div>`}
-   <div class="field"><label for="lf-n">${f.type==='adv'||f.type==='advcut'?'البيان / السبب':f.type==='leave'?'السبب':f.type==='ot'?'البيان (مثال: 3 ساعات)':'البيان (مثال: تأخر ساعة)'}</label><input id="lf-n" data-lf="n" value="${esc(f.n)}"></div>
+   <div class="field"><label for="lf-n">${f.type==='adv'||f.type==='advcut'||f.type==='draw'?'البيان (مثال: بضاعة، نقدية)':f.type==='leave'?'السبب':f.type==='ot'?'البيان (مثال: 3 ساعات)':'البيان (مثال: تأخر ساعة)'}</label><input id="lf-n" data-lf="n" value="${esc(f.n)}"></div>
    <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`;$('#scrim').hidden=false}
 async function saveLog(){const f=S.lf,e=emp(S.eid);if(!f||!e)return;const l={id:newId(),type:f.type,d:f.d||today(),n:(f.n||'').trim()};
   if(f.type==='leave'){l.kind=f.kind;l.paid=String(f.paid)==='true';l.days=nv(f.days);if(!(l.days>0)){toast('أدخل عدد الأيام');return}}
@@ -1354,7 +1355,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-1654';
+const BUILD='20261112-1705';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
