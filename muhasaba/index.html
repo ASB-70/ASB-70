@@ -1259,7 +1259,7 @@ document.addEventListener('click',e=>{
       S.dl.save({filename:S.outName+' '+today()+'.png',data:bl}).then(()=>toast('الصورة جاهزة، أرفقها في محادثة الزبون')).catch(er=>{if(er&&er.code!=='declined')toast('تعذّر الحفظ. اضغط مطوّلاً على الصورة لحفظها.')})},'image/png');return}
   if(b.dataset.view){show(b.dataset.view);return}
   if(b.dataset.open){if(!$('#scrim').hidden)closeSheet();show('detail',b.dataset.open);return}
-  if(b.dataset.type){S.f.type=b.dataset.type;document.querySelectorAll('#typeseg button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderList();return}
+  if(b.dataset.type&&!b.dataset.act){S.f.type=b.dataset.type;document.querySelectorAll('#typeseg button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderList();return}
   if(b.dataset.quick){const d=new Date();if(b.dataset.quick==='m'){d.setMonth(d.getMonth()+1,1)}else d.setDate(d.getDate()+ +b.dataset.quick);d.setHours(10,0,0,0);$('#r-at').value=localISO(d);return}
   const a=b.dataset.act;
   if(!a&&b.dataset.k&&b.closest('#kseg')){document.querySelectorAll('#kseg button').forEach(x=>x.setAttribute('aria-pressed',x===b));const pb=$('#paybox');if(pb){pb.hidden=b.dataset.k!=='pay';if(pb.hidden)$('#t-al').textContent='المبلغ ($)';else $('#t-al').textContent=$('#pcur button[aria-pressed=true]').dataset.pc==='syp'?'المبلغ (ل.س)':'المبلغ ($)'}return}
@@ -1344,7 +1344,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-0621';
+const BUILD='20261112-1649';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
