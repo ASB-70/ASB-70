@@ -1005,7 +1005,7 @@ function repCalc(lo,hi){const R=S.rep,lt=staffLogType(),o={sales:0,cashSales:0,c
   o.expTot=o.exp.sal+o.exp.own+o.exp.oth;return o}
 function renderReports(){const el=$('#v-reports'),R=S.rep;
   if(!S.db){el.innerHTML='<div class="empty">جارٍ التحميل…</div>';return}
-  if(R.err&&!R.inv){el.innerHTML='<div class="empty"><b>تعذّر تحميل التقارير</b><span>تحقق من الاتصال ثم أعد المحاولة.${R.err!==true?` <small class="num">(${esc(R.err)})</small>`:''}</span></div><button class="btn primary" type="button" data-act="rep-reload">إعادة المحاولة</button>';return}
+  if(R.err&&!R.inv){el.innerHTML=`<div class="empty"><b>تعذّر تحميل التقارير</b><span>تحقق من الاتصال ثم أعد المحاولة.${R.err!==true?` <small class="num">(${esc(R.err)})</small>`:''}</span></div><button class="btn primary" type="button" data-act="rep-reload">إعادة المحاولة</button>`;return}
   if(!R.inv||!R.cash){el.innerHTML='<div class="empty">جارٍ حساب التقارير…</div>';return}
   const [lo,hi]=repRange(R.per),c=repCalc(lo,hi),T=today(),per={day:'اليوم',week:'هذا الأسبوع',month:'هذا الشهر',all:'الكل'};
   const seg=`<div class="seg" role="group" aria-label="الفترة">${Object.keys(per).map(k=>`<button type="button" data-act="rep-per" data-p="${k}" aria-pressed="${R.per===k}">${per[k]}</button>`).join('')}</div>`;
