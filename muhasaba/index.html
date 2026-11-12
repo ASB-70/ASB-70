@@ -39,6 +39,12 @@ body.priv #cover .eyebrow .num::after{font-size:12.5px}
 body.priv #cover .totbar b::after{font-size:22px}
 body.priv #v-home .bar b::after{font-size:13.5px}
 body.priv #clist .sechead b::after{font-size:13px}
+body.priv #clist .amt b,body.priv #v-home .list .amt b,body.priv #v-due .amt b,body.priv #v-staff .amt b,body.priv #v-emp .amt b,body.priv #v-home .card .num,body.priv #v-due .duecard .sechead b.num,body.priv #v-emp .note b.num,body.priv #v-staff .amt small,body.priv #v-due .amt small,body.priv #v-emp .amt small,body.priv #v-home .card small.num,body.priv #v-emp .ctab .n,body.priv #v-emp .sal{font-size:0!important;user-select:none;-webkit-user-select:none;pointer-events:none}
+body.priv #clist .amt b::after,body.priv #v-home .list .amt b::after,body.priv #v-due .amt b::after,body.priv #v-staff .amt b::after,body.priv #v-emp .amt b::after,body.priv #v-home .card .num::after,body.priv #v-due .duecard .sechead b.num::after,body.priv #v-emp .note b.num::after,body.priv #v-staff .amt small::after,body.priv #v-due .amt small::after,body.priv #v-emp .amt small::after,body.priv #v-home .card small.num::after,body.priv #v-emp .ctab .n::after,body.priv #v-emp .sal::after{content:'******';font-family:var(--display);font-weight:700;letter-spacing:.08em;direction:ltr;unicode-bidi:isolate}
+body.priv #clist .amt b::after,body.priv #v-home .list .amt b::after,body.priv #v-due .amt b::after,body.priv #v-staff .amt b::after,body.priv #v-emp .amt b::after,body.priv #v-home .card .num::after,body.priv #v-due .duecard .sechead b.num::after,body.priv #v-emp .note b.num::after{font-size:15px}
+body.priv #v-staff .amt small::after,body.priv #v-due .amt small::after,body.priv #v-emp .amt small::after,body.priv #v-home .card small.num::after{font-size:11px}
+body.priv #v-emp .ctab .n::after{font-size:13.5px}
+body.priv #v-emp .sal::after{font-size:14px}
 .brandline{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--on-cover-muted)}
 .brandline b{font-family:var(--display);font-weight:600;color:var(--on-cover);font-size:14px}
 .eyebrow{font-size:12.5px;color:var(--on-cover-muted)}
@@ -934,7 +940,7 @@ const LGL={ot:'إضافي',late:'حسم تأخير',leave:'إجازة',pay:'دف
 function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.staffLoaded?'<div class="empty">هذا الموظف غير موجود.</div>':'<div class="empty">جارٍ التحميل…</div>';return}
   const ws=S.ews||wkStart(today()),we=addDays(ws,6),r=weekCalc(e,ws),isCur=ws===wkStart(today());
   const row=(l,o,sign,cls,t)=>`<span class="l ${t||''}">${l}</span><span class="n ${cls||''} ${t||''}">${sign}${money(o.usd)}</span><span class="n ${cls||''} ${t||''}">${sign}${sy(o.syp)}</span>`;
-  const info=(l,v,num)=>v?`<div class="sechead"><span class="muted small">${l}</span><span class="${num?'num':''}" style="text-align:left;overflow-wrap:anywhere">${esc(v)}</span></div>`:'';
+  const info=(l,v,num,x)=>v?`<div class="sechead"><span class="muted small">${l}</span><span class="${num?'num':''} ${x||''}" style="text-align:left;overflow-wrap:anywhere">${esc(v)}</span></div>`:'';
   const wa=waNum(e.phone);
   el.innerHTML=`<div class="sechead"><button class="btn sm" type="button" data-act="emp-week" data-d="-7">→ السابق</button><b class="small">${isCur?'هذا الأسبوع · ':''}<span class="num">${dmy(ws)}</span> إلى <span class="num">${dmy(addDays(ws,5))}</span></b>${isCur?'<span style="width:64px"></span>':'<button class="btn sm" type="button" data-act="emp-week" data-d="7">التالي ←</button>'}</div>
    ${ownerRole(e)?`<div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>${row('مصروف هذا الأسبوع',r.exp,'')}${row('إجمالي كل المسحوبات',expTot(e),'','','t')}</div>
@@ -953,7 +959,7 @@ function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.sta
      <button class="btn sm danger" type="button" data-act="lg-del" data-id="${esc(l.id)}">${S.armed==='lg'+l.id?'تأكيد':'حذف'}</button></div>`).join('')}</div>`:'<div class="empty">لا توجد حركات في هذا الأسبوع.</div>'}</div>
    <div class="card"><div class="sechead"><b>بيانات الموظف</b><button class="btn sm" type="button" data-act="emp-edit">تعديل</button></div>
     ${info('المنصب',ROLES[roleOf(e)])}${info('تاريخ بدء العمل',e.start&&dmy(e.start),1)}${info('تاريخ نهاية العمل',e.end&&dmy(e.end),1)}${info('المواليد',e.birth&&dmy(e.birth),1)}${info('الرقم الوطني',e.nid,1)}${info('اسم الأب',e.father)}${info('اسم الأم',e.mother)}${info('الموبايل',e.phone,1)}
-    ${info('الراتب الأسبوعي',[nv(e.usd)?money(nv(e.usd)):'',nv(e.syp)?sy(nv(e.syp)):''].filter(Boolean).join(' + '),1)}${info('الحالة الصحية والأمراض',e.health)}${info('ملاحظات',e.note)}
+    ${info('الراتب الأسبوعي',[nv(e.usd)?money(nv(e.usd)):'',nv(e.syp)?sy(nv(e.syp)):''].filter(Boolean).join(' + '),1,'sal')}${info('الحالة الصحية والأمراض',e.health)}${info('ملاحظات',e.note)}
     ${wa?`<a class="btn sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">مراسلته على واتساب</a>`:''}</div>
    <button class="btn danger" type="button" data-act="emp-del">${S.armed==='emp'?'اضغط ثانية لتأكيد حذف الموظف وكل سجله':'حذف الموظف'}</button>`}
 const CV=240;
@@ -1471,7 +1477,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-2156';
+const BUILD='20261112-2200';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
