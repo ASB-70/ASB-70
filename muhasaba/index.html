@@ -83,8 +83,8 @@ button.row:hover{background:var(--sunk)}
 .dname{font-family:var(--display);font-weight:600;font-size:21px;line-height:1.3;overflow-wrap:anywhere}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);z-index:5;
   padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
-nav .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(7,1fr);gap:0}
-nav button{border:0;background:none;padding:7px 0;border-radius:10px;color:var(--muted);font-size:10px;min-width:0;white-space:nowrap;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:1px;position:relative}
+nav .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(8,1fr);gap:0}
+nav button{border:0;background:none;padding:7px 0;border-radius:10px;color:var(--muted);font-size:9.5px;min-width:0;white-space:nowrap;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:1px;position:relative}
 nav button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav button[aria-current=page]{color:var(--brand);font-weight:600;background:var(--sunk)}
 nav .badge{position:absolute;top:2px;inset-inline-start:calc(50% + 6px);background:var(--debt);color:var(--surface);border-radius:99px;font-size:10.5px;min-width:17px;padding:0 4px;font-weight:700}
@@ -157,6 +157,7 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);background:var(--surface);b
     <section id="v-due" class="sec" style="gap:18px" hidden></section>
     <section id="v-staff" class="sec" style="gap:14px" hidden></section>
     <section id="v-emp" class="sec" style="gap:14px" hidden></section>
+    <section id="v-reports" class="sec" style="gap:14px" hidden></section>
     <section id="v-cash" class="sec" style="gap:14px" hidden>
       <div class="card" id="cquick">
         <input class="qamt" id="cqa" type="number" inputmode="decimal" step="any" min="0" placeholder="0" aria-label="المبلغ" autocomplete="off">
@@ -186,6 +187,7 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);background:var(--surface);b
     <button type="button" data-view="cash"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/><path d="M6 9.500v.01M18 15.500v.01"/></svg>الصندوق</button>
     <button type="button" data-view="stock"><svg viewBox="0 0 24 24"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>المخزون</button>
     <button type="button" data-view="staff"><svg viewBox="0 0 24 24"><circle cx="12" cy="7.500" r="3.500"/><path d="M5 20c.700-4 3.500-6 7-6s6.300 2 7 6"/></svg>الموظفون</button>
+    <button type="button" data-view="reports"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>التقارير</button>
     <button type="button" data-view="due"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 21h4"/></svg>التذكيرات<span class="badge" id="duebadge" hidden></span></button>
     <button type="button" data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>الإعدادات</button>
   </div></nav>
@@ -309,13 +311,14 @@ function fail(e){toast(e&&e.code==='quota_exceeded'?'امتلأت مساحة ا�
 function show(v,cid){
   if(S.unsubL&&!(v==='detail'&&cid===S.cid)){S.unsubL();S.unsubL=null;S.ledger=null}
   S.view=v;S.cid=v==='detail'?cid:null;S.askSent=null;S.armed=null;
-  for(const k of['home','customers','due','settings','detail','stock','cash','staff','emp'])$('#v-'+k).hidden=k!==v;
+  for(const k of['home','customers','due','settings','detail','stock','cash','staff','emp','reports'])$('#v-'+k).hidden=k!==v;
   document.querySelectorAll('nav button').forEach(b=>b.toggleAttribute('aria-current',false));
   const nb=document.querySelector(`nav button[data-view="${v==='detail'?'customers':v==='emp'?'staff':v}"]`);if(nb)nb.setAttribute('aria-current','page');
   $('#fab').hidden=!(v==='home'||v==='customers')||!S.db;
   if(v==='settings')renderSettings();
   if(v==='emp'){if(cid!==S.eid)S.ews='';S.eid=cid}
   if(v==='staff'||v==='emp')staffSub();
+  if(v==='reports'&&S.db)loadReports(true);
   if(v==='cash'&&S.db){if(!S.cday)S.cday=today();loadCash()}
   if(v==='stock'&&S.db){loadImgs().then(()=>{if(S.view==='stock')renderStock()});loadInvStats()}
   if(v==='detail'&&S.db&&!S.unsubL){
@@ -326,7 +329,7 @@ function show(v,cid){
 function refresh(){
   const due=S.customers.filter(isDue).length;const b=$('#duebadge');b.hidden=!due;b.textContent=due;
   renderCover();
-  if(S.view==='home')renderHome();else if(S.view==='customers')renderList();else if(S.view==='due')renderDue();else if(S.view==='detail')renderDetail();else if(S.view==='stock')renderStock();else if(S.view==='cash')renderCash();else if(S.view==='staff')renderStaff();else if(S.view==='emp')renderEmp();
+  if(S.view==='home')renderHome();else if(S.view==='customers')renderList();else if(S.view==='due')renderDue();else if(S.view==='detail')renderDetail();else if(S.view==='stock')renderStock();else if(S.view==='cash')renderCash();else if(S.view==='staff')renderStaff();else if(S.view==='emp')renderEmp();else if(S.view==='reports')renderReports();
 }
 function totals(){let owed=0,owe=0,n=0;for(const c of S.customers){const b=c.balance||0;if(b>0.005){owed+=b;n++}else if(b<-0.005)owe+=-b}return{owed:r2(owed),owe:r2(owe),n}}
 function renderCover(){
@@ -336,7 +339,7 @@ function renderCover(){
     el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><button class="back" type="button" data-view="customers">→ رجوع إلى الزبائن</button>${syncHTML(true)}</div>
       <div><div class="dname">${esc(c.name)}</div><div class="eyebrow">${esc(c.city||'بدون محافظة')} · <span class="num">${esc(c.phone||'لا يوجد رقم')}</span></div></div>
       <div><div class="eyebrow">${typeOf(b)==='credit'?'له عندنا (حساب دائن)':typeOf(b)==='debt'?'لنا عنده (حساب مدين)':'الحساب مسدَّد'}</div><div class="big">${money(Math.abs(b))}</div></div>`;return}
-  const t=totals();const titles={home:'إجمالي ما لنا عند الزبائن',customers:'إجمالي ما لنا عند الزبائن',due:'تذكيرات الدفع',settings:'الإعدادات'};
+  const t=totals();const titles={home:'إجمالي ما لنا عند الزبائن',customers:'إجمالي ما لنا عند الزبائن',due:'تذكيرات الدفع',settings:'الإعدادات',reports:'التقارير'};
   if(S.view==='staff'){const ws=wkStart(today()),A=S.staff.filter(x=>empActive(x)&&!ownerRole(x));let u=0,l=0,done=0;for(const e of A){const r=weekCalc(e,ws);u+=Math.max(r.rem.usd,0);l+=Math.max(r.rem.syp,0);if(r.done)done++}
     el.innerHTML=co+`<div><div class="eyebrow">رواتب هذا الأسبوع المتبقية · ${dmy(ws)} إلى ${dmy(addDays(ws,5))}</div><div class="big">${S.staffLoaded?money(r2(u)):'…'}</div></div>
     <div class="trio"><div><span>المتبقي بالليرة</span><b class="num">${sy(r2(l))}</b></div><div><span>الموظفون</span><b class="num">${A.length}</b></div><div><span>قبضوا راتبهم</span><b class="num">${done} / ${A.length}</b></div></div>`;return}
@@ -348,7 +351,7 @@ function renderCover(){
     <div class="trio"><div><span>دولار في الصندوق</span><b class="num">${money(b.usd)}</b></div><div><span>ليرة في الصندوق</span><b class="num">${sy(b.syp)}</b></div><div><span>سعر الصرف</span><b class="num">${rate?rate.toLocaleString('en-US'):'غير محدد'}</b></div></div>`;return}
   if(S.view==='stock'){const st=stockTotals(S.stockF.wh);el.innerHTML=co+`<div><div class="eyebrow">رأس مال البضاعة · ${S.stockF.wh==='all'?'كل المستودعات':esc(whName(S.stockF.wh))}</div><div class="big">${S.stockLoaded?money(st.cap):'…'}</div></div>
     <div class="trio"><div><span>قيمتها بسعر البيع</span><b class="num">${money(st.sale)}</b></div><div><span>مواد متوفرة</span><b class="num">${st.inStock} / ${st.n}</b></div><div><span>ربح فواتير الشهر</span><b class="num">${S.invStats?money(S.invStats.profit):'…'}</b></div></div>`;return}
-  if(S.view==='due'||S.view==='settings'){el.innerHTML=co+`<div class="dname">${titles[S.view]}</div>`;return}
+  if(S.view==='due'||S.view==='settings'||S.view==='reports'){el.innerHTML=co+`<div class="dname">${titles[S.view]}</div>`;return}
   el.innerHTML=co+`<div><div class="eyebrow">${titles[S.view]}</div><div class="big">${S.loaded?money(t.owed):'…'}</div></div>
     <div class="trio"><div><span>زبائن مدينون</span><b>${S.loaded?t.n:'…'}</b></div><div><span>علينا للزبائن</span><b class="num">${S.loaded?money(t.owe):'…'}</b></div><div><span>تذكير مستحق</span><b>${S.customers.filter(isDue).length}</b></div></div>`;
 }
@@ -627,6 +630,7 @@ function sugFor(t){const kind=t.dataset.sug;if(!kind)return;document.querySelect
     box.innerHTML=L.map(v=>`<button type="button" data-act="sug-val" data-for="${t.id}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}}
 function fillItem(i,code){const p=S.products[code],d=S.draft;if(!p||!d||!d.items[i])return;Object.assign(d.items[i],{code,name:p.name||'',pack:p.pack||'',unit:p.unit||'قطعة',price:p.price||''});renderInv();const q=$(`#it-${i}-qty`);if(q)q.focus()}
 $('#sheet').addEventListener('change',e=>{if(e.target.id==='e-role'){const b=$('#e-salbox');if(b)b.hidden=['head','mgr'].includes(e.target.value)}});
+$('#v-reports').addEventListener('input',e=>{if(e.target.id!=='rep-q')return;S.rep.q=e.target.value;const q=nrm(S.rep.q),L=(S.rep.inv||[]).filter(v=>!q||nrm(v.no).includes(q)||nrm(v.cname).includes(q)||String(v.total).includes(q)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.no).localeCompare(String(a.no),'en',{numeric:true}));$('#replist').innerHTML=repInvList(L);$('#repcnt').textContent=L.length});
 $('#sheet').addEventListener('focusin',e=>{const t=e.target;if(t.dataset&&t.dataset.sug)sugFor(t)});
 $('#sheet').addEventListener('change',e=>{const t=e.target,d=S.draft;if(d&&t.dataset.p==='code'){const k=t.value.trim(),it=d.items[+t.dataset.i];if(it&&S.products[k]&&!it.name)setTimeout(()=>{if(S.draft===d&&d.items[+t.dataset.i]===it&&!it.name)fillItem(+t.dataset.i,k)},250)}});
 $('#sheet').addEventListener('input',e=>{const t=e.target,d=S.draft;if(t.id==='pq'){S.pq=t.value;renderPick();return}if(t.id==='cq'){S.cq=t.value;renderCount();return}if(t.dataset.cf&&S.cf){S.cf[t.dataset.cf]=t.value;if(t.dataset.cf==='cname')S.cf.cid=null;if(t.dataset.sug)sugFor(t);cashHint();return}if(t.dataset.lf&&S.lf){S.lf[t.dataset.lf]=t.value;if(t.dataset.lf==='tm'){const h=hoursFrom(S.lf.type,t.value);S.lf.h=h||'';const eh=$('#lf-h');if(eh)eh.value=h||'';const a=r2(h*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||'';return}if(t.dataset.lf==='h'){const a=r2(nv(t.value)*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||''}return}if(t.dataset.fxf&&S.fx){S.fx[t.dataset.fxf]=t.value;fxHint();return}if(t.id==='cl-u'||t.id==='cl-s'){closeHint();return}if(t.dataset.cc&&S.count){(S.count[t.dataset.cc]||(S.count[t.dataset.cc]={}))[t.dataset.cp]=t.value;return}if(t.dataset.sug)sugFor(t);if(!d||!t.closest('#iform'))return;
@@ -900,7 +904,7 @@ function weekCalc(e,ws){const we=addDays(ws,6),on=(!e.start||e.start<=we)&&(!e.e
   r.rem={usd:r2(r.net.usd-r.paid.usd),syp:r2(r.net.syp-r.paid.syp)};r.done=r.rows.some(l=>l.type==='pay')&&r.rem.usd<0.005&&r.rem.syp<0.005;return r}
 function advBal(e){const b={usd:0,syp:0};for(const l of e.log||[]){if(l.type==='adv')b[l.cur]+=nv(l.a);else if(l.type==='advcut')b[l.cur]-=nv(l.a)}return{usd:r2(b.usd),syp:r2(b.syp)}}
 function expTot(e){const b={usd:0,syp:0};for(const l of e.log||[])if(l.type==='exp')b[l.cur]+=nv(l.a);return{usd:r2(b.usd),syp:r2(b.syp)}}
-function staffSub(){if(S.staffUnsub||!S.db)return;S.staffUnsub=S.db.collection('staff').limit(1000).onSnapshot(s=>{S.staff=s.docs.map(d=>({id:d.id,...d.data()}));S.staffLoaded=true;if(S.view==='staff'||S.view==='emp'||S.view==='home')refresh()},()=>{S.staffLoaded=true;S.staffUnsub=null;if(S.view==='staff')refresh()})}
+function staffSub(){if(S.staffUnsub||!S.db)return;S.staffUnsub=S.db.collection('staff').limit(1000).onSnapshot(s=>{S.staff=s.docs.map(d=>({id:d.id,...d.data()}));S.staffLoaded=true;if(S.view==='staff'||S.view==='emp'||S.view==='home'||S.view==='reports')refresh()},()=>{S.staffLoaded=true;S.staffUnsub=null;if(S.view==='staff')refresh()})}
 function renderStaff(){const el=$('#v-staff');if(!S.staffLoaded){el.innerHTML='<div class="empty">جارٍ تحميل الموظفين…</div>';return}
   const ws=wkStart(today()),L=S.staff.filter(e=>S.showOld||empActive(e)).sort((a,b)=>ROLE_RK[roleOf(a)]-ROLE_RK[roleOf(b)]||(a.name||'').localeCompare(b.name||'','ar')),old=S.staff.some(e=>!empActive(e));
   el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="emp-new">＋ موظف جديد</button>${old?`<button class="btn" type="button" data-act="emp-old">${S.showOld?'إخفاء من انتهى عملهم':'عرض من انتهى عملهم'}</button>`:'<span></span>'}</div>`+
@@ -983,6 +987,60 @@ async function savePay(){const e=emp(S.eid);if(!e)return;const usd=r2(nv($('#pay
   await S.db.doc('staff/'+e.id).update({log:[...(e.log||[]),l]});
   if(l.cash){const t=new Date().toISOString(),n='راتب '+e.name,L=[];if(usd>0)L.push({id:newId(),t,dir:'out',cur:'usd',a:usd,n,ltx:l.id,staff:e.id});if(syp>0)L.push({id:newId(),t,dir:'out',cur:'syp',a:syp,n,ltx:l.id,staff:e.id});await cashAdd(day,L)}
   closeSheet();toast(l.cash?'دُفع الراتب وخرج من الصندوق':'سُجّل دفع الراتب')}
+
+/* ---------- reports: sales, expenses, safe daily spending, invoice register ---------- */
+S.rep={inv:null,cash:null,per:'month',q:'',err:false,loading:false};
+function loadReports(force){if(!S.db||S.rep.loading)return;if(!force&&S.rep.inv&&S.rep.cash)return;S.rep.loading=true;S.rep.err=false;staffSub();
+  Promise.all([S.db.collection('invoices').limit(5000).get(),S.db.collection('cash').limit(5000).get()]).then(([a,b])=>{
+    S.rep.inv=a.docs.map(d=>({id:d.id,...d.data()}));S.rep.cash=b.docs.map(d=>({id:d.id,...d.data()}));S.rep.loading=false;if(S.view==='reports')renderReports()
+  }).catch(()=>{S.rep.loading=false;S.rep.err=true;if(S.view==='reports')renderReports()})}
+function repRange(per){const t=today();if(per==='day')return[t,t];if(per==='week'){const w=wkStart(t);return[w,addDays(w,6)]}if(per==='month')return[t.slice(0,7)+'-01',t.slice(0,7)+'-31'];return['0000-00-00','9999-99-99']}
+function staffLogType(){const m={};for(const e of S.staff)for(const l of e.log||[])m[l.id]=l.type;return m}
+function expCat(t,lt){if(t.dir!=='out'||t.pair||t.cid)return null;
+  if(t.staff||t.ltx){const k=lt[t.ltx]||((t.n||'').startsWith('سلفة')?'adv':(t.n||'').startsWith('مصروف')?'exp':'pay');return k==='adv'?'adv':k==='exp'?'own':'sal'}return'oth'}
+function repCalc(lo,hi){const R=S.rep,lt=staffLogType(),o={sales:0,cashSales:0,credit:0,profit:0,n:0,noCost:0,exp:{sal:0,own:0,oth:0,adv:0},noRate:false};
+  for(const v of R.inv){const d=v.date||'';if(d<lo||d>hi)continue;o.n++;o.sales+=nv(v.total);if(v.pay==='نقدي')o.cashSales+=nv(v.total);else o.credit+=nv(v.total);if(v.profit==null)o.noCost++;else o.profit+=nv(v.profit)}
+  for(const day of R.cash){const d=day.id||day.date||'';if(d<lo||d>hi)continue;const rate=nv(day.rate)||nv(S.settings.rate);
+    for(const t of day.tx||[]){const c=expCat(t,lt);if(!c)continue;let u=t.cur==='usd'?nv(t.a):rate>0?nv(t.a)/rate:0;if(t.cur!=='usd'&&!(rate>0))o.noRate=true;o.exp[c]+=u}}
+  o.expTot=o.exp.sal+o.exp.own+o.exp.oth;return o}
+function renderReports(){const el=$('#v-reports'),R=S.rep;
+  if(!S.db){el.innerHTML='<div class="empty">جارٍ التحميل…</div>';return}
+  if(R.err&&!R.inv){el.innerHTML='<div class="empty"><b>تعذّر تحميل التقارير</b><span>تحقق من الاتصال ثم أعد المحاولة.</span></div><button class="btn primary" type="button" data-act="rep-reload">إعادة المحاولة</button>';return}
+  if(!R.inv||!R.cash){el.innerHTML='<div class="empty">جارٍ حساب التقارير…</div>';return}
+  const [lo,hi]=repRange(R.per),c=repCalc(lo,hi),T=today(),per={day:'اليوم',week:'هذا الأسبوع',month:'هذا الشهر',all:'الكل'};
+  const seg=`<div class="seg" role="group" aria-label="الفترة">${Object.keys(per).map(k=>`<button type="button" data-act="rep-per" data-p="${k}" aria-pressed="${R.per===k}">${per[k]}</button>`).join('')}</div>`;
+  const net=r2(c.profit-c.expTot);
+  // safe daily spending: average gross profit per working day (Sat-Thu) over the last 30 days
+  const firstD=R.inv.reduce((m,v)=>v.date&&v.profit!=null&&(!m||v.date<m)?v.date:m,''),from=addDays(T,-29),st=firstD&&firstD>from?firstD:from;
+  let wd=0;for(let d=st;d<=T;d=addDays(d,1)){if(new Date(d+'T12:00:00').getDay()!==5)wd++}wd=Math.max(wd,1);
+  const w=repCalc(st,T),avgP=r2(w.profit/wd),avgOper=r2((w.exp.sal+w.exp.oth)/wd),avgExp=r2(w.expTot/wd),own=r2(avgP-avgOper),td=repCalc(T,T);
+  const ok=avgExp<=avgP+0.005;
+  const inv=R.inv.filter(v=>{const q=nrm(R.q);return!q||nrm(v.no).includes(q)||nrm(v.cname).includes(q)||String(v.total).includes(q)}).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.no).localeCompare(String(a.no),'en',{numeric:true}));
+  el.innerHTML=`<div class="sechead"><h2>المبيعات والمصاريف</h2><button class="btn sm" type="button" data-act="rep-reload">تحديث</button></div>${seg}
+   <div class="ctab" style="grid-template-columns:1.6fr 1fr"><span class="h">${per[R.per]}</span><span class="h"></span>
+    <span class="l">إجمالي المبيعات (${c.n} فاتورة)</span><span class="n"><b>${money(r2(c.sales))}</b></span>
+    <span class="l">· نقدي</span><span class="n">${money(r2(c.cashSales))}</span>
+    <span class="l">· آجل (على الذمم)</span><span class="n">${money(r2(c.credit))}</span>
+    <span class="l">ربح المبيعات</span><span class="n t-credit">${money(r2(c.profit))}</span>
+    <span class="l">إجمالي المصاريف</span><span class="n t-debt"><b>${money(r2(c.expTot))}</b></span>
+    <span class="l">· رواتب الموظفين</span><span class="n">${money(r2(c.exp.sal))}</span>
+    <span class="l">· مسحوبات الإدارة</span><span class="n">${money(r2(c.exp.own))}</span>
+    <span class="l">· مصاريف أخرى</span><span class="n">${money(r2(c.exp.oth))}</span>
+    <span class="l t">الصافي (الربح − المصاريف)</span><span class="n t ${net<0?'t-debt':'t-credit'}">${money(net)}</span></div>
+   <span class="small muted">المصاريف تؤخذ من الصندوق اليومي (الليرة تُحوَّل بسعر صرف اليوم). السلف المدفوعة للموظفين (${money(r2(c.exp.adv))}) لا تُحسب مصروفاً لأنها تُخصم لاحقاً. التصريف وما يخص الزبائن لا يُحسب.${c.noCost?` ${c.noCost} فاتورة بلا تكلفة معروفة لا تدخل في الربح.`:''}${c.noRate?' بعض مصاريف الليرة بلا سعر صرف فلم تُحسب.':''}</span>
+   <div class="card"><div class="sechead"><b>كم مصروفي اليومي حتى لا أخسر؟</b><small>آخر ${wd} يوم عمل</small></div>
+    ${w.profit>0?`<div class="trio" style="grid-template-columns:1fr 1fr"><div style="background:var(--sunk)"><span style="color:var(--muted)">متوسط ربح اليوم</span><b class="num" style="color:var(--ink)">${money(avgP)}</b></div><div style="background:var(--sunk)"><span style="color:var(--muted)">متوسط مصاريفك اليوم</span><b class="num" style="color:var(--ink)">${money(avgExp)}</b></div></div>
+    <div class="${ok?'chip c-credit':'note'}" style="text-align:center;padding:9px">${ok?'مصاريفك ضمن الحد الآمن':'مصاريفك أعلى من ربحك. أنت تخسر بمعدل '+money(r2(avgExp-avgP))+' باليوم'}</div>
+    <div class="list"><div class="row"><span class="who"><b>الحد الأعلى للمصاريف كلها باليوم</b><small>أي أكثر منه = خسارة</small></span><span class="amt"><b>${money(avgP)}</b></span></div>
+     <div class="row"><span class="who"><b>مصروفك الشخصي الآمن باليوم</b><small>بعد الرواتب والمصاريف الأخرى (${money(avgOper)} باليوم)</small></span><span class="amt"><b class="${own<0?'t-debt':'t-credit'}">${money(own)}</b></span></div>
+     <div class="row"><span class="who"><b>مصروفك الشخصي المريح</b><small>يترك 20% من الربح للشركة</small></span><span class="amt"><b>${money(Math.max(0,r2(avgP*0.8-avgOper)))}</b></span></div>
+     <div class="row"><span class="who"><b>اليوم</b><small>ربح ${money(r2(td.profit))} · مصاريف ${money(r2(td.expTot))}</small></span><span class="amt"><b class="${r2(avgP-td.expTot)<0?'t-debt':'t-credit'}">${money(r2(avgP-td.expTot))}</b><small>المتبقي من الحد</small></span></div></div>
+    <span class="small muted">الحساب: متوسط الربح اليومي من فواتير آخر 30 يوماً (السبت إلى الخميس) حسب تكلفة المواد المسجلة بالمخزون. يتحسن كلما زادت الفواتير المسجلة.</span>`
+    :`<div class="empty">لا توجد فواتير بربح معروف في آخر 30 يوم. سجّل تكلفة المواد في المخزون وأنشئ فواتير ليظهر الحساب.</div>`}</div>
+   <div class="sec"><div class="sechead"><h2>سجل الفواتير</h2><small id="repcnt">${inv.length}</small></div>
+    <div class="field"><label for="rep-q">بحث برقم الفاتورة أو اسم الزبون أو المبلغ</label><input id="rep-q" type="search" value="${esc(R.q)}" inputmode="search" autocomplete="off"></div>
+    <div id="replist">${repInvList(inv)}</div></div>`}
+function repInvList(inv){return inv.length?`<div class="list">${inv.slice(0,60).map(v=>`<button class="row" type="button" data-act="rep-inv" data-id="${esc(v.id)}" data-cid="${esc(v.cid||'')}"><span class="who"><b>فاتورة <span class="num">#${esc(v.no)}</span> · ${esc(v.cname||'')}</b><small><span class="num">${dmy(v.date)}</span><span>${esc(v.pay||'')}</span></small></span><span class="amt"><b class="num">${money(nv(v.total))}</b></span></button>`).join('')}</div>${inv.length>60?'<span class="small muted">يظهر أحدث 60 فاتورة. اكتب في البحث لتضييق النتائج.</span>':''}`:'<div class="empty">لا توجد فواتير مطابقة.</div>'}
 
 /* ---------- backup, restore, PIN ---------- */
 const BCOLS=['customers','ledgers','invoices','cash','staff','pimg','meta','settings'];
@@ -1287,6 +1345,9 @@ document.addEventListener('click',e=>{
   if(b.dataset.fx){if(S.fx){S.fx.from=b.dataset.fx;fxRender()}return}
   if(b.dataset.emp){show('emp',b.dataset.emp);return}
   if(b.dataset.lfs){const [k,v]=b.dataset.lfs.split(':');if(S.lf){S.lf[k]=v;if(k==='cur'&&nv(S.lf.h)>0)S.lf.a=r2(nv(S.lf.h)*hourRate(emp(S.eid),v))||'';lgRender()}return}
+  if(a==='rep-per'){S.rep.per=b.dataset.p;renderReports();return}
+  if(a==='rep-reload'){S.rep.inv=null;S.rep.cash=null;renderReports();loadReports(true);return}
+  if(a==='rep-inv'){S.cid=b.dataset.cid||S.cid;if(!cust(S.cid)){toast('زبون هذه الفاتورة غير موجود');return}invView(b.dataset.id);return}
   if(a==='emp-new'){empSheet(null);return}
   if(a==='emp-edit'){empSheet(emp(S.eid));return}
   if(a==='emp-old'){S.showOld=!S.showOld;renderStaff();return}
@@ -1371,7 +1432,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-1740';
+const BUILD='20261112-2024';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
