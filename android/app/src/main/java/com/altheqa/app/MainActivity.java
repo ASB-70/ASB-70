@@ -129,6 +129,10 @@ public class MainActivity extends Activity {
         } catch (Exception e) { toast("تعذر فتح الرابط"); }
     }
 
+    private void bioResult(boolean ok) {
+        ui.post(() -> wv.evaluateJavascript("window.__bio&&window.__bio(" + ok + ")", null));
+    }
+
     private void toast(String t) { ui.post(() -> Toast.makeText(this, t, Toast.LENGTH_SHORT).show()); }
 
     private static String safeName(String n) {
@@ -139,6 +143,40 @@ public class MainActivity extends Activity {
     public class Bridge {
         @JavascriptInterface public void retry() {
             ui.post(() -> { offline = false; wv.loadUrl(BuildConfig.START_URL); });
+        }
+
+        @JavascriptInterface public boolean bioAvailable() {
+            try {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    android.hardware.biometrics.BiometricManager bm =
+                        (android.hardware.biometrics.BiometricManager) getSystemService(BIOMETRIC_SERVICE);
+                    return bm != null && bm.canAuthenticate() == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS;
+                }
+                if (Build.VERSION.SDK_INT == 28) {
+                    android.hardware.fingerprint.FingerprintManager fm =
+                        (android.hardware.fingerprint.FingerprintManager) getSystemService(FINGERPRINT_SERVICE);
+                    return fm != null && fm.isHardwareDetected() && fm.hasEnrolledFingerprints();
+                }
+            } catch (Exception e) { return false; }
+            return false;
+        }
+
+        @JavascriptInterface public void bioAuth(String title) {
+            ui.post(() -> {
+                if (Build.VERSION.SDK_INT < 28) { bioResult(false); return; }
+                try {
+                    android.hardware.biometrics.BiometricPrompt p =
+                        new android.hardware.biometrics.BiometricPrompt.Builder(MainActivity.this)
+                            .setTitle(title == null || title.isEmpty() ? getString(R.string.app_name) : title)
+                            .setNegativeButton("إلغاء", getMainExecutor(), (d, w) -> bioResult(false))
+                            .build();
+                    p.authenticate(new android.os.CancellationSignal(), getMainExecutor(),
+                        new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                            @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult r) { bioResult(true); }
+                            @Override public void onAuthenticationError(int code, CharSequence msg) { bioResult(false); }
+                        });
+                } catch (Exception e) { bioResult(false); }
+            });
         }
 
         @JavascriptInterface public void print() {

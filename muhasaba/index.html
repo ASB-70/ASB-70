@@ -192,6 +192,7 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);background:var(--surface);b
     <form id="loginform" hidden><input id="lg-email" type="email" autocomplete="username" placeholder="الإيميل" aria-label="الإيميل" dir="ltr" style="border-radius:12px;border:2px solid var(--on-cover-muted);background:rgba(255,255,255,.08);color:var(--on-cover);padding:12px;width:100%;text-align:center" required>
       <input id="lg-pass" type="password" autocomplete="current-password" placeholder="كلمة السر" aria-label="كلمة السر" dir="ltr" style="border-radius:12px;border:2px solid var(--on-cover-muted);background:rgba(255,255,255,.08);color:var(--on-cover);padding:12px;width:100%;text-align:center" required><button class="btn primary" type="submit">تسجيل الدخول</button></form>
     <form id="lockform" hidden><input id="lockpin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" aria-label="رمز الدخول"><button class="btn primary" type="submit">دخول</button></form>
+    <button class="btn" id="lockbio" type="button" data-act="bio-unlock" hidden>الدخول بالبصمة</button>
     <span id="lockerr" class="small" style="color:var(--on-cover);min-height:1.5em"></span><span id="lockhelp" class="small" style="color:var(--on-cover-muted)" hidden>نسيت الرمز؟ اطلب من Claude إلغاءه.</span></div>
 </div>
 
@@ -214,8 +215,21 @@ function drawLogo(x,px,py,box){if(!(logoImg.complete&&logoImg.naturalWidth))retu
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
 async function pinHash(p){const t='thiqa-pin:'+p;try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){let h=5381;for(const ch of t)h=((h<<5)+h+ch.charCodeAt(0))>>>0;return 'x'+h.toString(16)}}
 const LK={pin:LS.get('thiqa-pin')||'',open:false,tries:0,until:0,hid:0};
-function lockShow(){$('#lock').hidden=false;$('#loginform').hidden=true;$('#lockmsg').textContent='أدخل رمز الدخول';$('#lockform').hidden=false;$('#lockhelp').hidden=false;$('#lockerr').textContent='';const i=$('#lockpin');i.value='';setTimeout(()=>i.focus(),50)}
+function lockShow(){$('#lock').hidden=false;$('#loginform').hidden=true;$('#lockmsg').textContent='أدخل رمز الدخول';$('#lockform').hidden=false;$('#lockhelp').hidden=false;$('#lockerr').textContent='';$('#lockbio').hidden=!(BIO.on&&bioKind());if(BIO.on)setTimeout(tryBio,350);const i=$('#lockpin');i.value='';setTimeout(()=>i.focus(),50)}
 function lockHide(){if(S.loginRes)return;$('#lock').hidden=true;LK.open=true}
+/* fingerprint / face unlock: native prompt inside the Android app, Windows Hello or the phone's screen lock in a browser */
+const BIO={on:LS.get('thiqa-bio')==='1',busy:false};
+function bioKind(){if(window.Android&&typeof window.Android.bioAuth==='function'){try{return window.Android.bioAvailable()?'native':''}catch(e){return''}}return (EXT&&!window.Android&&window.PublicKeyCredential&&navigator.credentials)?'web':''}
+function bioAuth(){return new Promise(res=>{const k=bioKind();
+  if(k==='native'){let done=false;window.__bio=ok=>{if(done)return;done=true;res(!!ok)};try{window.Android.bioAuth('محاسبة شركة الثقة')}catch(e){done=true;res(false)}setTimeout(()=>{if(!done){done=true;res(false)}},90000);return}
+  if(k==='web'){const id=LS.get('thiqa-bio-id');if(!id){res(false);return}let raw;try{raw=Uint8Array.from(atob(id),c=>c.charCodeAt(0))}catch(e){res(false);return}
+    navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:'public-key',id:raw,transports:['internal']}],userVerification:'required',timeout:60000}}).then(c=>res(!!c)).catch(()=>res(false));return}
+  res(false)})}
+async function bioEnroll(){const k=bioKind();if(k==='native')return bioAuth();if(k!=='web')return false;
+  try{if(!(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()))return false;
+    const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'محاسبة شركة الثقة'},user:{id:crypto.getRandomValues(new Uint8Array(16)),name:'owner',displayName:'صاحب الحساب'},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},timeout:60000}});
+    if(!c)return false;LS.set('thiqa-bio-id',btoa(String.fromCharCode(...new Uint8Array(c.rawId))));return true}catch(e){return false}}
+async function tryBio(){if(BIO.busy||!BIO.on||!bioKind()||$('#lock').hidden||S.loginRes)return;BIO.busy=true;let ok=false;try{ok=await bioAuth()}finally{BIO.busy=false}if(ok&&!$('#lock').hidden&&!S.loginRes){LK.tries=0;lockHide()}}
 function lockSync(pin){LK.pin=pin||'';LS.set('thiqa-pin',LK.pin||null);if(!LK.pin)lockHide();else if(!LK.open)lockShow()}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)LK.hid=Date.now();else if(LK.pin&&LK.open&&LK.hid&&Date.now()-LK.hid>120000){LK.open=false;lockShow()}});
 /* ---------- Supabase backend: used when the page runs outside Claude (GitHub Pages) ---------- */
@@ -254,7 +268,7 @@ function makeSbDb(){
       onSnapshot:(next,err)=>watcher({col},get,v=>JSON.stringify(v.docs.map(d=>[d.id,d.data()])),next,err)}}
   return{doc:docRef,collection:c=>colRef(c),login:(email,password)=>auth({email,password},'password'),logout(){tok=null;refresh='';LS.set('thiqa-rt',null)},signedIn:()=>!!refresh,bulk(v){paused=!!v;if(!paused)for(const x of subs)x.run()}}}
 const browserDl={save({filename,data}){const b=data instanceof Blob?data:new Blob([data]),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),8000);return Promise.resolve({status:'saved'})}};
-function loginShow(){return new Promise(res=>{$('#lock').hidden=false;$('#lockmsg').textContent='سجّل الدخول إلى حسابات الشركة';$('#lockform').hidden=true;$('#lockhelp').hidden=true;$('#loginform').hidden=false;$('#lockerr').textContent='';S.loginRes=res})}
+function loginShow(){return new Promise(res=>{$('#lock').hidden=false;$('#lockmsg').textContent='سجّل الدخول إلى حسابات الشركة';$('#lockform').hidden=true;$('#lockbio').hidden=true;$('#lockhelp').hidden=true;$('#loginform').hidden=false;$('#lockerr').textContent='';S.loginRes=res})}
 const typeOf=b=>b>0.005?'debt':b<-0.005?'credit':'zero';
 const typeChip=b=>{const t=typeOf(b);return `<span class="chip c-${t}">${t==='debt'?'مدين':t==='credit'?'دائن':'مسدَّد'}</span>`};
 const eff=t=>t.k==='inv'?t.a:-t.a;
@@ -405,6 +419,12 @@ function renderSettings(){
      ${LK.pin?`<div class="field"><label for="pin-cur">الرمز الحالي</label><input id="pin-cur" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" required></div>`:''}
      <div class="field"><label for="pin-new">${LK.pin?'الرمز الجديد (اتركه فارغاً لإلغاء الرمز)':'الرمز الجديد'}</label><input id="pin-new" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" ${LK.pin?'':'required'}></div>
      <div class="grid2"><button class="btn primary" type="submit">حفظ الرمز</button>${LK.pin?'<button class="btn" type="button" data-act="lock-now">قفل الآن</button>':'<span></span>'}</div></form>
+   <div class="card"><b>الدخول بالبصمة</b>${(()=>{const k=bioKind(),oldApk=window.Android&&typeof window.Android.bioAuth!=='function';
+     if(oldApk)return '<span class="muted small">تطبيق الأندرويد عندك نسخة قديمة لا تدعم البصمة. نزّل النسخة الجديدة وثبّتها فوق القديمة.</span><a class="btn" href="../apk/muhasaba.apk">تنزيل تطبيق الأندرويد الجديد</a>';
+     if(!k)return '<span class="muted small">'+(EXT?'هذا الجهاز لا يدعم البصمة، أو لا توجد بصمة مسجّلة في إعداداته.':'البصمة تعمل في النسخة الأونلاين وتطبيق الأندرويد فقط.')+'</span>';
+     if(!LK.pin)return '<span class="muted small">ضع رمز دخول أولاً من البطاقة أعلاه، ثم فعّل البصمة. الرمز يبقى بديلاً إذا لم تُقرأ البصمة.</span>';
+     return BIO.on?'<span class="muted small">مفعّلة على هذا الجهاز. عند فتح البرنامج تُطلب بصمتك، والرمز يبقى بديلاً.</span><button class="btn danger" type="button" data-act="bio-off">إيقاف الدخول بالبصمة</button>'
+       :'<span class="muted small">'+(k==='native'?'ادخل ببصمة الإصبع أو الوجه المسجّلة في جوالك بدل كتابة الرمز.':'ادخل ببصمة أو وجه أو رمز الجهاز (Windows Hello أو قفل الجوال) بدل كتابة الرمز.')+' تُفعَّل لكل جهاز على حدة.</span><button class="btn primary" type="button" data-act="bio-on">تفعيل الدخول بالبصمة</button>'})()}</div>
    ${EXT?'<div class="card"><b>تنزيل البرنامج</b><span class="muted small">نسخة أندرويد ونسخة ويندوز 11. كلاهما يفتح نفس بياناتك.</span><a class="btn" href="../apk/muhasaba.apk">تطبيق أندرويد (APK)</a><a class="btn" href="app/Muhasaba-Althiqa.exe">برنامج ويندوز (EXE)</a></div>':''}
    ${EXT?`<div class="card"><b>إصدار البرنامج</b><span class="muted small">الإصدار الحالي: <span class="num">${BUILD}</span>. التحديثات تصل تلقائياً عند فتح البرنامج.</span><button class="btn" type="button" data-act="app-update">تحديث البرنامج الآن</button></div>`:''}
    ${EXT?'<div class="card"><b>الحساب</b><span class="muted small">أنت داخل بحسابك على قاعدة بيانات الشركة.</span><button class="btn danger" type="button" data-act="logout">تسجيل الخروج من هذا الجهاز</button></div>':''}
@@ -1166,7 +1186,7 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
     if(await pinHash($('#lockpin').value)===LK.pin){LK.tries=0;lockHide()}else{LK.tries++;$('#lockpin').value='';er.textContent='الرمز غير صحيح';if(LK.tries>=5){LK.tries=0;LK.until=Date.now()+30000;er.textContent='محاولات كثيرة. انتظر 30 ثانية.'}}})();return}
   if(f.id==='pinform')guard(async()=>{const nw=$('#pin-new').value.trim();if(LK.pin&&await pinHash($('#pin-cur').value)!==LK.pin){toast('الرمز الحالي غير صحيح');return}
     if(nw&&!/^\d{4,8}$/.test(nw)){toast('الرمز من 4 إلى 8 أرقام فقط');return}if(!nw&&!LK.pin)return;
-    const st={...S.settings};if(nw)st.pin=await pinHash(nw);else delete st.pin;await S.db.doc('settings/main').set(st);S.settings=st;LK.open=true;lockSync(st.pin);renderSettings();toast(nw?'فُعّل رمز الدخول':'أُلغي رمز الدخول')});
+    const st={...S.settings};if(nw)st.pin=await pinHash(nw);else delete st.pin;await S.db.doc('settings/main').set(st);S.settings=st;LK.open=true;lockSync(st.pin);if(!nw){BIO.on=false;LS.set('thiqa-bio',null)}renderSettings();toast(nw?'فُعّل رمز الدخول':'أُلغي رمز الدخول')});
   if(f.id==='cashform')guard(saveCash);
   if(f.id==='lform')guard(saveLog);
   if(f.id==='payform')guard(savePay);
@@ -1246,6 +1266,9 @@ document.addEventListener('click',e=>{
   if(a==='backup'){if(S.dl)guard(doBackup);return}
   if(a==='restore'){if(S.armed!=='rest'){S.armed='rest';b.textContent='اضغط ثانية للتأكيد: سيُكتب فوق البيانات الحالية';return}b.disabled=true;guard(doRestore);return}
   if(a==='lock-now'){LK.open=false;lockShow();return}
+  if(a==='bio-unlock'){tryBio();return}
+  if(a==='bio-on'){b.disabled=true;bioEnroll().then(ok=>{if(ok){BIO.on=true;LS.set('thiqa-bio','1');toast('فُعّل الدخول بالبصمة على هذا الجهاز')}else toast('لم تُفعَّل البصمة. تأكد أن في الجهاز بصمة مسجّلة وحاول ثانية.');renderSettings()});return}
+  if(a==='bio-off'){BIO.on=false;LS.set('thiqa-bio',null);LS.set('thiqa-bio-id',null);renderSettings();toast('أُوقف الدخول بالبصمة');return}
   if(a==='q-cash'){quickCash(b.dataset.dir,b.dataset.cur);return}
   if(a==='q-undo'){quickUndo();return}
   if(a==='cash-new'){S.cf={dir:b.dataset.dir,cur:'usd',a:'',n:'',cname:'',cid:null,rate:nv((S.cash||{}).rate)||nv(S.settings.rate)||''};cashRender();return}
@@ -1303,7 +1326,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-0614';
+const BUILD='20261112-0617';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
