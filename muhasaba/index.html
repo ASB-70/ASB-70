@@ -885,7 +885,7 @@ const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Str
 const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return isoD(d)};
 const wkStart=s=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+1)%7));return isoD(d)};
 const emp=id=>S.staff.find(e=>e.id===id);
-const ROLES={head:'رئيس الشركة',mgr:'المدير',emp:'موظف'},ROLE_RK={head:0,mgr:1,emp:2},roleOf=e=>ROLES[(e||{}).role]?e.role:'emp';
+const ROLES={head:'رئيس الشركة',mgr:'المدير',asst:'معاون مدير',emp:'موظف'},ROLE_RK={head:0,mgr:1,asst:2,emp:3},roleOf=e=>ROLES[(e||{}).role]?e.role:'emp';
 const empActive=e=>!e.end||e.end>=today();
 function weekCalc(e,ws){const we=addDays(ws,6),on=(!e.start||e.start<=we)&&(!e.end||e.end>=ws),z=()=>({usd:0,syp:0});
   const r={sal:{usd:on?nv(e.usd):0,syp:on?nv(e.syp):0},ot:z(),late:z(),unp:z(),cut:z(),adv:z(),draw:z(),paid:z(),days:0,rows:[]};
@@ -1357,7 +1357,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-1719';
+const BUILD='20261112-1726';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
