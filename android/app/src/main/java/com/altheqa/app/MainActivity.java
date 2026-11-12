@@ -3,6 +3,7 @@ package com.altheqa.app;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
 import android.net.Uri;
@@ -13,7 +14,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
+import android.provider.ContactsContract;
 import android.provider.MediaStore;
+import org.json.JSONObject;
 import android.util.Base64;
 import android.view.ViewGroup;
 import android.webkit.*;
@@ -33,6 +36,7 @@ public class MainActivity extends Activity {
     private boolean offline = false;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private static final int REQ_FILE = 11;
+    private static final int REQ_CONTACT = 12;
 
     private static final String JS =
         "(function(){if(window.__apk)return;window.__apk=1;"
@@ -143,6 +147,15 @@ public class MainActivity extends Activity {
     public class Bridge {
         @JavascriptInterface public void retry() {
             ui.post(() -> { offline = false; wv.loadUrl(BuildConfig.START_URL); });
+        }
+
+        @JavascriptInterface public void pickContact() {
+            ui.post(() -> {
+                try {
+                    Intent i = new Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI);
+                    startActivityForResult(i, REQ_CONTACT);
+                } catch (Exception e) { toast("تعذر فتح جهات الاتصال"); }
+            });
         }
 
         @JavascriptInterface public boolean bioAvailable() {
@@ -277,6 +290,17 @@ public class MainActivity extends Activity {
         if (req == REQ_FILE && fileCb != null) {
             fileCb.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res, data));
             fileCb = null;
+        } else if (req == REQ_CONTACT) {
+            if (res == RESULT_OK && data != null && data.getData() != null) {
+                try (Cursor c = getContentResolver().query(data.getData(),
+                        new String[]{ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER},
+                        null, null, null)) {
+                    if (c != null && c.moveToFirst()) {
+                        String n = c.getString(0), p = c.getString(1);
+                        wv.evaluateJavascript("window.__contact&&window.__contact(" + JSONObject.quote(n == null ? "" : n) + "," + JSONObject.quote(p == null ? "" : p) + ")", null);
+                    }
+                } catch (Exception e) { toast("تعذر قراءة جهة الاتصال"); }
+            }
         } else super.onActivityResult(req, res, data);
     }
 

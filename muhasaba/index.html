@@ -455,11 +455,15 @@ function renderSettings(){
 /* ---------- sheets ---------- */
 function openSheet(html){$('#sheet').innerHTML=html;$('#scrim').hidden=false;const f=$('#sheet input,#sheet select');if(f)f.focus()}
 function closeSheet(){$('#scrim').hidden=true;$('#sheet').innerHTML='';S.draft=null;S.count=null;S.imp=null}
+const canPick=()=>!!(window.Android&&typeof window.Android.pickContact==='function')||!!(navigator.contacts&&navigator.contacts.select);
+function fillContact(name,tel){const ph=$('#c-phone'),nm=$('#c-name');if(!ph)return;let t=String(tel||'').replace(/[\s\-().]/g,'');if(t.startsWith('+'))t='00'+t.slice(1);if(t)ph.value=t;if(nm&&!nm.value.trim()&&name)nm.value=name;toast(t?'أُضيف الرقم من جهات الاتصال':'جهة الاتصال بلا رقم')}
+function pickContact(){if(window.Android&&typeof window.Android.pickContact==='function'){window.__contact=fillContact;window.Android.pickContact();return}
+  navigator.contacts.select(['name','tel'],{multiple:false}).then(r=>{const x=r&&r[0];if(x)fillContact((x.name||[])[0],(x.tel||[])[0])}).catch(()=>toast('تعذّر فتح جهات الاتصال'))}
 function customerSheet(c){
   openSheet(`<h2>${c?'تعديل بيانات الزبون':'زبون جديد'}</h2><form id="cform" data-id="${c?esc(c.id):''}">
    <div class="field"><label for="c-name">اسم الزبون</label><input id="c-name" required value="${esc(c?.name||'')}"></div>
    <div class="field"><label for="c-city">المحافظة / المدينة</label><input id="c-city" data-sug="city" autocomplete="off" value="${esc(c?.city||'')}"></div><div class="sug" id="sug-c"></div>
-   <div class="field"><label for="c-phone">رقم واتساب</label><input id="c-phone" inputmode="tel" dir="ltr" placeholder="09xxxxxxxx" value="${esc(c?.phone||'')}"><span class="small muted">الرقم السوري يُحوَّل تلقائياً إلى ‎+963. لرقم خارج سوريا اكتبه مع رمز الدولة مسبوقاً بـ 00.</span></div>
+   <div class="field"><label for="c-phone">رقم واتساب</label><input id="c-phone" inputmode="tel" dir="ltr" placeholder="09xxxxxxxx" value="${esc(c?.phone||'')}">${canPick()?'<button class="btn sm" type="button" data-act="pick-contact">اختيار من جهات الاتصال</button>':''}<span class="small muted">الرقم السوري يُحوَّل تلقائياً إلى ‎+963. لرقم خارج سوريا اكتبه مع رمز الدولة مسبوقاً بـ 00.</span></div>
    ${c?'':`<div class="grid2"><div class="field"><label for="c-open">رصيد سابق ($)</label><input id="c-open" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00"></div>
      <div class="field"><label for="c-dir">طبيعة الرصيد</label><select id="c-dir"><option value="debt">مدين (لنا عنده)</option><option value="credit">دائن (له عندنا)</option></select></div></div>`}
    <div class="field"><label for="c-note">ملاحظات</label><input id="c-note" value="${esc(c?.note||'')}"></div>
@@ -1348,6 +1352,7 @@ document.addEventListener('click',e=>{
   if(a==='rep-per'){S.rep.per=b.dataset.p;renderReports();return}
   if(a==='rep-reload'){S.rep.inv=null;S.rep.cash=null;renderReports();loadReports(true);return}
   if(a==='rep-inv'){S.cid=b.dataset.cid||S.cid;if(!cust(S.cid)){toast('زبون هذه الفاتورة غير موجود');return}invView(b.dataset.id);return}
+  if(a==='pick-contact'){pickContact();return}
   if(a==='emp-new'){empSheet(null);return}
   if(a==='emp-edit'){empSheet(emp(S.eid));return}
   if(a==='emp-old'){S.showOld=!S.showOld;renderStaff();return}
@@ -1432,7 +1437,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-2032';
+const BUILD='20261112-2036';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
