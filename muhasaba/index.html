@@ -455,9 +455,9 @@ function renderSettings(){
 /* ---------- sheets ---------- */
 function openSheet(html){$('#sheet').innerHTML=html;$('#scrim').hidden=false;const f=$('#sheet input,#sheet select');if(f)f.focus()}
 function closeSheet(){$('#scrim').hidden=true;$('#sheet').innerHTML='';S.draft=null;S.count=null;S.imp=null}
-const canPick=()=>!!(window.Android&&typeof window.Android.pickContact==='function')||!!(navigator.contacts&&navigator.contacts.select);
+const canPick=()=>!!window.Android||!!(navigator.contacts&&navigator.contacts.select);
 function fillContact(name,tel){const ph=$('#c-phone'),nm=$('#c-name');if(!ph)return;let t=String(tel||'').replace(/[\s\-().]/g,'');if(t.startsWith('+'))t='00'+t.slice(1);if(t)ph.value=t;if(nm&&!nm.value.trim()&&name)nm.value=name;toast(t?'أُضيف الرقم من جهات الاتصال':'جهة الاتصال بلا رقم')}
-function pickContact(){if(window.Android&&typeof window.Android.pickContact==='function'){window.__contact=fillContact;window.Android.pickContact();return}
+function pickContact(){if(window.Android){if(typeof window.Android.pickContact!=='function'){toast('حدّث التطبيق إلى الإصدار 1.5 ليعمل اختيار جهات الاتصال');return}window.__contact=fillContact;window.Android.pickContact();return}
   navigator.contacts.select(['name','tel'],{multiple:false}).then(r=>{const x=r&&r[0];if(x)fillContact((x.name||[])[0],(x.tel||[])[0])}).catch(e=>toast('تعذّر فتح جهات الاتصال من هذا المتصفح ('+((e&&e.name)||'?')+'). استخدم تطبيق الأندرويد.'))}
 function customerSheet(c){
   openSheet(`<h2>${c?'تعديل بيانات الزبون':'زبون جديد'}</h2><form id="cform" data-id="${c?esc(c.id):''}">
@@ -1437,7 +1437,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-2040';
+const BUILD='20261112-2114';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
