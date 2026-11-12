@@ -885,6 +885,7 @@ const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Str
 const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return isoD(d)};
 const wkStart=s=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+1)%7));return isoD(d)};
 const emp=id=>S.staff.find(e=>e.id===id);
+const ROLES={head:'رئيس الشركة',mgr:'المدير',emp:'موظف'},ROLE_RK={head:0,mgr:1,emp:2},roleOf=e=>ROLES[(e||{}).role]?e.role:'emp';
 const empActive=e=>!e.end||e.end>=today();
 function weekCalc(e,ws){const we=addDays(ws,6),on=(!e.start||e.start<=we)&&(!e.end||e.end>=ws),z=()=>({usd:0,syp:0});
   const r={sal:{usd:on?nv(e.usd):0,syp:on?nv(e.syp):0},ot:z(),late:z(),unp:z(),cut:z(),adv:z(),draw:z(),paid:z(),days:0,rows:[]};
@@ -897,9 +898,9 @@ function weekCalc(e,ws){const we=addDays(ws,6),on=(!e.start||e.start<=we)&&(!e.e
 function advBal(e){const b={usd:0,syp:0};for(const l of e.log||[]){if(l.type==='adv')b[l.cur]+=nv(l.a);else if(l.type==='advcut')b[l.cur]-=nv(l.a)}return{usd:r2(b.usd),syp:r2(b.syp)}}
 function staffSub(){if(S.staffUnsub||!S.db)return;S.staffUnsub=S.db.collection('staff').limit(1000).onSnapshot(s=>{S.staff=s.docs.map(d=>({id:d.id,...d.data()}));S.staffLoaded=true;if(S.view==='staff'||S.view==='emp'||S.view==='home')refresh()},()=>{S.staffLoaded=true;S.staffUnsub=null;if(S.view==='staff')refresh()})}
 function renderStaff(){const el=$('#v-staff');if(!S.staffLoaded){el.innerHTML='<div class="empty">جارٍ تحميل الموظفين…</div>';return}
-  const ws=wkStart(today()),L=S.staff.filter(e=>S.showOld||empActive(e)).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar')),old=S.staff.some(e=>!empActive(e));
+  const ws=wkStart(today()),L=S.staff.filter(e=>S.showOld||empActive(e)).sort((a,b)=>ROLE_RK[roleOf(a)]-ROLE_RK[roleOf(b)]||(a.name||'').localeCompare(b.name||'','ar')),old=S.staff.some(e=>!empActive(e));
   el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="emp-new">＋ موظف جديد</button>${old?`<button class="btn" type="button" data-act="emp-old">${S.showOld?'إخفاء من انتهى عملهم':'عرض من انتهى عملهم'}</button>`:'<span></span>'}</div>`+
-   (L.length?`<div class="list">${L.map(e=>{const r=weekCalc(e,ws);return `<button class="row" type="button" data-emp="${esc(e.id)}">${ava(e,46)}<span class="who"><b>${esc(e.name)}</b><small>${e.start?`<span>منذ <span class="num">${dmy(e.start)}</span></span>`:''}${!empActive(e)?'<span class="chip c-zero">انتهى عمله</span>':`<span class="chip ${r.done?'c-credit':'c-due'}">${r.done?'قبض راتبه':'لم يقبض بعد'}</span>`}</small></span>
+   (L.length?`<div class="list">${L.map(e=>{const r=weekCalc(e,ws);return `<button class="row" type="button" data-emp="${esc(e.id)}">${ava(e,46)}<span class="who"><b>${esc(e.name)}</b><small><span class="chip c-zero">${ROLES[roleOf(e)]}</span>${e.start?`<span>منذ <span class="num">${dmy(e.start)}</span></span>`:''}${!empActive(e)?'<span class="chip c-zero">انتهى عمله</span>':`<span class="chip ${r.done?'c-credit':'c-due'}">${r.done?'قبض راتبه':'لم يقبض بعد'}</span>`}</small></span>
      <span class="amt"><b>${r.net.usd||!r.net.syp?money(r.net.usd):sy(r.net.syp)}</b>${r.net.usd&&r.net.syp?`<small class="num">${sy(r.net.syp)}</small>`:''}</span></button>`}).join('')}</div>`
     :`<div class="empty"><b>لا يوجد موظفون بعد</b><span>أضف أول موظف ببياناته وراتبه الأسبوعي.</span></div>`)+
    `<span class="small muted">الدوام من السبت إلى الخميس (${WD} أيام)، من 9:30 صباحاً حتى 9 مساءً، والجمعة عطلة. ما بعد 9 مساءً إضافي. بيانات الموظفين تظهر لك وحدك حتى لو شاركت الصفحة.</span>`}
@@ -923,7 +924,7 @@ function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.sta
      <span class="amt">${l.type==='pay'?`<b>${l.usd?money(l.usd):''}</b><small class="num">${l.syp?sy(l.syp):''}</small>`:l.type==='leave'?'':`<b class="${l.type==='ot'?'t-credit':l.type==='adv'?'':'t-debt'}">${l.type==='ot'?'+':l.type==='adv'?'':'−'}${cm(l.cur,nv(l.a))}</b>`}</span>
      <button class="btn sm danger" type="button" data-act="lg-del" data-id="${esc(l.id)}">${S.armed==='lg'+l.id?'تأكيد':'حذف'}</button></div>`).join('')}</div>`:'<div class="empty">لا توجد حركات في هذا الأسبوع.</div>'}</div>
    <div class="card"><div class="sechead"><b>بيانات الموظف</b><button class="btn sm" type="button" data-act="emp-edit">تعديل</button></div>
-    ${info('تاريخ بدء العمل',e.start&&dmy(e.start),1)}${info('تاريخ نهاية العمل',e.end&&dmy(e.end),1)}${info('المواليد',e.birth&&dmy(e.birth),1)}${info('الرقم الوطني',e.nid,1)}${info('اسم الأب',e.father)}${info('اسم الأم',e.mother)}${info('الموبايل',e.phone,1)}
+    ${info('المنصب',ROLES[roleOf(e)])}${info('تاريخ بدء العمل',e.start&&dmy(e.start),1)}${info('تاريخ نهاية العمل',e.end&&dmy(e.end),1)}${info('المواليد',e.birth&&dmy(e.birth),1)}${info('الرقم الوطني',e.nid,1)}${info('اسم الأب',e.father)}${info('اسم الأم',e.mother)}${info('الموبايل',e.phone,1)}
     ${info('الراتب الأسبوعي',[nv(e.usd)?money(nv(e.usd)):'',nv(e.syp)?sy(nv(e.syp)):''].filter(Boolean).join(' + '),1)}${info('الحالة الصحية والأمراض',e.health)}${info('ملاحظات',e.note)}
     ${wa?`<a class="btn sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">مراسلته على واتساب</a>`:''}</div>
    <button class="btn danger" type="button" data-act="emp-del">${S.armed==='emp'?'اضغط ثانية لتأكيد حذف الموظف وكل سجله':'حذف الموظف'}</button>`}
@@ -932,6 +933,7 @@ function empSheet(e){S.ephoto=null;const f=(id,l,v,attr)=>`<div class="field"><l
    <div style="display:flex;gap:12px;align-items:center"><img id="e-prev" alt="صورة الموظف" src="${e&&e.photo?e.photo:AVA}" width="84" height="84" style="border-radius:50%;object-fit:cover;background:var(--sunk);flex:none">
      <div class="field" style="flex:1;min-width:0"><label for="e-photo">صورة الموظف</label><input id="e-photo" type="file" accept="image/*" style="padding:8px;font-size:13px"></div></div>
    ${f('e-name','اسم الموظف',e?.name,'required')}
+   <div class="field"><label for="e-role">المنصب في الشركة</label><select id="e-role">${Object.keys(ROLES).map(k=>`<option value="${k}" ${roleOf(e)===k?'selected':''}>${ROLES[k]}</option>`).join('')}</select></div>
    <div class="grid2">${f('e-father','اسم الأب',e?.father)}${f('e-mother','اسم الأم',e?.mother)}</div>
    <div class="grid2">${f('e-birth','المواليد',e?.birth,'type="date"')}${f('e-nid','الرقم الوطني',e?.nid,'inputmode="numeric" dir="ltr"')}</div>
    ${f('e-phone','رقم الموبايل',e?.phone,'inputmode="tel" dir="ltr" placeholder="09xxxxxxxx"')}
@@ -1219,7 +1221,7 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
   if(f.id==='cashform')guard(saveCash);
   if(f.id==='lform')guard(saveLog);
   if(f.id==='payform')guard(savePay);
-  if(f.id==='eform')guard(async()=>{const g=id=>$('#'+id).value.trim(),d={name:g('e-name'),father:g('e-father'),mother:g('e-mother'),birth:g('e-birth'),nid:g('e-nid'),phone:g('e-phone'),start:g('e-start'),end:g('e-end'),usd:nv(g('e-usd')),syp:nv(g('e-syp')),health:g('e-health'),note:g('e-note')};if(S.ephoto)d.photo=S.ephoto;
+  if(f.id==='eform')guard(async()=>{const g=id=>$('#'+id).value.trim(),d={name:g('e-name'),role:g('e-role'),father:g('e-father'),mother:g('e-mother'),birth:g('e-birth'),nid:g('e-nid'),phone:g('e-phone'),start:g('e-start'),end:g('e-end'),usd:nv(g('e-usd')),syp:nv(g('e-syp')),health:g('e-health'),note:g('e-note')};if(S.ephoto)d.photo=S.ephoto;
     if(!d.name)return;if(f.dataset.id){await S.db.doc('staff/'+f.dataset.id).update(d);closeSheet();toast('حُفظت بيانات الموظف')}
     else{const ref=S.db.collection('staff').doc();await ref.set({...d,log:[],createdAt:new Date().toISOString()});closeSheet();toast('أُضيف الموظف');show('emp',ref.id)}});
   if(f.id==='fxform')guard(saveFx);
@@ -1355,7 +1357,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-1705';
+const BUILD='20261112-1719';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
