@@ -288,7 +288,7 @@ function show(v,cid){
   if(v==='detail'&&S.db&&!S.unsubL){
     S.unsubL=S.db.doc('ledgers/'+cid).onSnapshot(s=>{S.ledger=s.exists?(s.data().tx||[]).slice():[];if(S.cid===cid)renderDetail()},()=>{S.ledger=S.ledger||[];renderDetail()});
   }
-  refresh();window.scrollTo(0,0);syncTrap();
+  refresh();window.scrollTo(0,0);if(v!=='home')navPush();navSync();
 }
 function refresh(){
   const due=S.customers.filter(isDue).length;const b=$('#duebadge');b.hidden=!due;b.textContent=due;
@@ -405,6 +405,7 @@ function renderSettings(){
      <div class="field"><label for="pin-new">${LK.pin?'الرمز الجديد (اتركه فارغاً لإلغاء الرمز)':'الرمز الجديد'}</label><input id="pin-new" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" ${LK.pin?'':'required'}></div>
      <div class="grid2"><button class="btn primary" type="submit">حفظ الرمز</button>${LK.pin?'<button class="btn" type="button" data-act="lock-now">قفل الآن</button>':'<span></span>'}</div></form>
    ${EXT?'<div class="card"><b>تنزيل البرنامج</b><span class="muted small">نسخة أندرويد ونسخة ويندوز 11. كلاهما يفتح نفس بياناتك.</span><a class="btn" href="../apk/muhasaba.apk">تطبيق أندرويد (APK)</a><a class="btn" href="app/Muhasaba-Althiqa.exe">برنامج ويندوز (EXE)</a></div>':''}
+   ${EXT?`<div class="card"><b>إصدار البرنامج</b><span class="muted small">الإصدار الحالي: <span class="num">${BUILD}</span>. التحديثات تصل تلقائياً عند فتح البرنامج.</span><button class="btn" type="button" data-act="app-update">تحديث البرنامج الآن</button></div>`:''}
    ${EXT?'<div class="card"><b>الحساب</b><span class="muted small">أنت داخل بحسابك على قاعدة بيانات الشركة.</span><button class="btn danger" type="button" data-act="logout">تسجيل الخروج من هذا الجهاز</button></div>':''}
    <div class="card"><b>كيف يعمل التذكير</b><span class="muted small">حدّد لكل زبون يوماً وساعة. عند حلول الموعد يظهر الزبون في «التذكيرات» مع زر يفتح واتساب والرسالة جاهزة باسمه ومبلغه، وتضغط إرسال. واتساب لا يسمح لأي تطبيق بالإرسال من رقمك دون ضغطتك.</span></div>`;
 }
@@ -1239,6 +1240,7 @@ document.addEventListener('click',e=>{
   if(a==='emp-del'){if(S.armed!=='emp'){S.armed='emp';renderEmp();return}guard(async()=>{await S.db.doc('staff/'+S.eid).delete();toast('حُذف الموظف');show('staff')});return}
   if(a==='wa-direct'){const c=cust(S.cid),num=c&&waNum(c.phone);if(!num||!S.stmtCv)return;const send=(b64,ext,mime)=>window.Android.sendToCompany(num,S.outName,S.outName+' '+today()+'.'+ext,mime,b64);
     try{if(b.dataset.kind==='png')send(S.stmtCv.toDataURL('image/png').split(',')[1],'png','image/png');else{const r=new FileReader();r.onload=()=>send(String(r.result).split(',')[1],'pdf','application/pdf');r.readAsDataURL(stmtPDF(S.stmtCv))}}catch(er){toast('تعذّر الإرسال المباشر')}return}
+  if(a==='app-update'){location.replace(location.pathname+'?v='+Date.now());return}
   if(a==='logout'){S.db.logout();location.reload();return}
   if(a==='backup'){if(S.dl)guard(doBackup);return}
   if(a==='restore'){if(S.armed!=='rest'){S.armed='rest';b.textContent='اضغط ثانية للتأكيد: سيُكتب فوق البيانات الحالية';return}b.disabled=true;guard(doRestore);return}
@@ -1300,17 +1302,26 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BK={trap:false,ignore:false,at:0};
+const BUILD='20261112-0608';
+const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
-function syncTrap(){if(!EXT)return;const need=backNeed();if(need&&!BK.trap){history.pushState({t:1},'');BK.trap=true}else if(!need&&BK.trap){BK.trap=false;BK.ignore=true;history.back()}}
+function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
+function navSync(){if(!EXT)return;const need=backNeed();if(!need&&BK.d>0){const n=BK.d;BK.d=0;BK.ignore++;history.go(-n)}else if(need&&BK.d===0)history.pushState({d:++BK.d},'')}
 function doBack(){
   if(!$('#scrim').hidden){
     if(S.picking&&S.draft){S.picking=false;renderInv();return}
     if(S.draft||S.count||(S.imp&&S.imp.items)){if(Date.now()-BK.at<2500){BK.at=0;closeSheet()}else{BK.at=Date.now();toast('اضغط رجوع مرة ثانية لإلغاء هذه الشاشة')}return}
     closeSheet();return}
   show({detail:'customers',emp:'staff'}[S.view]||'home')}
-if(EXT){window.addEventListener('popstate',()=>{if(BK.ignore){BK.ignore=false;return}BK.trap=false;doBack();syncTrap()});
-  for(const id of['#scrim','#lock'])new MutationObserver(syncTrap).observe($(id),{attributes:true,attributeFilter:['hidden']})}
+function onPop(e){BK.d=(e.state&&e.state.d)||0;if(BK.ignore>0){BK.ignore--;return}BK.pop=true;try{doBack()}finally{BK.pop=false}navSync()}
+function checkUpdate(auto){if(!EXT||BUILD==='dev')return;fetch('version.txt?'+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{t=t.trim();if(!t||t===BUILD)return;
+  let seen='';try{seen=sessionStorage.getItem('thiqa-upd')||''}catch(e){}
+  if(auto&&seen!==t&&$('#scrim').hidden){try{sessionStorage.setItem('thiqa-upd',t)}catch(e){}location.replace(location.pathname+'?v='+encodeURIComponent(t));return}
+  const n=$('#notice');n.innerHTML='يوجد تحديث جديد للبرنامج. <button class="btn sm" type="button" data-act="app-update">تحديث الآن</button>';n.hidden=false}).catch(()=>{})}
+if(EXT){window.addEventListener('popstate',onPop);
+  new MutationObserver(()=>{if(!$('#scrim').hidden)navPush();navSync()}).observe($('#scrim'),{attributes:true,attributeFilter:['hidden']});
+  new MutationObserver(navSync).observe($('#lock'),{attributes:true,attributeFilter:['hidden']});
+  checkUpdate(true);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate(false)})}
 $('#locklogo').src=LOGO;if(EXT&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(LK.pin)lockShow();
 show('home');
