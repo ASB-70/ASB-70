@@ -288,7 +288,7 @@ function show(v,cid){
   if(v==='detail'&&S.db&&!S.unsubL){
     S.unsubL=S.db.doc('ledgers/'+cid).onSnapshot(s=>{S.ledger=s.exists?(s.data().tx||[]).slice():[];if(S.cid===cid)renderDetail()},()=>{S.ledger=S.ledger||[];renderDetail()});
   }
-  refresh();window.scrollTo(0,0);
+  refresh();window.scrollTo(0,0);syncTrap();
 }
 function refresh(){
   const due=S.customers.filter(isDue).length;const b=$('#duebadge');b.hidden=!due;b.textContent=due;
@@ -1299,6 +1299,18 @@ $('#sheet').addEventListener('change',e=>{if(e.target.id==='e-photo'&&e.target.f
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden&&!S.draft&&!S.count&&!S.imp)closeSheet()});
 
 /* ---------- boot ---------- */
+/* ---------- device back button (online app): go back one step instead of leaving ---------- */
+const BK={trap:false,ignore:false,at:0};
+function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
+function syncTrap(){if(!EXT)return;const need=backNeed();if(need&&!BK.trap){history.pushState({t:1},'');BK.trap=true}else if(!need&&BK.trap){BK.trap=false;BK.ignore=true;history.back()}}
+function doBack(){
+  if(!$('#scrim').hidden){
+    if(S.picking&&S.draft){S.picking=false;renderInv();return}
+    if(S.draft||S.count||(S.imp&&S.imp.items)){if(Date.now()-BK.at<2500){BK.at=0;closeSheet()}else{BK.at=Date.now();toast('اضغط رجوع مرة ثانية لإلغاء هذه الشاشة')}return}
+    closeSheet();return}
+  show({detail:'customers',emp:'staff'}[S.view]||'home')}
+if(EXT){window.addEventListener('popstate',()=>{if(BK.ignore){BK.ignore=false;return}BK.trap=false;doBack();syncTrap()});
+  for(const id of['#scrim','#lock'])new MutationObserver(syncTrap).observe($(id),{attributes:true,attributeFilter:['hidden']})}
 $('#locklogo').src=LOGO;if(EXT&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(LK.pin)lockShow();
 show('home');
