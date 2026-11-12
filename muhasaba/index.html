@@ -991,9 +991,9 @@ async function savePay(){const e=emp(S.eid);if(!e)return;const usd=r2(nv($('#pay
 /* ---------- reports: sales, expenses, safe daily spending, invoice register ---------- */
 S.rep={inv:null,cash:null,per:'month',q:'',err:false,loading:false};
 function loadReports(force){if(!S.db||S.rep.loading)return;if(!force&&S.rep.inv&&S.rep.cash)return;S.rep.loading=true;S.rep.err=false;staffSub();
-  Promise.all([S.db.collection('invoices').limit(5000).get(),S.db.collection('cash').limit(5000).get()]).then(([a,b])=>{
+  const all=c=>EXT?S.db.collection(c).get():S.db.collection(c).limit(1000).get();Promise.all([all('invoices'),all('cash')]).then(([a,b])=>{
     S.rep.inv=a.docs.map(d=>({id:d.id,...d.data()}));S.rep.cash=b.docs.map(d=>({id:d.id,...d.data()}));S.rep.loading=false;if(S.view==='reports')renderReports()
-  }).catch(()=>{S.rep.loading=false;S.rep.err=true;if(S.view==='reports')renderReports()})}
+  }).catch(e=>{S.rep.loading=false;S.rep.err=e&&e.code||e&&e.message||true;if(S.view==='reports')renderReports()})}
 function repRange(per){const t=today();if(per==='day')return[t,t];if(per==='week'){const w=wkStart(t);return[w,addDays(w,6)]}if(per==='month')return[t.slice(0,7)+'-01',t.slice(0,7)+'-31'];return['0000-00-00','9999-99-99']}
 function staffLogType(){const m={};for(const e of S.staff)for(const l of e.log||[])m[l.id]=l.type;return m}
 function expCat(t,lt){if(t.dir!=='out'||t.pair||t.cid)return null;
@@ -1005,7 +1005,7 @@ function repCalc(lo,hi){const R=S.rep,lt=staffLogType(),o={sales:0,cashSales:0,c
   o.expTot=o.exp.sal+o.exp.own+o.exp.oth;return o}
 function renderReports(){const el=$('#v-reports'),R=S.rep;
   if(!S.db){el.innerHTML='<div class="empty">جارٍ التحميل…</div>';return}
-  if(R.err&&!R.inv){el.innerHTML='<div class="empty"><b>تعذّر تحميل التقارير</b><span>تحقق من الاتصال ثم أعد المحاولة.</span></div><button class="btn primary" type="button" data-act="rep-reload">إعادة المحاولة</button>';return}
+  if(R.err&&!R.inv){el.innerHTML='<div class="empty"><b>تعذّر تحميل التقارير</b><span>تحقق من الاتصال ثم أعد المحاولة.${R.err!==true?` <small class="num">(${esc(R.err)})</small>`:''}</span></div><button class="btn primary" type="button" data-act="rep-reload">إعادة المحاولة</button>';return}
   if(!R.inv||!R.cash){el.innerHTML='<div class="empty">جارٍ حساب التقارير…</div>';return}
   const [lo,hi]=repRange(R.per),c=repCalc(lo,hi),T=today(),per={day:'اليوم',week:'هذا الأسبوع',month:'هذا الشهر',all:'الكل'};
   const seg=`<div class="seg" role="group" aria-label="الفترة">${Object.keys(per).map(k=>`<button type="button" data-act="rep-per" data-p="${k}" aria-pressed="${R.per===k}">${per[k]}</button>`).join('')}</div>`;
@@ -1432,7 +1432,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-2024';
+const BUILD='20261112-2031';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
