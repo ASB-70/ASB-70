@@ -31,7 +31,14 @@ button{cursor:pointer}
 .cover{background:linear-gradient(160deg,var(--cover),var(--cover-2));color:var(--on-cover)}
 .cover .wrap{padding-block:18px 22px;display:flex;flex-direction:column;gap:14px}
 .eyebtn{border:1px solid var(--on-cover-muted);background:rgba(255,255,255,.1);color:var(--on-cover);border-radius:99px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;flex:none}.eyebtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-body.priv #cover .big,body.priv #cover .trio b,body.priv #cover .eyebrow .num,body.priv #cover .totbar b,body.priv #v-home .bar b,body.priv #clist .sechead b{filter:blur(9px);user-select:none;-webkit-user-select:none;pointer-events:none}
+body.priv #cover .big,body.priv #cover .trio b,body.priv #cover .eyebrow .num,body.priv #cover .totbar b,body.priv #v-home .bar b,body.priv #clist .sechead b{font-size:0!important;user-select:none;-webkit-user-select:none;pointer-events:none}
+body.priv #cover .big::after,body.priv #cover .trio b::after,body.priv #cover .eyebrow .num::after,body.priv #cover .totbar b::after,body.priv #v-home .bar b::after,body.priv #clist .sechead b::after{content:'******';font-family:var(--display);font-weight:700;letter-spacing:.08em;direction:ltr;unicode-bidi:isolate}
+body.priv #cover .big::after{font-size:clamp(34px,10vw,48px)}
+body.priv #cover .trio b::after{font-size:15px}
+body.priv #cover .eyebrow .num::after{font-size:12.5px}
+body.priv #cover .totbar b::after{font-size:22px}
+body.priv #v-home .bar b::after{font-size:13.5px}
+body.priv #clist .sechead b::after{font-size:13px}
 .brandline{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--on-cover-muted)}
 .brandline b{font-family:var(--display);font-weight:600;color:var(--on-cover);font-size:14px}
 .eyebrow{font-size:12.5px;color:var(--on-cover-muted)}
@@ -1464,7 +1471,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-2154';
+const BUILD='20261112-2156';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
