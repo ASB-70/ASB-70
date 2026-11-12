@@ -337,12 +337,12 @@ function renderCover(){
       <div><div class="dname">${esc(c.name)}</div><div class="eyebrow">${esc(c.city||'بدون محافظة')} · <span class="num">${esc(c.phone||'لا يوجد رقم')}</span></div></div>
       <div><div class="eyebrow">${typeOf(b)==='credit'?'له عندنا (حساب دائن)':typeOf(b)==='debt'?'لنا عنده (حساب مدين)':'الحساب مسدَّد'}</div><div class="big">${money(Math.abs(b))}</div></div>`;return}
   const t=totals();const titles={home:'إجمالي ما لنا عند الزبائن',customers:'إجمالي ما لنا عند الزبائن',due:'تذكيرات الدفع',settings:'الإعدادات'};
-  if(S.view==='staff'){const ws=wkStart(today()),A=S.staff.filter(empActive);let u=0,l=0,done=0;for(const e of A){const r=weekCalc(e,ws);u+=Math.max(r.rem.usd,0);l+=Math.max(r.rem.syp,0);if(r.done)done++}
+  if(S.view==='staff'){const ws=wkStart(today()),A=S.staff.filter(x=>empActive(x)&&!ownerRole(x));let u=0,l=0,done=0;for(const e of A){const r=weekCalc(e,ws);u+=Math.max(r.rem.usd,0);l+=Math.max(r.rem.syp,0);if(r.done)done++}
     el.innerHTML=co+`<div><div class="eyebrow">رواتب هذا الأسبوع المتبقية · ${dmy(ws)} إلى ${dmy(addDays(ws,5))}</div><div class="big">${S.staffLoaded?money(r2(u)):'…'}</div></div>
     <div class="trio"><div><span>المتبقي بالليرة</span><b class="num">${sy(r2(l))}</b></div><div><span>الموظفون</span><b class="num">${A.length}</b></div><div><span>قبضوا راتبهم</span><b class="num">${done} / ${A.length}</b></div></div>`;return}
   if(S.view==='emp'){const e=emp(S.eid);if(!e){el.innerHTML=co;return}const r=weekCalc(e,S.ews||wkStart(today()));
     el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><button class="back" type="button" data-view="staff">→ رجوع إلى الموظفين</button>${syncHTML(true)}<button type="button" data-act="emp-edit" style="border:1px solid var(--on-cover-muted);background:rgba(255,255,255,.1);color:var(--on-cover);border-radius:99px;padding:6px 14px;font-size:13.5px;font-weight:600">✎ تعديل البيانات</button></div><div style="display:flex;gap:14px;align-items:center">${ava(e,76)}<div style="min-width:0"><div class="dname">${esc(e.name)}</div><div class="eyebrow">${empActive(e)?'على رأس عمله':'انتهى عمله '+dmy(e.end)} · <span class="num">${esc(e.phone||'لا يوجد رقم')}</span></div></div></div>
-    <div><div class="eyebrow">صافي راتب الأسبوع</div><div class="big">${r.net.usd||!r.net.syp?money(r.net.usd):sy(r.net.syp)}</div>${r.net.usd&&r.net.syp?`<div class="eyebrow">و <span class="num">${sy(r.net.syp)}</span></div>`:''}</div>`;return}
+    <div><div class="eyebrow">${ownerRole(e)?'مصروف الأسبوع':'صافي راتب الأسبوع'}</div>${(q=>`<div class="big">${q.usd||!q.syp?money(q.usd):sy(q.syp)}</div>${q.usd&&q.syp?`<div class="eyebrow">و <span class="num">${sy(q.syp)}</span></div>`:''}`)(ownerRole(e)?r.exp:r.net)}</div>`;return}
   if(S.view==='cash'){const v=S.cash,b=v?cashBal(v):{usd:0,syp:0},rate=v?nv(v.rate):nv(S.settings.rate);
     el.innerHTML=co+`<div><div class="eyebrow">الصندوق اليومي · ${dmy(S.cday)} · إجمالي الكاش مقوَّماً بالليرة</div><div class="big">${v?(rate>0?sy(r2(b.syp+b.usd*rate)):sy(b.syp)):'…'}</div></div>
     <div class="trio"><div><span>دولار في الصندوق</span><b class="num">${money(b.usd)}</b></div><div><span>ليرة في الصندوق</span><b class="num">${sy(b.syp)}</b></div><div><span>سعر الصرف</span><b class="num">${rate?rate.toLocaleString('en-US'):'غير محدد'}</b></div></div>`;return}
@@ -366,7 +366,7 @@ function renderHome(){
   const cities=Object.entries(byCity).sort((a,b)=>b[1]-a[1]);const max=cities.length?cities[0][1]:1;
   const lb=S.settings.lastBackup,bd=lb?Math.floor((new Date(today())-new Date(lb))/864e5):null;
   el.innerHTML=(EXT?'':`<div class="note">صار للبرنامج نسخة أونلاين على اللابتوب والجوال. إذا نقلت بياناتك إليها فلا تسجّل هنا، لأن ما تسجّله هنا لا يظهر هناك. <a href="https://asb-70.github.io/ASB-70/muhasaba/" target="_blank" rel="noopener" style="color:inherit;font-weight:600">فتح النسخة الأونلاين</a></div>`)+((bd===null||bd>7)?`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${bd===null?'لم تُنزَّل أي نسخة احتياطية بعد.':'آخر نسخة احتياطية منذ '+bd+' يوم.'}</span><button class="btn sm" type="button" data-view="settings">نسخة الآن</button></div>`:'')+(due.length?`<div class="sec"><div class="sechead"><h2>مستحق التذكير الآن</h2><small>${due.length} زبون</small></div>${due.slice(0,3).map(dueCard).join('')}${due.length>3?`<button class="btn sm" type="button" data-view="due">عرض كل التذكيرات (${due.length})</button>`:''}</div>`:'')
-   +(S.staffLoaded&&S.staff.some(empActive)?(()=>{const ws=wkStart(today()),A=S.staff.filter(empActive);let u=0,l=0,done=0;for(const e of A){const r=weekCalc(e,ws);u+=Math.max(r.rem.usd,0);l+=Math.max(r.rem.syp,0);if(r.done)done++}
+   +(S.staffLoaded&&S.staff.some(empActive)?(()=>{const ws=wkStart(today()),A=S.staff.filter(x=>empActive(x)&&!ownerRole(x));let u=0,l=0,done=0;for(const e of A){const r=weekCalc(e,ws);u+=Math.max(r.rem.usd,0);l+=Math.max(r.rem.syp,0);if(r.done)done++}
      return `<div class="sec"><div class="sechead"><h2>فريق العمل</h2><small>${A.length} موظف · قبض ${done}</small></div><button class="card" type="button" data-view="staff" style="flex-direction:row;align-items:center;text-align:right;width:100%"><span style="display:flex;flex:none">${A.slice(0,5).map((e,i)=>`<span style="margin-inline-start:${i?-12:0}px;border:2px solid var(--surface);border-radius:50%;display:flex">${ava(e,40)}</span>`).join('')}</span><span style="flex:1;min-width:0"><span class="small muted">رواتب هذا الأسبوع المتبقية</span><br><b class="num">${money(r2(u))}</b>${l>0?` <span class="small muted">و</span> <b class="num">${sy(r2(l))}</b>`:''}</span></button></div>`})():'')
    +`<div class="sec"><div class="sechead"><h2>أعلى الذمم</h2><small>أكبر ٥ أرصدة</small></div><div class="list">${top.map(c=>rowHTML(c)).join('')||'<div class="row muted">لا توجد ذمم مفتوحة</div>'}</div></div>`
    +(cities.length?`<div class="sec"><div class="sechead"><h2>الذمم حسب المحافظة</h2><small>بالدولار</small></div><div class="bars">${cities.map(([n,v])=>`<div class="bar"><span>${esc(n)}</span><span class="track"><i style="width:${Math.max(2,v/max*100)}%"></i></span><b class="num">${money(r2(v))}</b></div>`).join('')}</div></div>`:'');
@@ -624,6 +624,7 @@ function sugFor(t){const kind=t.dataset.sug;if(!kind)return;document.querySelect
   else{const src=kind==='city'?[...new Set([...CITIES,...S.customers.map(x=>x.city).filter(Boolean)])]:SHIPPERS,L=(kind==='city'&&!q)?[]:src.filter(v=>v!==q&&(!q||v.includes(q))).slice(0,8);
     box.innerHTML=L.map(v=>`<button type="button" data-act="sug-val" data-for="${t.id}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}}
 function fillItem(i,code){const p=S.products[code],d=S.draft;if(!p||!d||!d.items[i])return;Object.assign(d.items[i],{code,name:p.name||'',pack:p.pack||'',unit:p.unit||'قطعة',price:p.price||''});renderInv();const q=$(`#it-${i}-qty`);if(q)q.focus()}
+$('#sheet').addEventListener('change',e=>{if(e.target.id==='e-role'){const b=$('#e-salbox');if(b)b.hidden=['head','mgr'].includes(e.target.value)}});
 $('#sheet').addEventListener('focusin',e=>{const t=e.target;if(t.dataset&&t.dataset.sug)sugFor(t)});
 $('#sheet').addEventListener('change',e=>{const t=e.target,d=S.draft;if(d&&t.dataset.p==='code'){const k=t.value.trim(),it=d.items[+t.dataset.i];if(it&&S.products[k]&&!it.name)setTimeout(()=>{if(S.draft===d&&d.items[+t.dataset.i]===it&&!it.name)fillItem(+t.dataset.i,k)},250)}});
 $('#sheet').addEventListener('input',e=>{const t=e.target,d=S.draft;if(t.id==='pq'){S.pq=t.value;renderPick();return}if(t.id==='cq'){S.cq=t.value;renderCount();return}if(t.dataset.cf&&S.cf){S.cf[t.dataset.cf]=t.value;if(t.dataset.cf==='cname')S.cf.cid=null;if(t.dataset.sug)sugFor(t);cashHint();return}if(t.dataset.lf&&S.lf){S.lf[t.dataset.lf]=t.value;if(t.dataset.lf==='tm'){const h=hoursFrom(S.lf.type,t.value);S.lf.h=h||'';const eh=$('#lf-h');if(eh)eh.value=h||'';const a=r2(h*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||'';return}if(t.dataset.lf==='h'){const a=r2(nv(t.value)*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||''}return}if(t.dataset.fxf&&S.fx){S.fx[t.dataset.fxf]=t.value;fxHint();return}if(t.id==='cl-u'||t.id==='cl-s'){closeHint();return}if(t.dataset.cc&&S.count){(S.count[t.dataset.cc]||(S.count[t.dataset.cc]={}))[t.dataset.cp]=t.value;return}if(t.dataset.sug)sugFor(t);if(!d||!t.closest('#iform'))return;
@@ -885,43 +886,46 @@ const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Str
 const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return isoD(d)};
 const wkStart=s=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+1)%7));return isoD(d)};
 const emp=id=>S.staff.find(e=>e.id===id);
-const ROLES={head:'رئيس الشركة',mgr:'المدير',asst:'معاون مدير',emp:'موظف'},ROLE_RK={head:0,mgr:1,asst:2,emp:3},roleOf=e=>ROLES[(e||{}).role]?e.role:'emp';
+const ROLES={head:'رئيس الشركة',mgr:'المدير',asst:'معاون مدير',emp:'موظف'},ROLE_RK={head:0,mgr:1,asst:2,emp:3},roleOf=e=>ROLES[(e||{}).role]?e.role:'emp',ownerRole=e=>roleOf(e)==='head'||roleOf(e)==='mgr';
 const empActive=e=>!e.end||e.end>=today();
 function weekCalc(e,ws){const we=addDays(ws,6),on=(!e.start||e.start<=we)&&(!e.end||e.end>=ws),z=()=>({usd:0,syp:0});
-  const r={sal:{usd:on?nv(e.usd):0,syp:on?nv(e.syp):0},ot:z(),late:z(),unp:z(),cut:z(),adv:z(),draw:z(),paid:z(),days:0,rows:[]};
+  const own=ownerRole(e),r={exp:z(),sal:{usd:on&&!own?nv(e.usd):0,syp:on&&!own?nv(e.syp):0},ot:z(),late:z(),unp:z(),cut:z(),adv:z(),draw:z(),paid:z(),days:0,rows:[]};
   for(const l of e.log||[]){if(l.type==='pay'){if(l.w===ws){r.paid.usd+=nv(l.usd);r.paid.syp+=nv(l.syp);r.rows.push(l)}continue}
     if(l.d<ws||l.d>we)continue;r.rows.push(l);
-    if(l.type==='ot')r.ot[l.cur]+=nv(l.a);else if(l.type==='late')r.late[l.cur]+=nv(l.a);else if(l.type==='advcut')r.cut[l.cur]+=nv(l.a);else if(l.type==='draw')r.draw[l.cur]+=nv(l.a);else if(l.type==='adv')r.adv[l.cur]+=nv(l.a);else if(l.type==='leave'&&!l.paid)r.days+=nv(l.days)}
-  for(const c of['usd','syp']){r.ot[c]=r2(r.ot[c]);r.late[c]=r2(r.late[c]);r.cut[c]=r2(r.cut[c]);r.draw[c]=r2(r.draw[c]);r.adv[c]=r2(r.adv[c]);r.paid[c]=r2(r.paid[c]);r.unp[c]=r2(Math.min(r.days,WD)*r.sal[c]/WD)}
+    if(l.type==='ot')r.ot[l.cur]+=nv(l.a);else if(l.type==='late')r.late[l.cur]+=nv(l.a);else if(l.type==='advcut')r.cut[l.cur]+=nv(l.a);else if(l.type==='draw')r.draw[l.cur]+=nv(l.a);else if(l.type==='exp')r.exp[l.cur]+=nv(l.a);else if(l.type==='adv')r.adv[l.cur]+=nv(l.a);else if(l.type==='leave'&&!l.paid)r.days+=nv(l.days)}
+  for(const c of['usd','syp']){r.ot[c]=r2(r.ot[c]);r.late[c]=r2(r.late[c]);r.cut[c]=r2(r.cut[c]);r.draw[c]=r2(r.draw[c]);r.exp[c]=r2(r.exp[c]);r.adv[c]=r2(r.adv[c]);r.paid[c]=r2(r.paid[c]);r.unp[c]=r2(Math.min(r.days,WD)*r.sal[c]/WD)}
   r.net={usd:r2(r.sal.usd+r.ot.usd-r.late.usd-r.unp.usd-r.cut.usd-r.draw.usd),syp:r2(r.sal.syp+r.ot.syp-r.late.syp-r.unp.syp-r.cut.syp-r.draw.syp)};
   r.rem={usd:r2(r.net.usd-r.paid.usd),syp:r2(r.net.syp-r.paid.syp)};r.done=r.rows.some(l=>l.type==='pay')&&r.rem.usd<0.005&&r.rem.syp<0.005;return r}
 function advBal(e){const b={usd:0,syp:0};for(const l of e.log||[]){if(l.type==='adv')b[l.cur]+=nv(l.a);else if(l.type==='advcut')b[l.cur]-=nv(l.a)}return{usd:r2(b.usd),syp:r2(b.syp)}}
+function expTot(e){const b={usd:0,syp:0};for(const l of e.log||[])if(l.type==='exp')b[l.cur]+=nv(l.a);return{usd:r2(b.usd),syp:r2(b.syp)}}
 function staffSub(){if(S.staffUnsub||!S.db)return;S.staffUnsub=S.db.collection('staff').limit(1000).onSnapshot(s=>{S.staff=s.docs.map(d=>({id:d.id,...d.data()}));S.staffLoaded=true;if(S.view==='staff'||S.view==='emp'||S.view==='home')refresh()},()=>{S.staffLoaded=true;S.staffUnsub=null;if(S.view==='staff')refresh()})}
 function renderStaff(){const el=$('#v-staff');if(!S.staffLoaded){el.innerHTML='<div class="empty">جارٍ تحميل الموظفين…</div>';return}
   const ws=wkStart(today()),L=S.staff.filter(e=>S.showOld||empActive(e)).sort((a,b)=>ROLE_RK[roleOf(a)]-ROLE_RK[roleOf(b)]||(a.name||'').localeCompare(b.name||'','ar')),old=S.staff.some(e=>!empActive(e));
   el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="emp-new">＋ موظف جديد</button>${old?`<button class="btn" type="button" data-act="emp-old">${S.showOld?'إخفاء من انتهى عملهم':'عرض من انتهى عملهم'}</button>`:'<span></span>'}</div>`+
-   (L.length?`<div class="list">${L.map(e=>{const r=weekCalc(e,ws);return `<button class="row" type="button" data-emp="${esc(e.id)}">${ava(e,46)}<span class="who"><b>${esc(e.name)}</b><small><span class="chip c-zero">${ROLES[roleOf(e)]}</span>${e.start?`<span>منذ <span class="num">${dmy(e.start)}</span></span>`:''}${!empActive(e)?'<span class="chip c-zero">انتهى عمله</span>':`<span class="chip ${r.done?'c-credit':'c-due'}">${r.done?'قبض راتبه':'لم يقبض بعد'}</span>`}</small></span>
-     <span class="amt"><b>${r.net.usd||!r.net.syp?money(r.net.usd):sy(r.net.syp)}</b>${r.net.usd&&r.net.syp?`<small class="num">${sy(r.net.syp)}</small>`:''}</span></button>`}).join('')}</div>`
+   (L.length?`<div class="list">${L.map(e=>{const r=weekCalc(e,ws),q=ownerRole(e)?r.exp:r.net;return `<button class="row" type="button" data-emp="${esc(e.id)}">${ava(e,46)}<span class="who"><b>${esc(e.name)}</b><small><span class="chip c-zero">${ROLES[roleOf(e)]}</span>${e.start?`<span>منذ <span class="num">${dmy(e.start)}</span></span>`:''}${!empActive(e)?'<span class="chip c-zero">انتهى عمله</span>':(ownerRole(e)?'':`<span class="chip ${r.done?'c-credit':'c-due'}">${r.done?'قبض راتبه':'لم يقبض بعد'}</span>`)}</small></span>
+     <span class="amt"><b>${q.usd||!q.syp?money(q.usd):sy(q.syp)}</b>${q.usd&&q.syp?`<small class="num">${sy(q.syp)}</small>`:''}</span></button>`}).join('')}</div>`
     :`<div class="empty"><b>لا يوجد موظفون بعد</b><span>أضف أول موظف ببياناته وراتبه الأسبوعي.</span></div>`)+
    `<span class="small muted">الدوام من السبت إلى الخميس (${WD} أيام)، من 9:30 صباحاً حتى 9 مساءً، والجمعة عطلة. ما بعد 9 مساءً إضافي. بيانات الموظفين تظهر لك وحدك حتى لو شاركت الصفحة.</span>`}
-const LGL={ot:'إضافي',late:'حسم تأخير',leave:'إجازة',pay:'دفع راتب',adv:'سلفة',advcut:'خصم سلفة',draw:'استجرار'};
+const LGL={ot:'إضافي',late:'حسم تأخير',leave:'إجازة',pay:'دفع راتب',adv:'سلفة',advcut:'خصم سلفة',draw:'استجرار',exp:'مصروف شخصي'};
 function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.staffLoaded?'<div class="empty">هذا الموظف غير موجود.</div>':'<div class="empty">جارٍ التحميل…</div>';return}
   const ws=S.ews||wkStart(today()),we=addDays(ws,6),r=weekCalc(e,ws),isCur=ws===wkStart(today());
   const row=(l,o,sign,cls,t)=>`<span class="l ${t||''}">${l}</span><span class="n ${cls||''} ${t||''}">${sign}${money(o.usd)}</span><span class="n ${cls||''} ${t||''}">${sign}${sy(o.syp)}</span>`;
   const info=(l,v,num)=>v?`<div class="sechead"><span class="muted small">${l}</span><span class="${num?'num':''}" style="text-align:left;overflow-wrap:anywhere">${esc(v)}</span></div>`:'';
   const wa=waNum(e.phone);
   el.innerHTML=`<div class="sechead"><button class="btn sm" type="button" data-act="emp-week" data-d="-7">→ السابق</button><b class="small">${isCur?'هذا الأسبوع · ':''}<span class="num">${dmy(ws)}</span> إلى <span class="num">${dmy(addDays(ws,5))}</span></b>${isCur?'<span style="width:64px"></span>':'<button class="btn sm" type="button" data-act="emp-week" data-d="7">التالي ←</button>'}</div>
-   <div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>
+   ${ownerRole(e)?`<div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>${row('مصروف هذا الأسبوع',r.exp,'')}${row('إجمالي كل المسحوبات',expTot(e),'','','t')}</div>
+   <button class="btn primary" type="button" data-act="lg-new" data-type="exp">＋ تسجيل مصروف</button>
+   <div class="note">${esc(ROLES[roleOf(e)])} لا يأخذ راتباً ثابتاً. يأخذ مصروفه بشكل مفتوح، وكل مبلغ تسجّله هون بيطلع من الصندوق إذا اخترت ذلك.</div>`:`<div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>
     ${row('الراتب الأسبوعي',r.sal,'')}${row('الإضافي',r.ot,'+','t-credit')}${row('حسم التأخير',r.late,'−','t-debt')}${row(`إجازة غير مدفوعة${r.days?' ('+f1(r.days)+' يوم)':''}`,r.unp,'−','t-debt')}${row('استجرار',r.draw,'−','t-debt')}${row('خصم السلف',r.cut,'−','t-debt')}
     ${row('الصافي',r.net,'')}${row('المدفوع',r.paid,'')}${row('المتبقي',r.rem,'','','t')}</div>
    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><button class="btn sm" type="button" data-act="lg-new" data-type="ot">＋ إضافي</button><button class="btn sm" type="button" data-act="lg-new" data-type="late">＋ حسم تأخير</button><button class="btn sm" type="button" data-act="lg-new" data-type="leave">＋ إجازة</button></div>
    <div class="grid2"><button class="btn sm" type="button" data-act="lg-new" data-type="adv">＋ سلفة</button><button class="btn sm" type="button" data-act="lg-new" data-type="advcut">− خصم سلفة</button></div>
    <button class="btn sm" type="button" data-act="lg-new" data-type="draw">＋ استجرار (يُخصم من الراتب مباشرة)</button>
    ${(ab=>ab.usd||ab.syp?`<div class="note">السلف المتبقية على ${esc(e.name)}: <b class="num">${ab.usd?money(ab.usd):''}</b> ${ab.syp?'<b class="num">'+sy(ab.syp)+'</b>':''}</div>`:'')(advBal(e))}
-   ${r.done?'<div class="chip c-credit" style="text-align:center;padding:8px">راتب هذا الأسبوع مدفوع بالكامل</div>':`<button class="btn wa" type="button" data-act="emp-pay">دفع راتب الأسبوع</button>`}
+   ${r.done?'<div class="chip c-credit" style="text-align:center;padding:8px">راتب هذا الأسبوع مدفوع بالكامل</div>':`<button class="btn wa" type="button" data-act="emp-pay">دفع راتب الأسبوع</button>`}`}
    <div class="sec"><div class="sechead"><h2>حركات الأسبوع</h2><small>${r.rows.length}</small></div>
    ${r.rows.length?`<div class="list">${r.rows.map(l=>`<div class="row"><span class="who"><b>${l.type==='leave'?(l.kind==='sick'?'إجازة مرضية':'إجازة')+(l.paid?' مدفوعة':' غير مدفوعة'):LGL[l.type]}</b><small><span class="num">${dmy(l.d)}</span>${l.type==='leave'?`<span>${f1(nv(l.days))} يوم</span>`:''}${l.n?`<span>${esc(l.n)}</span>`:''}${l.cash?'<span class="chip c-zero">من الصندوق</span>':''}</small></span>
-     <span class="amt">${l.type==='pay'?`<b>${l.usd?money(l.usd):''}</b><small class="num">${l.syp?sy(l.syp):''}</small>`:l.type==='leave'?'':`<b class="${l.type==='ot'?'t-credit':l.type==='adv'?'':'t-debt'}">${l.type==='ot'?'+':l.type==='adv'?'':'−'}${cm(l.cur,nv(l.a))}</b>`}</span>
+     <span class="amt">${l.type==='pay'?`<b>${l.usd?money(l.usd):''}</b><small class="num">${l.syp?sy(l.syp):''}</small>`:l.type==='leave'?'':`<b class="${l.type==='ot'?'t-credit':l.type==='adv'||l.type==='exp'?'':'t-debt'}">${l.type==='ot'?'+':l.type==='adv'||l.type==='exp'?'':'−'}${cm(l.cur,nv(l.a))}</b>`}</span>
      <button class="btn sm danger" type="button" data-act="lg-del" data-id="${esc(l.id)}">${S.armed==='lg'+l.id?'تأكيد':'حذف'}</button></div>`).join('')}</div>`:'<div class="empty">لا توجد حركات في هذا الأسبوع.</div>'}</div>
    <div class="card"><div class="sechead"><b>بيانات الموظف</b><button class="btn sm" type="button" data-act="emp-edit">تعديل</button></div>
     ${info('المنصب',ROLES[roleOf(e)])}${info('تاريخ بدء العمل',e.start&&dmy(e.start),1)}${info('تاريخ نهاية العمل',e.end&&dmy(e.end),1)}${info('المواليد',e.birth&&dmy(e.birth),1)}${info('الرقم الوطني',e.nid,1)}${info('اسم الأب',e.father)}${info('اسم الأم',e.mother)}${info('الموبايل',e.phone,1)}
@@ -938,8 +942,8 @@ function empSheet(e){S.ephoto=null;const f=(id,l,v,attr)=>`<div class="field"><l
    <div class="grid2">${f('e-birth','المواليد',e?.birth,'type="date"')}${f('e-nid','الرقم الوطني',e?.nid,'inputmode="numeric" dir="ltr"')}</div>
    ${f('e-phone','رقم الموبايل',e?.phone,'inputmode="tel" dir="ltr" placeholder="09xxxxxxxx"')}
    <div class="grid2">${f('e-start','تاريخ بدء العمل',e?e.start:today(),'type="date"')}${f('e-end','تاريخ نهاية العمل',e?.end,'type="date"')}</div>
-   <div class="grid2">${f('e-usd','الراتب الأسبوعي ($)',e?.usd||'','type="number" step="any" min="0" inputmode="decimal"')}${f('e-syp','الراتب الأسبوعي (ل.س)',e?.syp||'','type="number" step="any" min="0" inputmode="decimal"')}</div>
-   <span class="small muted">اكتب الراتب بالعملة التي يقبض بها، أو بالعملتين إذا كان جزء منه دولار وجزء ليرة.</span>
+   <div id="e-salbox" ${ownerRole(e)?'hidden':''}><div class="grid2">${f('e-usd','الراتب الأسبوعي ($)',e?.usd||'','type="number" step="any" min="0" inputmode="decimal"')}${f('e-syp','الراتب الأسبوعي (ل.س)',e?.syp||'','type="number" step="any" min="0" inputmode="decimal"')}</div>
+   <span class="small muted">اكتب الراتب بالعملة التي يقبض بها، أو بالعملتين إذا كان جزء منه دولار وجزء ليرة.</span></div>
    <div class="field"><label for="e-health">هل لديه أمراض أو حالة صحية؟ اذكرها</label><textarea id="e-health" style="min-height:70px" placeholder="مثال: لا يوجد / سكري / ربو">${esc(e?.health||'')}</textarea></div>
    ${f('e-note','ملاحظات',e?.note)}
    <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`)}
@@ -948,24 +952,24 @@ function lgRender(){const f=S.lf,sg=(k,v,l)=>`<button type="button" data-lfs="${
    ${f.type==='leave'?`<div class="seg">${sg('kind','sick','مرضية')}${sg('kind','other','لسبب آخر')}</div><div class="seg">${sg('paid','true','مدفوعة')}${sg('paid','false','غير مدفوعة')}</div>
      <div class="grid2"><div class="field"><label for="lf-d">من تاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div><div class="field"><label for="lf-days">عدد الأيام</label><input id="lf-days" data-lf="days" type="number" step="0.5" min="0.5" inputmode="decimal" required value="${esc(f.days)}"></div></div>
      <span class="small muted">${String(f.paid)==='true'?'الإجازة المدفوعة لا تنقص الراتب.':`غير المدفوعة يُخصم عن كل يوم جزء من ${WD} من الراتب الأسبوعي.`}</span>`
-    :f.type==='adv'||f.type==='advcut'||f.type==='draw'?`<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
-     ${f.type==='draw'?`<span class="small muted">يُخصم كامل المبلغ من راتب هذا الأسبوع، ولا يدخل في رصيد السلف.</span>`:f.type==='adv'?`<div class="seg">${sg('cashout','true','يخرج من الصندوق')}${sg('cashout','false','لا يمس الصندوق')}</div>`:`<span class="small muted">المتبقي عليه: <b class="num">${cm(f.cur,advBal(emp(S.eid))[f.cur])}</b>. الخصم ينقص من صافي راتب الأسبوع المعروض.</span>`}
+    :f.type==='adv'||f.type==='advcut'||f.type==='draw'||f.type==='exp'?`<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
+     ${f.type==='draw'?`<span class="small muted">يُخصم كامل المبلغ من راتب هذا الأسبوع، ولا يدخل في رصيد السلف.</span>`:f.type==='adv'||f.type==='exp'?`<div class="seg">${sg('cashout','true','يخرج من الصندوق')}${sg('cashout','false','لا يمس الصندوق')}</div>`:`<span class="small muted">المتبقي عليه: <b class="num">${cm(f.cur,advBal(emp(S.eid))[f.cur])}</b>. الخصم ينقص من صافي راتب الأسبوع المعروض.</span>`}
      <div class="grid2"><div class="field"><label for="lf-a">المبلغ ${f.cur==='usd'?'($)':'(ل.س)'}</label><input id="lf-a" data-lf="a" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.a)}"></div><div class="field"><label for="lf-d">التاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div></div>`
     :`<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
      <div class="grid2"><div class="field"><label for="lf-tm">${f.type==='ot'?'ساعة الخروج (بعد 9 مساءً)':'ساعة الحضور (بعد 9:30 صباحاً)'}</label><input id="lf-tm" data-lf="tm" type="time" value="${esc(f.tm||'')}"></div>
      <div class="field"><label for="lf-h">عدد الساعات</label><input id="lf-h" data-lf="h" type="number" step="any" min="0" inputmode="decimal" value="${esc(f.h||'')}"></div></div>
      <span class="small muted">أجر الساعة: <b class="num">${cm(f.cur,r4(hourRate(emp(S.eid),f.cur)))}</b> (الراتب الأسبوعي ÷ ${WD} أيام ÷ ${HD} ساعة). اكتب الساعة أو عدد الساعات فيُحسب المبلغ، ويمكنك تعديله يدوياً.</span>
      <div class="grid2"><div class="field"><label for="lf-a">المبلغ ${f.cur==='usd'?'($)':'(ل.س)'}</label><input id="lf-a" data-lf="a" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.a)}"></div><div class="field"><label for="lf-d">التاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div></div>`}
-   <div class="field"><label for="lf-n">${f.type==='adv'||f.type==='advcut'||f.type==='draw'?'البيان (مثال: بضاعة، نقدية)':f.type==='leave'?'السبب':f.type==='ot'?'البيان (مثال: 3 ساعات)':'البيان (مثال: تأخر ساعة)'}</label><input id="lf-n" data-lf="n" value="${esc(f.n)}"></div>
+   <div class="field"><label for="lf-n">${f.type==='exp'?'البيان (مثال: مصروف البيت)':f.type==='adv'||f.type==='advcut'||f.type==='draw'?'البيان (مثال: بضاعة، نقدية)':f.type==='leave'?'السبب':f.type==='ot'?'البيان (مثال: 3 ساعات)':'البيان (مثال: تأخر ساعة)'}</label><input id="lf-n" data-lf="n" value="${esc(f.n)}"></div>
    <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`;$('#scrim').hidden=false}
 async function saveLog(){const f=S.lf,e=emp(S.eid);if(!f||!e)return;const l={id:newId(),type:f.type,d:f.d||today(),n:(f.n||'').trim()};
   if(f.type==='leave'){l.kind=f.kind;l.paid=String(f.paid)==='true';l.days=nv(f.days);if(!(l.days>0)){toast('أدخل عدد الأيام');return}}
   else{l.cur=f.cur;l.a=r2(nv(f.a));if(!(l.a>0)){toast('أدخل المبلغ');return}if(nv(f.h)>0){l.h=nv(f.h);if(!l.n)l.n=(Math.round(l.h*100)/100)+' ساعة'+(f.tm?(f.type==='ot'?' · خرج ':' · حضر ')+f.tm:'')}}
   if(f.type==='advcut'){const bal=advBal(e)[l.cur];if(l.a>bal+0.005){toast('المبلغ أكبر من السلف المتبقية ('+cm(l.cur,bal)+')');return}}
-  if(f.type==='adv'&&String(f.cashout)==='true')l.cash=l.d;
+  if((f.type==='adv'||f.type==='exp')&&String(f.cashout)==='true')l.cash=l.d;
   await S.db.doc('staff/'+e.id).update({log:[...(e.log||[]),l]});
-  if(l.cash){await cashAdd(l.cash,[{id:newId(),t:new Date().toISOString(),dir:'out',cur:l.cur,a:l.a,n:'سلفة '+e.name,ltx:l.id,staff:e.id}])}
-  S.lf=null;closeSheet();toast(l.cash?'سُجّلت السلفة وخرجت من الصندوق':'سُجّلت')}
+  if(l.cash){await cashAdd(l.cash,[{id:newId(),t:new Date().toISOString(),dir:'out',cur:l.cur,a:l.a,n:(f.type==='exp'?'مصروف ':'سلفة ')+e.name,ltx:l.id,staff:e.id}])}
+  S.lf=null;closeSheet();toast(l.cash?'سُجّل وخرج من الصندوق':'سُجّلت')}
 function paySheet(){const e=emp(S.eid);if(!e)return;const ws=S.ews||wkStart(today()),r=weekCalc(e,ws);
   openSheet(`<h2>دفع راتب ${esc(e.name)}</h2><span class="small muted">أسبوع <span class="num">${dmy(ws)}</span> إلى <span class="num">${dmy(addDays(ws,5))}</span>. المتبقي له: <b class="num">${money(r.rem.usd)}</b> و <b class="num">${sy(r.rem.syp)}</b>.</span>
    <form id="payform"><div class="grid2"><div class="field"><label for="pay-u">المدفوع بالدولار ($)</label><input id="pay-u" type="number" step="any" min="0" inputmode="decimal" value="${r.rem.usd>0?r.rem.usd:''}"></div>
@@ -1221,7 +1225,7 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
   if(f.id==='cashform')guard(saveCash);
   if(f.id==='lform')guard(saveLog);
   if(f.id==='payform')guard(savePay);
-  if(f.id==='eform')guard(async()=>{const g=id=>$('#'+id).value.trim(),d={name:g('e-name'),role:g('e-role'),father:g('e-father'),mother:g('e-mother'),birth:g('e-birth'),nid:g('e-nid'),phone:g('e-phone'),start:g('e-start'),end:g('e-end'),usd:nv(g('e-usd')),syp:nv(g('e-syp')),health:g('e-health'),note:g('e-note')};if(S.ephoto)d.photo=S.ephoto;
+  if(f.id==='eform')guard(async()=>{const g=id=>$('#'+id).value.trim(),d={name:g('e-name'),role:g('e-role'),father:g('e-father'),mother:g('e-mother'),birth:g('e-birth'),nid:g('e-nid'),phone:g('e-phone'),start:g('e-start'),end:g('e-end'),usd:['head','mgr'].includes(g('e-role'))?0:nv(g('e-usd')),syp:['head','mgr'].includes(g('e-role'))?0:nv(g('e-syp')),health:g('e-health'),note:g('e-note')};if(S.ephoto)d.photo=S.ephoto;
     if(!d.name)return;if(f.dataset.id){await S.db.doc('staff/'+f.dataset.id).update(d);closeSheet();toast('حُفظت بيانات الموظف')}
     else{const ref=S.db.collection('staff').doc();await ref.set({...d,log:[],createdAt:new Date().toISOString()});closeSheet();toast('أُضيف الموظف');show('emp',ref.id)}});
   if(f.id==='fxform')guard(saveFx);
@@ -1357,7 +1361,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261112-1726';
+const BUILD='20261112-1729';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
