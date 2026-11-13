@@ -363,7 +363,7 @@ function show(v,cid){
   if(v==='reports'&&S.db)loadReports(true);
   if(v==='sales'&&S.db)loadReports(true);
   if(v==='cash'&&S.db){if(!S.cday)S.cday=today();loadCash()}
-  if(v==='stock'&&S.db){loadImgs().then(()=>{if(S.view==='stock')renderStock()});loadInvStats()}
+  if(v==='sales'&&S.db)loadImgs();if(v==='stock'&&S.db){loadImgs().then(()=>{if(S.view==='stock')renderStock()});loadInvStats()}
   if(v==='detail'&&S.db&&!S.unsubL){
     S.unsubL=S.db.doc('ledgers/'+cid).onSnapshot(s=>{S.ledger=s.exists?(s.data().tx||[]).slice():[];if(S.cid===cid)renderDetail()},()=>{S.ledger=S.ledger||[];renderDetail()});
   }
@@ -559,7 +559,7 @@ function scheduleSheet(c){
 
 /* ---------- statement image ---------- */
 async function drawStatement(c,tx,lastN){
-  try{await Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"'),document.fonts.load('600 28px "IBM Plex Sans Arabic"')])}catch(e){}
+  try{await Promise.race([Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"'),document.fonts.load('600 28px "IBM Plex Sans Arabic"')]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   const W=1080,P=48,RH=58,headH=310,thH=64,footH=250;
   let run=0,inv=0,paid=0;const all=tx.map(t=>{run=r2(run+eff(t));if(t.k==='inv')inv+=t.a;else paid+=t.a;return{t,run}});
   if(!lastN&&all.length>240)lastN=240;
@@ -748,12 +748,12 @@ async function invView(id){
   const c=cust(S.cid);if(!c)return;S.armed=null;
   openSheet(`<h2>فاتورة ${esc(c.name)}</h2><div id="stmtbox" class="empty">جارٍ تجهيز الفاتورة…</div>`);
   let inv,cv;try{const s=await S.db.doc('invoices/'+id).get();if(!s.exists){$('#stmtbox')&&($('#stmtbox').textContent='تفاصيل هذه الفاتورة غير موجودة.');return}
-    inv={id,...s.data()};cv=await drawInvoice(c,inv)}catch(e){$('#stmtbox')&&($('#stmtbox').textContent='تعذّر فتح الفاتورة. تحقق من الاتصال.');return}
+    inv={id,...s.data()};cv=await Promise.race([drawInvoice(c,inv),new Promise((_,j)=>setTimeout(()=>j(new Error('t')),15000))])}catch(e){console.error(e);$('#stmtbox')&&($('#stmtbox').textContent='تعذّر فتح الفاتورة. تحقق من الاتصال.');return}
   S.curInv=inv;
   outBox(cv,'فاتورة '+inv.no+' '+c.name,`<div class="card"><div class="sechead"><b>ربح الفاتورة</b><small>يظهر لك فقط، لا يُطبع</small></div>${inv.profit==null?'<span class="muted small">أُنشئت قبل نظام المخزون، لا يوجد حساب ربح.</span>':`<div class="trio"><div style="background:var(--sunk)"><span style="color:var(--muted)">رأس المال</span><b class="num" style="color:var(--ink)">${money(inv.costTotal||0)}</b></div><div style="background:var(--sunk)"><span style="color:var(--muted)">البيع</span><b class="num" style="color:var(--ink)">${money(inv.total)}</b></div><div style="background:var(--credit-bg)"><span style="color:var(--credit)">الربح${inv.costTotal?' '+Math.round(inv.profit/inv.costTotal*100)+'%':''}</span><b class="num" style="color:var(--credit)">${money(inv.profit)}</b></div></div>${inv.noCost?`<span class="note">${inv.noCost} مادة بدون تكلفة مسجّلة، لم تدخل في رأس المال ولا في الربح.</span>`:''}`}</div><div class="grid2"><button class="btn" type="button" data-act="edit-inv">تعديل الفاتورة</button><button class="btn danger" type="button" data-act="del-inv">حذف الفاتورة</button></div>`);
 }
 async function drawInvoice(c,inv){
-  try{await Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"'),document.fonts.load('600 28px "IBM Plex Sans Arabic"')])}catch(e){}
+  try{await Promise.race([Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"'),document.fonts.load('600 28px "IBM Plex Sans Arabic"')]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   const W=1080,P=48,RH=66,headH=210,infoH=216,thH=64,footH=inv.note?330:290,items=inv.items||[];
   const H=headH+infoH+thH+Math.max(items.length,1)*RH+footH;
   const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
@@ -773,8 +773,8 @@ async function drawInvoice(c,inv){
     if(ltr)nu(fit(val||'—',colW-20,'600 28px '+DF),rx,yy+40,'600 28px '+DF,'#101B33');else ar(fit(val||'—',colW-20,'600 28px '+BF),rx,yy+40,'600 28px '+BF,'#101B33')};
   cell('اسم الزبون',c.name,0,0);cell('رقم الزبون',inv.phone||c.phone,0,1,true);cell('المحافظة',inv.dest,1,0);cell('مكتب الشحن',inv.shipper||(inv.dest===MYCITY?'تسليم مباشر':''),1,1);cell('طريقة الدفع',inv.pay,2,0);cell('أجور الشحن',inv.shipFee,2,1);
   y+=infoH;x.fillStyle='#E3E8F1';x.fillRect(0,y,W,thH);
-  try{await loadImgs()}catch(e){}
-  const pics=await Promise.all(items.map(it=>{const u=S.img[it.code];if(!u)return null;return new Promise(r=>{const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);im.src=u})}));
+  try{await Promise.race([loadImgs(),new Promise(r=>setTimeout(r,3500))])}catch(e){}
+  const pics=await Promise.all(items.map(it=>{const u=S.img[it.code];if(!u)return null;return new Promise(r=>{const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);setTimeout(()=>r(null),2500);im.src=u})}));
   const cols=[['الكود',110],['',64],['المادة',226],['التعبئة',84],['الكمية',96],['الوحدة',84],['السعر',110],['الإجمالي',130],['الطرود',80]];
   const xs=[];let cx=W-P;for(const [,w] of cols){xs.push(cx);cx-=w}
   cols.forEach(([l],i)=>l&&ar(l,xs[i]-8,y+41,'600 22px '+BF,'#101B33'));
@@ -1670,7 +1670,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-2013';
+const BUILD='20261113-2017';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
