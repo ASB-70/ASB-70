@@ -1116,13 +1116,45 @@ function renderReports(){const el=$('#v-reports'),R=S.rep;
     <div class="field"><label for="rep-q">بحث برقم الفاتورة أو اسم الزبون أو المبلغ</label><input id="rep-q" type="search" value="${esc(R.q)}" inputmode="search" autocomplete="off"></div>
     <div id="replist">${repInvList(inv)}</div></div>`}
 const invFilt=q=>{q=nrm(q||'');return(S.rep.inv||[]).filter(v=>!q||nrm(v.no).includes(q)||nrm(v.cname).includes(q)||nrm(v.dest||'').includes(q)||nrm(v.shipper||'').includes(q)||String(v.total).includes(q)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.no).localeCompare(String(a.no),'en',{numeric:true}))};
+S.orders=[];S.stab='reg';S.ost='w';S.osort='turn';
+const ordSave=async L=>{await S.db.doc('meta/orders').set({list:L});S.orders=L};
+const hm=iso=>{const d=new Date(iso);return isNaN(d)?'':String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+const ddiff=(a,b)=>Math.round((new Date(a+'T00:00:00')-new Date(b+'T00:00:00'))/864e5);
+function ordHTML(){const all=S.orders||[],pend=all.filter(o=>o.st!=='d').sort((a,b)=>(a.at||'').localeCompare(b.at||'')),rank=new Map(pend.map((o,i)=>[o.id,i+1])),t=today();
+  const late=pend.filter(o=>o.due&&o.due<t).length,td=pend.filter(o=>o.due===t).length;
+  let L=S.ost==='d'?all.filter(o=>o.st==='d').sort((a,b)=>(b.doneAt||'').localeCompare(a.doneAt||'')).slice(0,60):(S.osort==='due'?pend.slice().sort((a,b)=>(a.due||'9').localeCompare(b.due||'9')||(a.at||'').localeCompare(b.at||'')):pend);
+  const chip=o=>{if(o.st==='d')return`<span class="chip c-credit">سُلّم ${dmy(o.doneAt||'')}</span>`;if(!o.due)return'';const n=ddiff(o.due,t);return n<0?`<span class="chip c-due">متأخر ${-n} يوم</span>`:n===0?'<span class="chip c-due">التسليم اليوم</span>':`<span class="chip c-zero">بعد ${n} يوم</span>`};
+  return `<div class="trio"><div><span>بالانتظار</span><b class="num">${pend.length}</b></div><div><span>متأخرة</span><b class="num" style="color:var(--debt)">${late}</b></div><div><span>تسليمها اليوم</span><b class="num">${td}</b></div></div>
+   <button class="btn primary" type="button" data-act="ord-new" style="width:100%">＋ طلب جديد في الدفتر</button>
+   <div class="seg"><button type="button" data-act="ord-st" data-v="w" aria-pressed="${S.ost!=='d'}">بالانتظار (${pend.length})</button><button type="button" data-act="ord-st" data-v="d" aria-pressed="${S.ost==='d'}">مسلّمة</button></div>
+   ${S.ost==='d'?'':`<div class="seg"><button type="button" data-act="ord-sort" data-v="turn" aria-pressed="${S.osort!=='due'}">حسب الدور (الأقدم أولاً)</button><button type="button" data-act="ord-sort" data-v="due" aria-pressed="${S.osort==='due'}">حسب موعد التسليم</button></div>`}
+   ${L.length?`<div class="list">${L.map(o=>`<button class="row" type="button" data-act="ord-open" data-id="${esc(o.id)}">${o.st==='d'?'':`<span class="chip c-credit num" style="flex:none;min-width:34px;text-align:center">${rank.get(o.id)}</span>`}<span class="who"><b>${esc(o.cname)}</b><small><span>طُلب <span class="num">${dmy((o.at||'').slice(0,10))} ${hm(o.at)}</span></span>${o.due?`<span>التسليم <span class="num">${dmy(o.due)}</span></span>`:''}${chip(o)}</small>${o.note?`<small>${esc(o.note.slice(0,70))}</small>`:''}</span></button>`).join('')}</div>`:`<div class="empty">${S.ost==='d'?'لا توجد طلبات مسلّمة بعد.':'دفتر الطلبات فارغ. أضف أول طلب.'}</div>`}
+   <span class="small muted">الرقم الأخضر هو الدور: الطلب الأقدم كتابةً يُسلَّم أولاً حتى لا يُظلم أحد.</span>`}
 function renderSales(){const el=$('#v-sales'),R=S.rep;if(!el)return;const L=R.inv?invFilt(R.sq):[];
-  el.innerHTML=`<button class="btn primary" type="button" data-act="sale-new" style="width:100%">＋ فاتورة جديدة</button>
+  const seg=`<div class="seg"><button type="button" data-act="stab" data-v="ord" aria-pressed="${S.stab==='ord'}">دفتر الطلبات (مسودات)</button><button type="button" data-act="stab" data-v="reg" aria-pressed="${S.stab!=='ord'}">الفواتير</button></div>`;
+  if(S.stab==='ord'){el.innerHTML=seg+ordHTML();return}
+  el.innerHTML=seg+`<button class="btn primary" type="button" data-act="sale-new" style="width:100%">＋ فاتورة جديدة</button>
    <div class="sec"><div class="sechead"><h2>سجل الفواتير</h2><small id="salecnt">${R.inv?L.length:''}</small></div>
    <div class="field"><label for="sale-q">بحث برقم الفاتورة أو الزبون أو المحافظة أو مكتب الشحن</label><input id="sale-q" type="search" value="${esc(R.sq||'')}" inputmode="search" autocomplete="off"></div>
    <div id="salelist">${R.err?'<div class="empty">تعذّر تحميل الفواتير.</div>':R.inv?repInvList(L):'<div class="empty">جارٍ التحميل…</div>'}</div></div>`}
+function ordForm(o,cid){const c=o?null:cust(cid),nm=o?o.cname:c.name,at=o?o.at:new Date().toISOString(),d0=at.length>10?new Date(at):new Date(),ld=o?(o.at||'').slice(0,10)||today():today();
+  const lt=o?hm(o.at):hm(new Date().toISOString()),due=o?o.due||'':new Date(Date.now()+2*864e5).toISOString().slice(0,10);
+  S.ordc={id:o?o.id:'',cid:o?o.cid:cid,cname:nm};
+  const dl=iso=>{const d=new Date(iso);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+  openSheet(`<h2>${o?'تعديل الطلب':'طلب جديد'} · ${esc(nm)}</h2>
+   <div class="grid2"><div class="field"><label for="o-date">تاريخ الطلب</label><input id="o-date" type="date" value="${o?dl(o.at):today()}"></div><div class="field"><label for="o-time">وقت كتابة الطلب</label><input id="o-time" type="time" value="${lt}"></div></div>
+   <div class="field"><label for="o-due">متى يجب تسليم الزبون</label><input id="o-due" type="date" value="${due}"></div>
+   <div class="field"><label for="o-note">تفاصيل الطلب (المواد والكميات وملاحظات)</label><textarea id="o-note" rows="4" style="width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)">${esc(o?o.note||'':'')}</textarea></div>
+   <div class="grid2"><button class="btn primary" type="button" data-act="ord-save">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`)}
+function ordSheet(id){const o=(S.orders||[]).find(x=>x.id===id);if(!o)return;S.armed=null;const pend=(S.orders||[]).filter(x=>x.st!=='d').sort((a,b)=>(a.at||'').localeCompare(b.at||'')),r=pend.findIndex(x=>x.id===id)+1;
+  openSheet(`<h2>${esc(o.cname)}</h2>
+   <div class="card small">${o.st==='d'?`<b>سُلّم بتاريخ ${dmy(o.doneAt||'')}</b>`:`<b>الدور رقم ${r} من ${pend.length}</b>`}<br>طُلب: <b class="num">${dmy((o.at||'').slice(0,10))} ${hm(o.at)}</b>${o.due?`<br>موعد التسليم: <b class="num">${dmy(o.due)}</b>`:''}${o.note?`<br><br>${esc(o.note).replace(/\n/g,'<br>')}`:''}</div>
+   <button class="btn primary" type="button" data-act="ord-inv" data-id="${esc(id)}">🧾 تحويل إلى فاتورة</button>
+   <div class="grid2"><button class="btn" type="button" data-act="ord-done" data-id="${esc(id)}">${o.st==='d'?'↩ إعادة للانتظار':'✔ تم التسليم'}</button><button class="btn" type="button" data-act="ord-edit" data-id="${esc(id)}">✎ تعديل</button></div>
+   <button class="btn danger" type="button" data-act="ord-del" data-id="${esc(id)}">🗑 حذف الطلب</button>`)}
+function openInvFor(id,note){show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger){invSheet();if(S.draft&&note){S.draft.note=note;renderInv()}}}},100)}
 $('#v-sales').addEventListener('input',e=>{if(e.target.id!=='sale-q')return;S.rep.sq=e.target.value;const L=invFilt(S.rep.sq);$('#salelist').innerHTML=repInvList(L);$('#salecnt').textContent=L.length});
-function saleCustSheet(){openSheet(`<h2>فاتورة جديدة · اختر الزبون</h2><div class="tools"><input type="search" id="sp-q" placeholder="اكتب اسم الزبون أو رقمه" autocomplete="off"></div><div id="sp-list" class="list"></div><button class="btn" type="button" data-act="new-customer">＋ زبون جديد</button>`);saleCustList('')}
+function saleCustSheet(){openSheet(`<h2>${S.ordMode?'طلب جديد':'فاتورة جديدة'} · اختر الزبون</h2><div class="tools"><input type="search" id="sp-q" placeholder="اكتب اسم الزبون أو رقمه" autocomplete="off"></div><div id="sp-list" class="list"></div><button class="btn" type="button" data-act="new-customer">＋ زبون جديد</button>`);saleCustList('')}
 function saleCustList(q){q=nrm(q||'');const L=S.customers.filter(c=>!q||nrm(c.name).includes(q)||String(c.phone||'').includes(q)).slice(0,40);$('#sp-list').innerHTML=L.length?L.map(c=>`<button class="row" type="button" data-act="sale-cust" data-id="${esc(c.id)}"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'—')}</span><span class="num" dir="ltr">${esc(c.phone||'')}</span></small></span></button>`).join(''):'<div class="empty">لا يوجد زبون بهذا الاسم.</div>'}
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='sp-q')saleCustList(e.target.value)});
 function repInvList(inv){return inv.length?`<div class="list">${inv.slice(0,60).map(v=>`<button class="row" type="button" data-act="rep-inv" data-id="${esc(v.id)}" data-cid="${esc(v.cid||'')}"><span class="who"><b>فاتورة <span class="num">#${esc(v.no)}</span> · ${esc(v.cname||'')}</b><small><span class="num">${dmy(v.date)}</span><span>${esc(v.pay||'')}</span></small></span><span class="amt"><b class="num">${money(nv(v.total))}</b></span></button>`).join('')}</div>${inv.length>60?'<span class="small muted">يظهر أحدث 60 فاتورة. اكتب في البحث لتضييق النتائج.</span>':''}`:'<div class="empty">لا توجد فواتير مطابقة.</div>'}
@@ -1432,7 +1464,20 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='cimp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد الزبائن.csv',data:'\ufeffاسم الزبون,المحافظة,رقم الموبايل,الرصيد,دائن / مدين,ملاحظات\nمثال: أحمد التاجر (احذف هذا السطر),حلب,0944000000,1500,مدين,جملة\n'}).catch(()=>{});return}
   if(b.dataset.act==='imp-go'){b.disabled=true;guard(async()=>{try{await doImport()}finally{b.disabled=false}});return}
   if(b.dataset.act==='imp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد المواد.csv',data:'\ufeffكود المادة,اسم المادة,سعر الجملة,سعر الطرد وأكثر,التعبئة داخل الطرد,الوحدة,الكمية,التكلفة\nA-1,مثال: صحن بورسلان (احذف هذا السطر),1.5,1.4,48,قطعة,480,1.1\n'}).catch(()=>{});return}
-  if(b.dataset.act==='sale-new'){saleCustSheet();return}
+  if(b.dataset.act==='stab'){S.stab=b.dataset.v;renderSales();return}
+  if(b.dataset.act==='ord-st'){S.ost=b.dataset.v;renderSales();return}
+  if(b.dataset.act==='ord-sort'){S.osort=b.dataset.v;renderSales();return}
+  if(b.dataset.act==='ord-new'){S.ordMode=true;saleCustSheet();return}
+  if(b.dataset.act==='ord-open'){ordSheet(b.dataset.id);return}
+  if(b.dataset.act==='ord-edit'){const o=S.orders.find(x=>x.id===b.dataset.id);if(o)ordForm(o);return}
+  if(b.dataset.act==='ord-save'){const c=S.ordc;if(!c)return;const dt=$('#o-date').value||today(),tm=$('#o-time').value||'00:00',at=new Date(dt+'T'+tm).toISOString();
+    guard(async()=>{const o={id:c.id||newId(),cid:c.cid,cname:c.cname,at,due:$('#o-due').value,note:$('#o-note').value.trim(),st:'w'};const old=S.orders.find(x=>x.id===o.id);if(old){o.st=old.st;if(old.doneAt)o.doneAt=old.doneAt}
+      await ordSave(old?S.orders.map(x=>x.id===o.id?o:x):[...S.orders,o]);closeSheet();S.stab='ord';S.ost='w';renderSales();toast('حُفظ الطلب في الدفتر')});return}
+  if(b.dataset.act==='ord-done'){const id=b.dataset.id;guard(async()=>{await ordSave(S.orders.map(x=>{if(x.id!==id)return x;const y={...x};if(x.st==='d'){y.st='w';delete y.doneAt}else{y.st='d';y.doneAt=today()}return y}));closeSheet();renderSales();toast('تم التحديث')});return}
+  if(b.dataset.act==='ord-del'){if(S.armed!=='od'){S.armed='od';b.textContent='اضغط ثانية لتأكيد الحذف';return}const id=b.dataset.id;guard(async()=>{await ordSave(S.orders.filter(x=>x.id!==id));S.armed=null;closeSheet();renderSales();toast('حُذف الطلب')});return}
+  if(b.dataset.act==='ord-inv'){const o=S.orders.find(x=>x.id===b.dataset.id);if(!o)return;if(!cust(o.cid)){toast('هذا الزبون غير موجود');return}closeSheet();openInvFor(o.cid,(o.note||'').slice(0,200));return}
+  if(b.dataset.act==='sale-new'){S.ordMode=false;saleCustSheet();return}
+  if(b.dataset.act==='sale-cust'&&S.ordMode){S.ordMode=false;closeSheet();ordForm(null,b.dataset.id);return}
   if(b.dataset.act==='sale-cust'){const id=b.dataset.id;closeSheet();show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger)invSheet()}},100);return}
   if(b.dataset.act==='bulk-price'){const nm='type="number" step="any" min="0" inputmode="decimal"';openSheet(`<h2>تسعير بنسبة ربح</h2><span class="small muted">يحسب السعر = التكلفة × (1 + النسبة). اترك النسبة فارغة للفئة التي لا تريدها. يُسعَّر فقط ما له تكلفة.</span>
     <div class="field"><label for="bp-p2">ربح جملة الجملة %</label><input id="bp-p2" ${nm}></div><div class="field"><label for="bp-price">ربح نصف الجملة %</label><input id="bp-price" ${nm}></div><div class="field"><label for="bp-pt">ربح المفرق %</label><input id="bp-pt" ${nm}></div>
@@ -1568,7 +1613,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-0903';
+const BUILD='20261113-0906';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -1612,6 +1657,7 @@ show('home');
   db.doc('meta/products').get().then(s=>{if(s.exists)S.products=s.data().items||{};if(S.view==='stock')refresh()}).catch(()=>{});
   db.doc('meta/stock').onSnapshot(s=>{const v=s.exists?s.data():{};S.stock=v.items||{};S.wh=(v.wh&&v.wh.length)?v.wh:[MAINWH];S.stockMeta=v.lastCount?{lastCount:v.lastCount}:{};S.stockLoaded=true;if(S.view==='stock'&&$('#scrim').hidden)refresh()},()=>{S.stockLoaded=true});
   staffSub();
+  db.doc('meta/orders').get().then(s=>{if(s.exists)S.orders=s.data().list||[];if(S.view==='sales')renderSales()}).catch(()=>{});
   db.doc('meta/stocklog').get().then(s=>{if(s.exists)S.slog=s.data().list||[]}).catch(()=>{});
   db.doc('settings/main').get().then(s=>{if(s.exists){S.settings={...DEF,...s.data()};renderCover();if(S.view==='settings')renderSettings();if(S.view==='home')refresh()}lockSync(S.settings.pin)}).catch(()=>{if(LK.pin)lockShow();else lockHide()});
   setInterval(()=>{if($('#scrim').hidden&&S.askSent===null&&S.view!=='settings'&&S.view!=='customers')refresh()},60000);
