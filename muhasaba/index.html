@@ -566,7 +566,7 @@ async function drawStatement(c,tx,lastN){
   let rows=all,open=null;
   if(lastN&&all.length>lastN){open=all[all.length-lastN-1].run;rows=all.slice(-lastN)}
   const n=rows.length+(open!==null?1:0),H=headH+thH+Math.max(n,1)*RH+footH;
-  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  const cv=document.createElement('canvas');const K=hiK(H);cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);
   const DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif',BF='"IBM Plex Sans Arabic",Tahoma,sans-serif';
   const ar=(s,px,py,font,col)=>{x.direction='rtl';x.textAlign='right';x.font=font;x.fillStyle=col;x.fillText(s,px,py)};
   const nu=(s,px,py,font,col)=>{x.direction='ltr';x.textAlign='right';x.font=font;x.fillStyle=col;x.fillText(s,px,py)};
@@ -589,7 +589,7 @@ async function drawStatement(c,tx,lastN){
   if(open!==null)line('','رصيد سابق','','',money(open));
   for(const {t,run} of rows)line(t.d?dmy(t.d):'—',(KIND[t.k]||'')+(t.ref?' '+t.ref:'')+(t.n?' · '+t.n:''),t.k==='inv'?money(t.a):'',t.k==='inv'?'':money(t.a),money(run));
   if(!n){ar('لا توجد حركات',W-P,y+38,tf,'#5A6684');y+=RH}
-  cv._rs=headH+thH;cv._rh=RH;cv._re=y;
+  cv._rs=(headH+thH)*K;cv._rh=RH*K;cv._re=y*K;
   x.fillStyle='#13265C';x.fillRect(P,y+18,W-2*P,3);
   ar('إجمالي الفواتير',W-P,y+70,tf,'#5A6684');nu(money(r2(inv)),W-P-300,y+70,nf,'#101B33');
   ar('إجمالي المدفوع والمرتجع',W-P,y+112,tf,'#5A6684');nu(money(r2(paid)),W-P-300,y+112,nf,'#101B33');
@@ -599,6 +599,7 @@ async function drawStatement(c,tx,lastN){
   ar('لأي ملاحظة على الكشف يرجى التواصل معنا. شكراً لتعاملكم.',W-P,y+226,'400 22px '+BF,'#5A6684');
   return cv;
 }
+const hiK=H=>H*3<=15000?3:H*2<=15000?2:1; // output sharpness: 3x when the canvas size allows
 function stmtPDF(cv){ // A4 pages, each holding a slice of the statement image cut on a row boundary
   const W=cv.width,PH=Math.round(W*841.89/595.28),s0=cv._rs,RH=cv._rh,re=cv._re,cuts=[];let y=0;
   while(cv.height-y>PH){let c=y+PH;if(c<re)c=s0+Math.floor((c-s0)/RH)*RH;else if(y<re)c=re;if(c<=y)c=y+PH;cuts.push([y,c]);y=c}
@@ -610,7 +611,7 @@ function stmtPDF(cv){ // A4 pages, each holding a slice of the statement image c
   obj(1,()=>push('<</Type/Catalog/Pages 2 0 R>>'));
   obj(2,()=>push('<</Type/Pages/Count '+N+'/Kids['+cuts.map((_,i)=>(3+i*3)+' 0 R').join(' ')+']>>'));
   cuts.forEach(([a,b],i)=>{const h=b-a,pc=document.createElement('canvas');pc.width=W;pc.height=h;const g=pc.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,h);g.drawImage(cv,0,a,W,h,0,0,W,h);
-    const bin=atob(pc.toDataURL('image/jpeg',0.92).split(',')[1]),jpg=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)jpg[k]=bin.charCodeAt(k);
+    const bin=atob(pc.toDataURL('image/jpeg',0.96).split(',')[1]),jpg=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)jpg[k]=bin.charCodeAt(k);
     const p=3+i*3,hh=h*595.28/W,cs='q 595.28 0 0 '+hh.toFixed(2)+' 0 '+(841.89-hh).toFixed(2)+' cm /Im0 Do Q';
     obj(p,()=>push('<</Type/Page/Parent 2 0 R/MediaBox[0 0 595.28 841.89]/Resources<</XObject<</Im0 '+(p+2)+' 0 R>>>>/Contents '+(p+1)+' 0 R>>'));
     obj(p+1,()=>push('<</Length '+cs.length+'>>\nstream\n'+cs+'\nendstream'));
@@ -756,7 +757,7 @@ async function drawInvoice(c,inv){
   try{await Promise.race([Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"'),document.fonts.load('600 28px "IBM Plex Sans Arabic"')]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   const W=1080,P=48,RH=66,headH=210,infoH=216,thH=64,footH=inv.note?330:290,items=inv.items||[];
   const H=headH+infoH+thH+Math.max(items.length,1)*RH+footH;
-  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  const cv=document.createElement('canvas');const K=hiK(H);cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);
   const DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif',BF='"IBM Plex Sans Arabic",Tahoma,sans-serif';
   const ar=(s,px,py,font,col)=>{x.direction='rtl';x.textAlign='right';x.font=font;x.fillStyle=col;x.fillText(s,px,py)};
   const nu=(s,px,py,font,col,al)=>{x.direction='ltr';x.textAlign=al||'right';x.font=font;x.fillStyle=col;x.fillText(s,px,py)};
@@ -778,13 +779,13 @@ async function drawInvoice(c,inv){
   const cols=[['الكود',110],['',64],['المادة',226],['التعبئة',84],['الكمية',96],['الوحدة',84],['السعر',110],['الإجمالي',130],['الطرود',80]];
   const xs=[];let cx=W-P;for(const [,w] of cols){xs.push(cx);cx-=w}
   cols.forEach(([l],i)=>l&&ar(l,xs[i]-8,y+41,'600 22px '+BF,'#101B33'));
-  y+=thH;const tf='400 24px '+BF,nf='500 24px '+DF,ty=42;cv._rs=y;cv._rh=RH;
+  y+=thH;const tf='400 24px '+BF,nf='500 24px '+DF,ty=42;cv._rs=y*K;cv._rh=RH*K;
   items.forEach((it,i)=>{if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH)}
     const pc=pics[i];if(pc){const sz=Math.min(pc.naturalWidth,pc.naturalHeight);x.drawImage(pc,(pc.naturalWidth-sz)/2,(pc.naturalHeight-sz)/2,sz,sz,xs[1]-60,y+5,56,56)}
     nu(fit(it.code||'',96,nf),xs[0]-8,y+ty,nf,'#5A6684');ar(fit(it.name||'',212,tf),xs[2]-8,y+ty,tf,'#101B33');
     nu(it.pack?f1(it.pack):'',xs[3]-8,y+ty,nf,'#101B33');nu(nv(it.qty).toLocaleString('en-US'),xs[4]-8,y+ty,'600 24px '+DF,'#101B33');ar(fit(it.unit||'',68,tf),xs[5]-8,y+ty,tf,'#101B33');
     nu(pr(it.price),xs[6]-8,y+ty,nf,'#101B33');nu(money(lineTot(it)),xs[7]-8,y+ty,'600 24px '+DF,'#101B33');nu(lineCart(it)?f1(lineCart(it)):'',xs[8]-8,y+ty,nf,'#5A6684');y+=RH});
-  if(!items.length)y+=RH;cv._re=y;
+  if(!items.length)y+=RH;cv._re=y*K;
   ar('عدد المواد: '+items.length+'   ·   إجمالي الطرود: '+f1(invCart(inv)),W-P,y+56,'400 26px '+BF,'#5A6684');
   x.fillStyle='#13265C';x.fillRect(P,y+84,W-2*P,96);
   ar('قيمة الفاتورة الإجمالية',W-P-24,y+144,'600 30px '+DF,'#FFFFFF');nu(money(inv.total||invTotal(inv)),P+24,y+148,'700 46px '+DF,'#FFFFFF','left');
@@ -1670,7 +1671,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-2019';
+const BUILD='20261113-2022';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
