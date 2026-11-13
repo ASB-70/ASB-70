@@ -671,11 +671,11 @@ function pickSheet(){S.picking=true;S.pq='';
   $('#sheet').scrollTop=0;loadImgs().then(renderPick,renderPick)}
 function renderPick(){const box=$('#plistbox');if(!box||!S.picking)return;const q=(S.pq||'').trim().toLowerCase();
   const L=Object.entries(S.products).filter(([k,p])=>!q||k.toLowerCase().includes(q)||(p.name||'').includes(q)).slice(0,80);
-  box.className='list';box.innerHTML=L.map(([k,p])=>`<button class="row" type="button" data-act="pick" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="48" height="48" loading="lazy" style="border-radius:8px;object-fit:cover;flex:none">`:''}<span class="who"><b>${esc(p.name)}</b><small><span class="num">${esc(k)}</span><span>الطرد ${f1(nv(p.pack))} ${esc(p.unit||'')}</span><span class="chip ${wq(k,(S.draft||{}).wh||'main')>0?'c-credit':'c-zero'}">المخزون ${f1(wq(k,(S.draft||{}).wh||'main'))}</span>${p.min?`<span>${esc(p.min)}</span>`:''}</small></span><span class="amt"><b>${pr(p.price)}</b></span></button>`).join('')||'<div class="row muted">لا توجد مادة مطابقة</div>'}
+  box.className='list';box.innerHTML=L.map(([k,p])=>`<button class="row" type="button" data-act="pick" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="48" height="48" loading="lazy" style="border-radius:8px;object-fit:cover;flex:none">`:''}<span class="who"><b>${esc(p.name)}</b><small><span class="num">${esc(k)}</span><span>الطرد ${f1(nv(p.pack))} ${esc(p.unit||'')}</span><span class="chip ${wq(k,(S.draft||{}).wh||'main')>0?'c-credit':'c-zero'}">المتوفر ${f1(wq(k,(S.draft||{}).wh||'main'))}${nv(p.pack)>0?` (${f1(wq(k,(S.draft||{}).wh||'main')/nv(p.pack))} طرد)`:''}</span>${S.wh.length>1?`<span class="chip c-zero">كل المستودعات ${f1(wq(k,'all'))}</span>`:''}${p.min?`<span>${esc(p.min)}</span>`:''}</small></span><span class="amt"><b>${pr(p.price)}</b></span></button>`).join('')||'<div class="row muted">لا توجد مادة مطابقة</div>'}
 function sugFor(t){const kind=t.dataset.sug;if(!kind)return;document.querySelectorAll('.sug').forEach(b=>b.innerHTML='');
   const box=t.dataset.i!==undefined?$('#sg-'+t.dataset.i):$(t.id==='c-city'?'#sug-c':'#sug-h');if(!box)return;const q=t.value.trim();
   if(kind==='code'){const ql=q.toLowerCase(),L=q?Object.entries(S.products).filter(([k,p])=>k.toLowerCase().startsWith(ql)||(p.name||'').includes(q)).slice(0,5):[];
-    box.innerHTML=L.map(([k,p])=>`<button type="button" data-act="sug-code" data-i="${t.dataset.i}" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="36" height="36" style="border-radius:6px;object-fit:cover;flex:none">`:''}<span><b class="num">${esc(k)}</b> · ${esc(p.name||'')} · <span class="num">${pr(p.price)}</span></span></button>`).join('')}
+    box.innerHTML=L.map(([k,p])=>`<button type="button" data-act="sug-code" data-i="${t.dataset.i}" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="36" height="36" style="border-radius:6px;object-fit:cover;flex:none">`:''}<span><b class="num">${esc(k)}</b> · ${esc(p.name||'')} · <span class="num">${pr(defP(p)||p.price)}</span> · المتوفر <b class="num">${f1(wq(k,(S.draft||{}).wh||'main'))}</b>${nv(p.pack)>0?` (${f1(wq(k,(S.draft||{}).wh||'main')/nv(p.pack))} طرد)`:''}</span></button>`).join('')}
   else if(kind==='cust'){const L=q?S.customers.filter(c=>(c.name||'').includes(q)).slice(0,6):[];
     box.innerHTML=L.map(c=>`<button type="button" data-act="sug-cust" data-id="${esc(c.id)}"><span><b>${esc(c.name)}</b> · ${esc(c.city||'')} · <span class="num">${money(c.balance||0)}</span></span></button>`).join('')}
   else{const src=kind==='city'?[...new Set([...CITIES,...S.customers.map(x=>x.city).filter(Boolean)])]:SHIPPERS,L=(kind==='city'&&!q)?[]:src.filter(v=>v!==q&&(!q||v.includes(q))).slice(0,8);
@@ -1646,7 +1646,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-1833';
+const BUILD='20261113-1838';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
