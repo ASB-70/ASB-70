@@ -353,6 +353,13 @@ function refresh(){
 }
 function totals(){let owed=0,owe=0,n=0;for(const c of S.customers){const b=c.balance||0;if(b>0.005){owed+=b;n++}else if(b<-0.005)owe+=-b}return{owed:r2(owed),owe:r2(owe),n}}
 const eyeBtn=()=>`<button class="eyebtn" type="button" data-act="priv-toggle" aria-label="${S.priv?'إظهار الأرقام':'إخفاء الأرقام'}">${S.priv?'<svg viewBox="0 0 24 24"><path d="M2 12s3.600-6.500 10-6.500S22 12 22 12s-3.600 6.500-10 6.500S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>':'<svg viewBox="0 0 24 24"><path d="M2 12s3.600-6.500 10-6.500S22 12 22 12s-3.600 6.500-10 6.500S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'}</button>`;
+const PV={tries:0,until:0};
+function doReveal(){S.priv=false;applyPriv();renderCover();if(!$('#scrim').hidden)closeSheet();if(S.view&&typeof refresh==='function')refresh()}
+async function privReveal(){const bio=BIO.on&&bioKind();
+  if(!LK.pin&&!bio){doReveal();toast('لم تضبط رمز دخول. فعّله من الإعدادات لحماية الأرقام.');return}
+  if(bio){let ok=false;try{ok=await bioAuth()}catch(e){}if(ok){doReveal();return}}
+  if(!LK.pin){toast('تعذّر التحقق بالبصمة');return}
+  openSheet(`<h2>أدخل رمز الدخول لإظهار الأرقام</h2><form id="privform"><div class="field"><label for="privpin">رمز الدخول</label><input id="privpin" type="password" inputmode="numeric" autocomplete="off" maxlength="8"></div><span class="small" id="priverr" style="color:var(--debt)"></span><div class="grid2"><button class="btn primary" type="submit">إظهار</button><button class="btn" type="button" data-act="close">إلغاء</button></div>${bio?'<button class="btn" type="button" data-act="priv-bio">👆 استخدام البصمة</button>':''}</form>`);setTimeout(()=>{const i=$('#privpin');if(i)i.focus()},80)}
 function applyPriv(){document.body.classList.toggle('priv',!!S.priv)}
 function renderCover(){
   const el=$('#cover');const co=`<div class="brandline"><b style="display:flex;align-items:center;gap:8px;min-width:0"><img src="${LOGO}" alt="" width="34" height="34" style="background:#fff;border-radius:8px;object-fit:contain;padding:2px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(S.settings.company)}</span></b><span style="display:flex;align-items:center;gap:10px">${eyeBtn()}${syncHTML(false)}</span></div>`;
@@ -1443,6 +1450,8 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
     if(ex&&ex.toCash)await cashAdd(t.cash,{id:newId(),t:new Date().toISOString(),dir:'in',cur:ex.cur,a:ex.raw,n:'دفعة من '+(c?c.name:''),cid:S.cid,cname:c?c.name:'',ltx:t.id,usd:a});
     closeSheet();toast(ex&&ex.toCash?'حُفظت الدفعة ودخلت الصندوق':'حُفظت الحركة')});
   if(f.id==='loginform'){const er=$('#lockerr');er.textContent='جارٍ التحقق…';S.db.login($('#lg-email').value.trim(),$('#lg-pass').value).then(()=>{$('#lg-pass').value='';$('#loginform').hidden=true;er.textContent='';$('#lockmsg').textContent='جارٍ الفتح…';const r=S.loginRes;S.loginRes=null;if(r)r()}).catch(e2=>{er.textContent=e2.code==='unavailable'?'تعذّر الاتصال. تحقق من الإنترنت.':'الإيميل أو كلمة السر غير صحيحة'});return}
+  if(f.id==='privform'){(async()=>{const er=$('#priverr');if(Date.now()<PV.until){er.textContent='محاولات كثيرة. انتظر '+Math.ceil((PV.until-Date.now())/1000)+' ثانية.';return}
+    if(await pinHash($('#privpin').value)===LK.pin){PV.tries=0;doReveal()}else{PV.tries++;$('#privpin').value='';er.textContent='الرمز غير صحيح';if(PV.tries>=5){PV.tries=0;PV.until=Date.now()+30000;er.textContent='محاولات كثيرة. انتظر 30 ثانية.'}}})();return}
   if(f.id==='lockform'){(async()=>{const er=$('#lockerr');if(Date.now()<LK.until){er.textContent='محاولات كثيرة. انتظر '+Math.ceil((LK.until-Date.now())/1000)+' ثانية.';return}
     if(await pinHash($('#lockpin').value)===LK.pin){LK.tries=0;lockHide()}else{LK.tries++;$('#lockpin').value='';er.textContent='الرمز غير صحيح';if(LK.tries>=5){LK.tries=0;LK.until=Date.now()+30000;er.textContent='محاولات كثيرة. انتظر 30 ثانية.'}}})();return}
   if(f.id==='pinform')guard(async()=>{const nw=$('#pin-new').value.trim();if(LK.pin&&await pinHash($('#pin-cur').value)!==LK.pin){toast('الرمز الحالي غير صحيح');return}
@@ -1548,7 +1557,8 @@ document.addEventListener('click',e=>{
   if(a==='abk-dl'){const id=b.dataset.id;b.disabled=true;guard(async()=>{try{const d=await S.db.backups.get(id);if(!d)throw 0;const x=(S.abk.list||[]).find(z=>String(z.id)===String(id));await S.dl.save({filename:'نسخة تلقائية محاسبة الثقة '+String((x&&x.created_at)||today()).slice(0,10)+'.json',data:JSON.stringify(d)})}catch(er){if(!er||er.code!=='declined')toast('تعذّر تنزيل النسخة')}finally{b.disabled=false}});return}
   if(a==='abk-rs'){const id=b.dataset.id;if(S.armed!=='abk'+id){S.armed='abk'+id;renderSettings();return}b.disabled=true;S.armed=null;
     guard(async()=>{try{const m=$('#abkmsg');if(m)m.textContent='جارٍ جلب النسخة…';const d=await S.db.backups.get(id);if(!d||!d.data)throw 0;S.rest=d;S.rmsgSel='#abkmsg';await doRestore()}catch(er){toast('تعذّر الاسترجاع من هذه النسخة')}finally{S.rmsgSel=null;renderSettings()}});return}
-  if(a==='priv-toggle'){S.priv=!S.priv;applyPriv();renderCover();return}
+  if(a==='priv-toggle'){if(S.priv)privReveal();else{S.priv=true;applyPriv();renderCover()}return}
+  if(a==='priv-bio'){bioAuth().then(ok=>{if(ok)doReveal();else{const e=$('#priverr');if(e)e.textContent='لم تنجح البصمة'}});return}
   if(a==='pick-contact'){pickContact();return}
   if(a==='crop-ok'){cropDone();return}
   if(a==='crop-cancel'){S.crop=null;const bx=$('#e-crop');if(bx)bx.hidden=true;const f=$('#e-photo');if(f)f.value='';return}
@@ -1636,7 +1646,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-0928';
+const BUILD='20261113-1833';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
