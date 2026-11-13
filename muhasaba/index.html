@@ -1155,7 +1155,7 @@ function ordSheet(id){const o=(S.orders||[]).find(x=>x.id===id);if(!o)return;S.a
 function openInvFor(id,note){show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger){invSheet();if(S.draft&&note){S.draft.note=note;renderInv()}}}},100)}
 $('#v-sales').addEventListener('input',e=>{if(e.target.id!=='sale-q')return;S.rep.sq=e.target.value;const L=invFilt(S.rep.sq);$('#salelist').innerHTML=repInvList(L);$('#salecnt').textContent=L.length});
 function saleCustSheet(){openSheet(`<h2>${S.ordMode?'طلب جديد':'فاتورة جديدة'} · اختر الزبون</h2><div class="tools"><input type="search" id="sp-q" placeholder="اكتب اسم الزبون أو رقمه" autocomplete="off"></div><div id="sp-list" class="list"></div><button class="btn" type="button" data-act="new-customer">＋ زبون جديد</button>`);saleCustList('')}
-function saleCustList(q){q=nrm(q||'');const L=S.customers.filter(c=>!q||nrm(c.name).includes(q)||String(c.phone||'').includes(q)).slice(0,40);$('#sp-list').innerHTML=L.length?L.map(c=>`<button class="row" type="button" data-act="sale-cust" data-id="${esc(c.id)}"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'—')}</span><span class="num" dir="ltr">${esc(c.phone||'')}</span></small></span></button>`).join(''):'<div class="empty">لا يوجد زبون بهذا الاسم.</div>'}
+function saleCustList(q){q=nrm(q||'');const L=S.customers.filter(c=>!q||nrm(c.name).includes(q)||String(c.phone||'').includes(q)).slice(0,40);$('#sp-list').innerHTML=L.length?L.map(c=>`<button class="row" type="button" data-act="sale-cust" data-id="${esc(c.id)}"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'—')}</span><span class="num" dir="ltr">${esc(c.phone||'')}</span></small></span></button>`).join(''):!S.loaded?'<div class="empty">جارٍ تحميل الزبائن…</div>':!S.customers.length?'<div class="empty"><b>لا يوجد أي زبون في هذه النسخة.</b><span>افتح تبويب «الزبائن»: إذا كان فارغاً فأنت على نسخة غير متصلة بدفترك (مثلاً نسخة Claude بدل الموقع/التطبيق). افتح الموقع أو التطبيق.</span></div>':'<div class="empty">لا يوجد زبون بهذا الاسم.</div>'}
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='sp-q')saleCustList(e.target.value)});
 function repInvList(inv){return inv.length?`<div class="list">${inv.slice(0,60).map(v=>`<button class="row" type="button" data-act="rep-inv" data-id="${esc(v.id)}" data-cid="${esc(v.cid||'')}"><span class="who"><b>فاتورة <span class="num">#${esc(v.no)}</span> · ${esc(v.cname||'')}</b><small><span class="num">${dmy(v.date)}</span><span>${esc(v.pay||'')}</span></small></span><span class="amt"><b class="num">${money(nv(v.total))}</b></span></button>`).join('')}</div>${inv.length>60?'<span class="small muted">يظهر أحدث 60 فاتورة. اكتب في البحث لتضييق النتائج.</span>':''}`:'<div class="empty">لا توجد فواتير مطابقة.</div>'}
 
@@ -1613,7 +1613,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-0906';
+const BUILD='20261113-0911';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
