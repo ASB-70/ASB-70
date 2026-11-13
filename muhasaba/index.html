@@ -189,7 +189,7 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);background:var(--surface);b
         <input type="search" id="sq" placeholder="ابحث في المخزون بالاسم أو الكود" autocomplete="off">
         <div class="seg" id="stseg" role="group" aria-label="حالة المخزون">
           <button type="button" data-st="all" aria-pressed="true">الكل</button><button type="button" data-st="in" aria-pressed="false">متوفر</button>
-          <button type="button" data-st="out" aria-pressed="false">منتهي</button><button type="button" data-st="nocost" aria-pressed="false">بدون تكلفة</button><button type="button" data-st="noprice" aria-pressed="false">بدون سعر</button>
+          <button type="button" data-st="out" aria-pressed="false">منتهي</button><button type="button" data-st="nocost" aria-pressed="false">بدون تكلفة</button><button type="button" data-st="noprice" aria-pressed="false">بدون سعر</button><button type="button" data-st="nostock" aria-pressed="false">بدون مخزون</button>
         </div>
       </div>
       <div id="slist"></div>
@@ -833,7 +833,7 @@ function renderStock(){
    <button class="btn sm ${S.sel?'primary':''}" type="button" data-act="sel-mode" style="width:100%;margin-bottom:10px" ${np?'':'disabled'}>${S.sel?'إلغاء وضع التحديد':'☑ تحديد وحذف مواد'}</button>
    <button class="btn sm" type="button" data-act="bulk-price" style="width:100%;margin-bottom:10px" ${np?'':'disabled'}>💲 تسعير كل المواد بنسبة ربح على التكلفة</button>`;
   if(!np){el.innerHTML=top+'<div class="empty"><b>لا توجد مواد بعد</b><span>أضف المواد واحدة واحدة، أو استورد لائحة كاملة مع الكميات والتكلفة من ملف إكسل.</span></div>';return}
-  const L=Object.entries(S.products).filter(([k,p])=>{const qty=wq(k,wid);if(f==='in'&&!(qty>0))return false;if(f==='out'&&qty>0)return false;if(f==='nocost'&&nv((S.stock[k]||{}).cost)>0)return false;if(f==='noprice'&&nv(p.price)>0)return false;return !q||k.toLowerCase().includes(ql)||(p.name||'').includes(q)});
+  const L=Object.entries(S.products).filter(([k,p])=>{const qty=wq(k,wid);if(f==='in'&&!(qty>0))return false;if(f==='out'&&qty>0)return false;if(f==='nocost'&&nv((S.stock[k]||{}).cost)>0)return false;if(f==='noprice'&&nv(p.price)>0)return false;if(f==='nostock'&&S.stock[k]&&Object.values(getW(S.stock[k])).some(v=>nv(v)!==0))return false;if(f==='nostock'&&S.stock[k]&&nv(S.stock[k].q)>0)return false;return !q||k.toLowerCase().includes(ql)||(p.name||'').includes(q)});
   el.innerHTML=top+`
    <div class="sechead" style="margin-bottom:8px"><small>${L.length} مادة · ${S.stockMeta.lastCount?'آخر جرد '+dmy(S.stockMeta.lastCount):'لم يُسجَّل جرد بعد'}</small><small>${S.sel?'اضغط المواد لتحديدها':'اضغط المادة للإدخال أو النقل'}</small></div>`+
    (S.sel?`<div class="selbar"><b class="small">${S.sel.size} محددة</b><button class="btn sm" type="button" data-act="sel-all">تحديد الكل (${L.length})</button><button class="btn sm" type="button" data-act="sel-none">مسح</button><button class="btn sm danger" type="button" data-act="sel-del" ${S.sel.size?'':'disabled'}>${S.armed==='seldel'?'تأكيد حذف '+S.sel.size:'حذف المحدد'}</button></div>`:'')+
@@ -1669,7 +1669,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-1854';
+const BUILD='20261113-1953';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
