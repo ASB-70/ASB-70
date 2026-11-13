@@ -679,18 +679,19 @@ function itemHTML(it,i){const fld=(p,l,cls,attr)=>`<div class="field ${cls||''}"
     ${(()=>{const k=(it.code||'').trim(),p=S.products[k],T=p?tierList(p):[];return (S.img[k]||T.length>1)?`<div class="lt">${S.img[k]?`<img src="${S.img[k]}" alt="" width="46" height="46" style="border-radius:8px;object-fit:cover">`:'<span></span>'}${T.length>1?`<span style="display:flex;gap:6px;flex-wrap:wrap">${T.map(t=>`<button class="btn sm${nv(it.price)===effP(p,t[0])?' primary':''}" type="button" data-act="use-p" data-i="${i}" data-v="${effP(p,t[0])}">${t[1]} ${pr(effP(p,t[0]))}</button>`).join('')}</span>`:''}</div>`:''})()}
     <div class="lt two" style="grid-column:span 2"><span>الإجمالي <b class="num" id="lt-${i}" style="color:var(--ink)">${money(lineTot(it))}</b> · <b id="lc-${i}" style="color:var(--brand);font-size:1.05em">${cartText(it)}</b> · ربحك <b class="num" id="lp-${i}" style="color:${lpColor(it,S.draft)}">${lpText(it,S.draft)}</b>${S.products[(it.code||'').trim()]?` · المتوفر <b class="num" id="av-${i}" style="color:${nv(it.qty)>avail((it.code||'').trim())?'var(--debt)':'var(--ink)'}">${f1(avail((it.code||'').trim()))}</b>`:''}</span><button class="btn sm danger" type="button" data-act="del-item" data-i="${i}">حذف</button></div></div>`}
 const ck=it=>String(it.code||'').trim();
-const dupIdx=(d,code,skip)=>code?d.items.findIndex((x,k)=>k!==skip&&ck(x)===code):-1;
-const dupCodes=d=>{const m={};d.items.forEach(x=>{const c=ck(x);if(c)m[c]=(m[c]||0)+1});return Object.keys(m).filter(c=>m[c]>1)};
-function dupHTML(d){const a=S.dupAsk;if(!a)return'';const nm=c=>{const x=d.items.find(i=>ck(i)===c);return esc((x&&x.name)||c)};let h;
-  if(a.t==='save')h=`<b>⚠️ في مواد مكررة بالفاتورة</b><br>${a.codes.map(c=>`${nm(c)} <span class="num">(${esc(c)})</span>`).join('، ')}<br>هل هذا مقصود؟<div class="grid2"><button class="btn" type="button" data-act="dup-fix">لا، سأعدّل الفاتورة</button><button class="btn primary" type="button" data-act="dup-save">نعم، احفظ كما هي</button></div>`;
+const ik=it=>{const c=ck(it);if(c)return c;const n=nrm(it.name||'');return n?'n:'+n:''};
+const dupIdx=(d,key,skip)=>key?d.items.findIndex((x,k)=>k!==skip&&ik(x)===key):-1;
+const dupCodes=d=>{const m={};d.items.forEach(x=>{const c=ik(x);if(c)m[c]=(m[c]||0)+1});return Object.keys(m).filter(c=>m[c]>1)};
+function dupHTML(d){const a=S.dupAsk;if(!a)return'';const nm=c=>{const x=d.items.find(i=>ik(i)===c);return esc((x&&x.name)||c)};let h;
+  if(a.t==='save')h=`<b>⚠️ في مواد مكررة بالفاتورة</b><br>${a.codes.map(c=>`<b>${nm(c)}</b>${c.startsWith('n:')?'':` <span class="num">(${esc(c)})</span>`}${(()=>{const L=d.items.filter(i=>ik(i)===c);return ` · ${L.length} مرات (الكميات: ${L.map(i=>f1(nv(i.qty))).join('، ')})`})()}`).join('<br>')}<br>هل هذا مقصود؟<button class="btn primary" type="button" data-act="dup-merge">دمج المكرر (جمع الكميات بسطر واحد)</button><div class="grid2"><button class="btn" type="button" data-act="dup-fix">لا، سأعدّل بنفسي</button><button class="btn" type="button" data-act="dup-save">نعم، احفظ كما هي</button></div>`;
   else if(a.t==='out'||a.t==='outfill'){const p=S.products[a.code]||{},have=avail(a.code);h=`<b>⚠️ هذه المادة خالصة من مخزونك</b><br>${esc((a.it&&a.it.name)||p.name||a.code)} <span class="num">(${esc(a.code)})</span> · المتوفر <b class="num">${f1(have)}</b><br>هل تبيعها رغم ذلك؟<div class="grid2"><button class="btn" type="button" data-act="dup-cancel">لا، ألغِ الإضافة</button><button class="btn primary" type="button" data-act="out-ok">نعم، بيعها</button></div>`}
   else if(a.t==='stock')h=`<b>⚠️ كمية أكبر من المتوفر بالمخزون</b><br>${a.bad.map(b=>`${esc(b.name)} <span class="num">(${esc(b.code)})</span>: المتوفر <b class="num">${f1(b.have)}</b> · المطلوب <b class="num">${f1(b.need)}</b>`).join('<br>')}<br>هل تبيعها رغم ذلك؟<div class="grid2"><button class="btn" type="button" data-act="dup-fix">لا، سأعدّل الكميات</button><button class="btn primary" type="button" data-act="stock-save">نعم، بيع رغم ذلك</button></div>`;
-  else{const x=d.items[a.di]||{};h=`<b>⚠️ هذه المادة موجودة مسبقاً بالفاتورة</b><br>${esc(x.name||a.code||'')} <span class="num">(${esc(ck(x))})</span>${nv(x.qty)>0?` · الكمية الحالية <b class="num">${f1(nv(x.qty))}</b>`:''}<div class="grid2"><button class="btn primary" type="button" data-act="dup-use">استخدم السطر الموجود</button><button class="btn" type="button" data-act="dup-new">أضفها كسطر جديد</button></div>`}
+  else{const x=d.items[a.di]||{};h=`<b>⚠️ هذه المادة موجودة مسبقاً بالفاتورة</b><br>${esc(x.name||a.code||'')}${ck(x)?` <span class="num">(${esc(ck(x))})</span>`:''}${nv(x.qty)>0?` · الكمية الحالية <b class="num">${f1(nv(x.qty))}</b>`:''}<div class="grid2"><button class="btn primary" type="button" data-act="dup-use">استخدم السطر الموجود</button><button class="btn" type="button" data-act="dup-new">أضفها كسطر جديد</button></div>`}
   return`<div class="note" id="dupbox" style="border:2px solid var(--debt);background:var(--debt-bg,var(--sunk))">${h}</div>`}
 function dupBlock(d,items){const cs=dupCodes({items});if(cs.length&&!S.dupOK){S.dupAsk={t:'save',codes:cs};S.dupScroll=true;renderInv();return true}return false}
 function pickItem(it,noOut){const d=S.draft,code=ck(it);if(!d)return;
   if(!noOut&&S.products[code]&&avail(code)<=0){S.dupAsk={t:'out',it,code};S.dupScroll=true;S.picking=false;renderInv();return}
-  const di=dupIdx(d,code,-1);if(di>=0){S.dupAsk={t:'add',it,di,code};S.dupScroll=true;S.picking=false;renderInv();return}
+  const di=dupIdx(d,ik(it),-1);if(di>=0){S.dupAsk={t:'add',it,di,code};S.dupScroll=true;S.picking=false;renderInv();return}
   S.dupAsk=null;addPicked(it)}
 function stockBlock(d,items){if(d.ord||S.stockOK)return false;const bad=[],m=qtyMap(items);for(const k in m){if(!(S.products[k]||S.stock[k]))continue;const have=avail(k);if(m[k]>have+1e-9){const x=items.find(i=>ck(i)===k)||{};bad.push({code:k,name:x.name||k,have,need:m[k]})}}
   if(bad.length){S.dupAsk={t:'stock',bad};S.dupScroll=true;renderInv();return true}return false}
@@ -1677,6 +1678,7 @@ document.addEventListener('click',e=>{
   else if(a==='dup-use'){const d=S.draft,k=S.dupAsk;if(!d||!k)return;let di=k.di;if(k.t==='fill'){const it=d.items[k.i];if(it&&!nv(it.qty)){d.items.splice(k.i,1);if(!d.items.length)d.items.push(blankItem());if(k.i<di)di--}else if(it){it.code='';it.name=''}}S.dupAsk=null;renderInv();const q=$(`#it-${di}-qty`);if(q){q.focus();q.scrollIntoView({block:'center'})}}
   else if(a==='dup-new'){const d=S.draft,k=S.dupAsk;if(!d||!k)return;S.dupAsk=null;if(k.t==='fill')fillItem(k.i,k.code,true);else addPicked(k.it)}
   else if(a==='dup-fix'){S.dupAsk=null;renderInv()}
+  else if(a==='dup-merge'){const d=S.draft;if(!d)return;const first={},out=[];for(const it of d.items){const k=ik(it);if(k&&first[k]){const f=first[k];f.qty=r4(nv(f.qty)+nv(it.qty));if(!nv(f.pack)&&nv(it.pack))f.pack=it.pack}else{if(k)first[k]=it;out.push(it)}}d.items=out.length?out:[blankItem()];S.dupAsk=null;renderInv();toast('تم دمج المكرر')}
   else if(a==='dup-cancel'){const k=S.dupAsk;S.dupAsk=null;if(k&&k.t==='outfill')dropLine(k.i);renderInv()}
   else if(a==='out-ok'){const k=S.dupAsk;if(!k)return;S.dupAsk=null;if(k.t==='outfill')fillItem(k.i,k.code,false,true);else pickItem(k.it,true)}
   else if(a==='stock-save'){S.dupAsk=null;S.stockOK=true;guard(saveInvoice)}
@@ -1713,7 +1715,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-2328';
+const BUILD='20261113-2334';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
