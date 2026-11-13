@@ -767,7 +767,7 @@ function stockTotals(wid){let cap=0,sale=0,inStock=0,n=0;for(const k in S.produc
 async function saveStock(items,meta){const m={...S.stockMeta,...(meta||{})};await S.db.doc('meta/stock').set({items,wh:S.wh,...m});S.stock=items;S.stockMeta=m}
 async function addLog(entries){S.slog=[...entries,...S.slog].slice(0,300);try{await S.db.doc('meta/stocklog').set({list:S.slog})}catch(e){}}
 function loadInvStats(){if(S.invStats||!S.db)return;S.db.collection('invoices').limit(1000).get().then(s=>{const m=today().slice(0,7);let profit=0,n=0;for(const d of s.docs){const v=d.data();if((v.date||'').startsWith(m)&&v.profit!=null){profit+=v.profit;n++}}S.invStats={profit:r2(profit),n};if(S.view==='stock')renderCover()}).catch(()=>{})}
-const TIERS=[['p2','جملة الجملة','d2'],['price','جملة','d1'],['pt','مفرق','dt']];
+const TIERS=[['p2','جملة الجملة','d2'],['price','نصف جملة','d1'],['pt','مفرق','dt']];
 const effP=(p,k)=>{const t=TIERS.find(x=>x[0]===k);return r4(nv(p[k])*(1-nv(p[t[2]])/100))};
 const defP=p=>effP(p,'price')||effP(p,'pt')||effP(p,'p2')||'';
 const tierList=p=>TIERS.filter(t=>nv(p[t[0]])>0);
@@ -1138,7 +1138,7 @@ function colKind(h,whNames){const t=nrm(h);if(!t)return null;
   if(/جمله الجمله|جملة الجملة/.test(t))return'p2';
   if(/مفرق|تجزئ|retail/.test(t))return'pt';
   if(/سعر|price/.test(t))return /طرد|كرتون/.test(t)?'p2':'price';
-  if(/^(ال)?جمل[هة]$/.test(t))return'price';
+  if(/^(ال)?(نصف )?جمل[هة]$/.test(t))return'price';
   if(/تعبئ|pack|داخل الطرد|بالطرد/.test(t))return'pack';
   if(/وحده|وحدة|unit/.test(t))return'unit';
   if(/اقل كميه|اقل كمية|حد ادني/.test(t))return'min';
@@ -1187,7 +1187,7 @@ function thumbOf(bytes,mime){return new Promise(res=>{const u=URL.createObjectUR
   im.onerror=()=>{URL.revokeObjectURL(u);res(null)};im.src=u})}
 function loadXLSX(){if(window.XLSX)return Promise.resolve();if(!S.xp)S.xp=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=()=>res();sc.onerror=()=>{S.xp=null;rej(new Error('lib'))};document.head.appendChild(sc)});return S.xp}
 const imgDocId=code=>{const h=[...code].map(ch=>ch.charCodeAt(0).toString(16).padStart(4,'0')).join('');return h.length<=190?'m'+h:'m'+newId()};
-const CL={code:'الكود',name:'الاسم',price:'سعر الجملة',p2:'جملة الجملة',pt:'مفرق',pack:'التعبئة',unit:'الوحدة',min:'أقل كمية',qty:'الكمية',cost:'التكلفة',cny:'رأسمال الصين ¥',ctn:'عدد الطرود',total:'إجمالي المبلغ',wh:'المستودع'};
+const CL={code:'الكود',name:'الاسم',price:'نصف جملة',p2:'جملة الجملة',pt:'مفرق',pack:'التعبئة',unit:'الوحدة',min:'أقل كمية',qty:'الكمية',cost:'التكلفة',cny:'رأسمال الصين ¥',ctn:'عدد الطرود',total:'إجمالي المبلغ',wh:'المستودع'};
 function impSheet(){openSheet(`<h2>استيراد المواد والمخزون من إكسل</h2>
    <span class="small muted">الملف يحتاج عمود <b>الكود</b> ومعه ما تريد من: اسم المادة، الصورة، التعبئة داخل الطرد، الكمية الواردة، عدد الطرود، رأسمال الصين (يوان)، التكلفة بعد المصاريف، إجمالي المبلغ، المستودع، سعر الجملة، سعر الطرد. عمود «المستودع» إذا كان فيه اسم المستودع لكل مادة تدخل الكمية إليه (ويُنشأ المستودع إن لم يوجد). وإذا غابت الكمية تُحسب من عدد الطرود × التعبئة، وإذا غابت التكلفة تُحسب من إجمالي المبلغ ÷ الكمية. صور المواد (داخل الخلايا أو فوقها) تُستورد أيضاً.</span>
    <div class="field"><label for="xfile">ملف الإكسل (xlsx أو csv)</label><input id="xfile" type="file" accept=".xlsx,.xls,.csv" style="padding:8px;font-size:13px"></div>
@@ -1235,7 +1235,7 @@ function prodForm(code){const p=code?S.products[code]:null;S.pphoto=null;S.armed
    <div class="grid2">${p?`<div class="field"><label>كود المادة</label><input value="${esc(code)}" disabled dir="ltr"></div>`:f('m-code','كود المادة','','required dir="ltr" autocomplete="off" autocapitalize="characters"')}${f('m-name','اسم المادة',p?.name,'required')}</div>
    <div class="card" style="gap:8px"><b class="small">أسعار البيع ($) · نسبة الربح على التكلفة · نسبة الحسم</b>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-p2','جملة الجملة',p?.p2,nm)}${f('m-r2','ربح %','',nm)}${f('m-d2','حسم %',p?.d2,nm)}</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-price','جملة',p?.price,nm)}${f('m-r1','ربح %','',nm)}${f('m-d1','حسم %',p?.d1,nm)}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-price','نصف جملة (أقل من طرد)',p?.price,nm)}${f('m-r1','ربح %','',nm)}${f('m-d1','حسم %',p?.d1,nm)}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-pt','مفرق',p?.pt,nm)}${f('m-rt','ربح %','',nm)}${f('m-dt','حسم %',p?.dt,nm)}</div>
     <span class="small muted">اكتب السعر فتظهر نسبة الربح، أو اكتب نسبة الربح فيُحسب السعر من التكلفة. الحسم يُنزّل السعر النهائي في الفاتورة.</span><span class="small muted" id="m-eff"></span></div>
    <div class="grid2">${f('m-pack','التعبئة داخل الطرد',p?.pack||'',nm)}<div class="field"><label for="m-unit">الوحدة</label><select id="m-unit">${[...new Set([...UNITS,(p&&p.unit)||'قطعة'])].map(u=>`<option ${u===((p&&p.unit)||'قطعة')?'selected':''}>${esc(u)}</option>`).join('')}</select></div></div>
@@ -1415,7 +1415,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='imp-go'){b.disabled=true;guard(async()=>{try{await doImport()}finally{b.disabled=false}});return}
   if(b.dataset.act==='imp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد المواد.csv',data:'\ufeffكود المادة,اسم المادة,سعر الجملة,سعر الطرد وأكثر,التعبئة داخل الطرد,الوحدة,الكمية,التكلفة\nA-1,مثال: صحن بورسلان (احذف هذا السطر),1.5,1.4,48,قطعة,480,1.1\n'}).catch(()=>{});return}
   if(b.dataset.act==='bulk-price'){const nm='type="number" step="any" min="0" inputmode="decimal"';openSheet(`<h2>تسعير بنسبة ربح</h2><span class="small muted">يحسب السعر = التكلفة × (1 + النسبة). اترك النسبة فارغة للفئة التي لا تريدها. يُسعَّر فقط ما له تكلفة.</span>
-    <div class="field"><label for="bp-p2">ربح جملة الجملة %</label><input id="bp-p2" ${nm}></div><div class="field"><label for="bp-price">ربح الجملة %</label><input id="bp-price" ${nm}></div><div class="field"><label for="bp-pt">ربح المفرق %</label><input id="bp-pt" ${nm}></div>
+    <div class="field"><label for="bp-p2">ربح جملة الجملة %</label><input id="bp-p2" ${nm}></div><div class="field"><label for="bp-price">ربح نصف الجملة %</label><input id="bp-price" ${nm}></div><div class="field"><label for="bp-pt">ربح المفرق %</label><input id="bp-pt" ${nm}></div>
     <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bp-only" checked> فقط المواد التي ليس لها سعر في هذه الفئة</label>
     <div class="grid2"><button class="btn primary" type="button" data-act="bulk-go">طبّق</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`);return}
   if(b.dataset.act==='bulk-go'){const only=$('#bp-only').checked,pc={};for(const k of ['p2','price','pt']){const v=$('#bp-'+k).value;if(v!=='')pc[k]=nv(v)}if(!Object.keys(pc).length){toast('أدخل نسبة لفئة واحدة على الأقل');return}
@@ -1548,7 +1548,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-0846';
+const BUILD='20261113-0850';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
