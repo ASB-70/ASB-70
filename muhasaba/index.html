@@ -376,7 +376,7 @@ function renderCover(){
     el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><button class="back" type="button" data-view="staff">→ رجوع إلى الموظفين</button>${eyeBtn()}${syncHTML(true)}<button type="button" data-act="emp-edit" style="border:1px solid var(--on-cover-muted);background:rgba(255,255,255,.1);color:var(--on-cover);border-radius:99px;padding:6px 14px;font-size:13.5px;font-weight:600">✎ تعديل البيانات</button></div><div style="display:flex;gap:14px;align-items:center">${ava(e,76)}<div style="min-width:0"><div class="dname">${esc(e.name)}</div><div class="eyebrow">${empActive(e)?'على رأس عمله':'انتهى عمله '+dmy(e.end)} · <span class="num">${esc(e.phone||'لا يوجد رقم')}</span></div></div></div>
     <div><div class="eyebrow">${ownerRole(e)?'مصروف الأسبوع':'صافي راتب الأسبوع'}</div>${(q=>`<div class="big">${q.usd||!q.syp?money(q.usd):sy(q.syp)}</div>${q.usd&&q.syp?`<div class="eyebrow">و <span class="num">${sy(q.syp)}</span></div>`:''}`)(ownerRole(e)?r.exp:r.net)}</div>`;return}
   if(S.view==='cash'){const v=S.cash,b=v?cashBal(v):{usd:0,syp:0},rate=v?nv(v.rate):nv(S.settings.rate);
-    el.innerHTML=co+`<div><div class="eyebrow">الصندوق اليومي · ${dmy(S.cday)} · إجمالي الكاش مقوَّماً بالليرة</div><div class="big">${v?(rate>0?sy(r2(b.syp+b.usd*rate)):sy(b.syp)):'…'}</div></div>
+    el.innerHTML=co+`<div><div class="eyebrow">الصندوق اليومي · ${dmy(S.cday)} · إجمالي الكاش مقوَّماً بالدولار</div><div class="big">${v?money(r2(b.usd+(rate>0?b.syp/rate:0))):'…'}</div>${v&&!(rate>0)&&b.syp?'<div class="eyebrow">لم يُحدَّد سعر الصرف، فالليرة غير محسوبة في الرقم</div>':''}</div>
     <div class="trio"><div><span>دولار في الصندوق</span><b class="num">${money(b.usd)}</b></div><div><span>ليرة في الصندوق</span><b class="num">${sy(b.syp)}</b></div><div><span>سعر الصرف</span><b class="num">${rate?rate.toLocaleString('en-US'):'غير محدد'}</b></div></div>`;return}
   if(S.view==='stock'){const st=stockTotals(S.stockF.wh);el.innerHTML=co+`<div><div class="eyebrow">رأس مال البضاعة · ${S.stockF.wh==='all'?'كل المستودعات':esc(whName(S.stockF.wh))}</div><div class="big">${S.stockLoaded?money(st.cap):'…'}</div></div>
     <div class="trio"><div><span>قيمتها بسعر البيع</span><b class="num">${money(st.sale)}</b></div><div><span>مواد متوفرة</span><b class="num">${st.inStock} / ${st.n}</b></div><div><span>ربح فواتير الشهر</span><b class="num">${S.invStats?money(S.invStats.profit):'…'}</b></div></div>`;return}
@@ -1646,7 +1646,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-1838';
+const BUILD='20261113-1842';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
