@@ -649,7 +649,7 @@ const blankItem=()=>({code:'',name:'',pack:'',qty:'',unit:'قطعة',price:''});
 const nv=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
 const lineTot=it=>r2(nv(it.qty)*nv(it.price));
 const cartText=it=>{const pk=nv(it.pack),q=nv(it.qty);if(!(pk>0))return q>0?'حدّد التعبئة':'—';if(!(q>0))return'—';const w=Math.floor(q/pk+1e-9),rem=r2(q-w*pk),u=it.unit||'قطعة';return rem<=0?`${w} طرد`:w>0?`${w} طرد و${f1(rem)} ${u}`:`أقل من طرد (${f1(rem)} ${u})`};
-const fileName=(base,ext)=>{let n=String(base||'').trim();if(window.Android){n=n.replace(/كشف حساب/g,'Statement').replace(/فاتورة/g,'Invoice').replace(/[^\x20-\x7E]/g,'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');if(!n)n='file'}return n+'.'+ext};
+const fileName=(base,ext)=>{let n=String(base||'').trim();{n=n.replace(/كشف حساب/g,'Statement').replace(/فاتورة/g,'Invoice').replace(/[^\x20-\x7E]/g,'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');if(!n)n='file'}return n+'.'+ext};
 const lineCart=it=>nv(it.pack)>0?nv(it.qty)/nv(it.pack):0;
 const invTotal=d=>r2((d.items||[]).reduce((s,it)=>s+lineTot(it),0));
 const invCart=d=>(d.items||[]).reduce((s,it)=>s+lineCart(it),0);
@@ -1670,7 +1670,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-2017';
+const BUILD='20261113-2019';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
