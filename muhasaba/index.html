@@ -649,6 +649,7 @@ const blankItem=()=>({code:'',name:'',pack:'',qty:'',unit:'قطعة',price:''});
 const nv=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
 const lineTot=it=>r2(nv(it.qty)*nv(it.price));
 const cartText=it=>{const pk=nv(it.pack),q=nv(it.qty);if(!(pk>0))return q>0?'حدّد التعبئة':'—';if(!(q>0))return'—';const w=Math.floor(q/pk+1e-9),rem=r2(q-w*pk),u=it.unit||'قطعة';return rem<=0?`${w} طرد`:w>0?`${w} طرد و${f1(rem)} ${u}`:`أقل من طرد (${f1(rem)} ${u})`};
+const fileName=(base,ext)=>{let n=String(base||'').trim();if(window.Android){n=n.replace(/كشف حساب/g,'Statement').replace(/فاتورة/g,'Invoice').replace(/[^\x20-\x7E]/g,'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');if(!n)n='file'}return n+'.'+ext};
 const lineCart=it=>nv(it.pack)>0?nv(it.qty)/nv(it.pack):0;
 const invTotal=d=>r2((d.items||[]).reduce((s,it)=>s+lineTot(it),0));
 const invCart=d=>(d.items||[]).reduce((s,it)=>s+lineCart(it),0);
@@ -1558,10 +1559,10 @@ document.addEventListener('click',e=>{
   if(b.dataset.n!==undefined){stmtSheet(+b.dataset.n);return}
   if(b.dataset.act==='stmt'){if(S.ledger)stmtSheet(S.ledger.length>20?20:0);return}
   if(b.dataset.act==='save-pdf'){if(!S.dl||!S.stmtCv)return;const c=cust(S.cid);let pdf;try{pdf=stmtPDF(S.stmtCv)}catch(er){toast('تعذّر تجهيز الملف');return}
-    S.dl.save({filename:S.outName+' '+today()+'.pdf',data:pdf}).then(()=>toast('الملف جاهز، أرفقه في محادثة الزبون')).catch(er=>{if(er&&er.code!=='declined')toast('تعذّر حفظ الملف هنا')});return}
+    S.dl.save({filename:fileName(S.outName+' '+today(),'pdf'),data:pdf}).then(()=>toast('الملف جاهز، أرفقه في محادثة الزبون')).catch(er=>{if(er&&er.code!=='declined')toast('تعذّر حفظ الملف هنا')});return}
   if(b.dataset.act==='save-stmt'){if(!S.dl||!S.stmtCv)return;const c=cust(S.cid);
     S.stmtCv.toBlob(bl=>{if(!bl){toast('تعذّر تجهيز الصورة');return}
-      S.dl.save({filename:S.outName+' '+today()+'.png',data:bl}).then(()=>toast('الصورة جاهزة، أرفقها في محادثة الزبون')).catch(er=>{if(er&&er.code!=='declined')toast('تعذّر الحفظ. اضغط مطوّلاً على الصورة لحفظها.')})},'image/png');return}
+      S.dl.save({filename:fileName(S.outName+' '+today(),'png'),data:bl}).then(()=>toast('الصورة جاهزة، أرفقها في محادثة الزبون')).catch(er=>{if(er&&er.code!=='declined')toast('تعذّر الحفظ. اضغط مطوّلاً على الصورة لحفظها.')})},'image/png');return}
   if(b.dataset.view){show(b.dataset.view);return}
   if(b.dataset.open){if(!$('#scrim').hidden)closeSheet();show('detail',b.dataset.open);return}
   if(b.dataset.type&&!b.dataset.act){S.f.type=b.dataset.type;document.querySelectorAll('#typeseg button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderList();return}
@@ -1597,12 +1598,12 @@ document.addEventListener('click',e=>{
   if(a==='share-out'){if(!S.stmtCv)return;const c=cust(S.cid),num=c&&waNum(c.phone),kind=b.dataset.kind,nm=(S.outName||'كشف حساب')+' '+today();b.disabled=true;
     (async()=>{try{
       const blob=kind==='pdf'?stmtPDF(S.stmtCv):await new Promise(r=>S.stmtCv.toBlob(r,'image/png'));if(!blob)throw 0;
-      const file=new File([blob],nm+(kind==='pdf'?'.pdf':'.png'),{type:kind==='pdf'?'application/pdf':'image/png'});
+      const file=new File([blob],fileName(nm,kind==='pdf'?'pdf':'png'),{type:kind==='pdf'?'application/pdf':'image/png'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:S.outName});return}catch(er){if(er&&er.name==='AbortError')return}}
       if(kind==='png'&&navigator.clipboard&&window.ClipboardItem){try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('نُسخت الصورة. الصقها في محادثة الزبون (Ctrl+V)');if(num)window.open('https://wa.me/'+num,'_blank','noopener');return}catch(er){}}
-      if(S.dl){await S.dl.save({filename:nm+(kind==='pdf'?'.pdf':'.png'),data:blob});toast('حُفظ الملف، أرفقه في محادثة الزبون');if(num)window.open('https://wa.me/'+num,'_blank','noopener')}else toast('المشاركة غير متاحة هنا. اضغط مطوّلاً على الصورة.')
+      if(S.dl){await S.dl.save({filename:fileName(nm,kind==='pdf'?'pdf':'png'),data:blob});toast('حُفظ الملف، أرفقه في محادثة الزبون');if(num)window.open('https://wa.me/'+num,'_blank','noopener')}else toast('المشاركة غير متاحة هنا. اضغط مطوّلاً على الصورة.')
     }catch(er){if(!er||er.code!=='declined')toast('تعذّر الإرسال')}finally{b.disabled=false}})();return}
-  if(a==='wa-direct'){const c=cust(S.cid),num=c&&waNum(c.phone);if(!num||!S.stmtCv)return;const send=(b64,ext,mime)=>window.Android.sendToCompany(num,S.outName,S.outName+' '+today()+'.'+ext,mime,b64);
+  if(a==='wa-direct'){const c=cust(S.cid),num=c&&waNum(c.phone);if(!num||!S.stmtCv)return;const send=(b64,ext,mime)=>window.Android.sendToCompany(num,S.outName,fileName(S.outName+' '+today(),ext),mime,b64);
     try{if(b.dataset.kind==='png')send(S.stmtCv.toDataURL('image/png').split(',')[1],'png','image/png');else{const r=new FileReader();r.onload=()=>send(String(r.result).split(',')[1],'pdf','application/pdf');r.readAsDataURL(stmtPDF(S.stmtCv))}}catch(er){toast('تعذّر الإرسال المباشر')}return}
   if(a==='app-update'){location.replace(location.pathname+'?v='+Date.now());return}
   if(a==='logout'){S.db.logout();location.reload();return}
@@ -1669,7 +1670,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-1953';
+const BUILD='20261113-2013';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
