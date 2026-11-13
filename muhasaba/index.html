@@ -771,7 +771,7 @@ const TIERS=[['p2','جملة الجملة','d2'],['price','جملة','d1'],['pt'
 const effP=(p,k)=>{const t=TIERS.find(x=>x[0]===k);return r4(nv(p[k])*(1-nv(p[t[2]])/100))};
 const defP=p=>effP(p,'price')||effP(p,'pt')||effP(p,'p2')||'';
 const tierList=p=>TIERS.filter(t=>nv(p[t[0]])>0);
-function tierBlock(p,c){return TIERS.map(t=>{const v=nv(p[t[0]]);if(!(v>0))return'';const dd=nv(p[t[2]]),e=effP(p,t[0]);return `<br>${t[1]} <b class="num">${pr(v)}</b>${dd>0?` − حسم ${dd}% = <b class="num">${pr(e)}</b>`:''}${c>0?` · ربح <b class="num" style="color:var(--credit)">${pr(r4(e-c))}</b>`:''}`}).join('')||'<br><span class="chip c-due">لم تُحدَّد أسعار البيع بعد</span>'}
+function tierBlock(p,c){return TIERS.map(t=>{const v=nv(p[t[0]]);if(!(v>0))return'';const dd=nv(p[t[2]]),e=effP(p,t[0]);return `<br>${t[1]} <b class="num">${pr(v)}</b>${dd>0?` − حسم ${dd}% = <b class="num">${pr(e)}</b>`:''}${c>0?` · ربح <b class="num" style="color:var(--credit)">${pr(r4(e-c))} (${r2((e/c-1)*100)}%)</b>`:''}`}).join('')||'<br><span class="chip c-due">لم تُحدَّد أسعار البيع بعد</span>'}
 S.sel=null;
 async function deleteProducts(codes){const P={...S.products},st={...S.stock},set=new Set(codes);for(const c of codes){delete P[c];delete st[c]}
   await S.db.doc('meta/products').set({items:P});S.products=P;await saveStock(st);for(const c of codes)delete S.img[c];
@@ -1233,17 +1233,23 @@ function prodForm(code){const p=code?S.products[code]:null;S.pphoto=null;S.armed
    <div style="display:flex;gap:12px;align-items:center"><img id="m-prev" alt="صورة المادة" ${code&&S.img[code]?`src="${S.img[code]}"`:''} width="72" height="72" style="border-radius:10px;object-fit:cover;background:var(--sunk);flex:none">
      <div class="field" style="flex:1;min-width:0"><label for="m-photo">صورة المادة</label><input id="m-photo" type="file" accept="image/*" style="padding:8px;font-size:13px"></div></div>
    <div class="grid2">${p?`<div class="field"><label>كود المادة</label><input value="${esc(code)}" disabled dir="ltr"></div>`:f('m-code','كود المادة','','required dir="ltr" autocomplete="off" autocapitalize="characters"')}${f('m-name','اسم المادة',p?.name,'required')}</div>
-   <div class="card" style="gap:8px"><b class="small">أسعار البيع ($) ونسبة الحسم لكل فئة</b>
-    <div class="grid2">${f('m-p2','جملة الجملة (طرد وأكثر)',p?.p2,nm)}${f('m-d2','حسم جملة الجملة %',p?.d2,nm)}</div>
-    <div class="grid2">${f('m-price','جملة',p?.price,nm)}${f('m-d1','حسم الجملة %',p?.d1,nm)}</div>
-    <div class="grid2">${f('m-pt','مفرق',p?.pt,nm)}${f('m-dt','حسم المفرق %',p?.dt,nm)}</div>
-    <span class="small muted" id="m-eff"></span></div>
+   <div class="card" style="gap:8px"><b class="small">أسعار البيع ($) · نسبة الربح على التكلفة · نسبة الحسم</b>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-p2','جملة الجملة',p?.p2,nm)}${f('m-r2','ربح %','',nm)}${f('m-d2','حسم %',p?.d2,nm)}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-price','جملة',p?.price,nm)}${f('m-r1','ربح %','',nm)}${f('m-d1','حسم %',p?.d1,nm)}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-pt','مفرق',p?.pt,nm)}${f('m-rt','ربح %','',nm)}${f('m-dt','حسم %',p?.dt,nm)}</div>
+    <span class="small muted">اكتب السعر فتظهر نسبة الربح، أو اكتب نسبة الربح فيُحسب السعر من التكلفة. الحسم يُنزّل السعر النهائي في الفاتورة.</span><span class="small muted" id="m-eff"></span></div>
    <div class="grid2">${f('m-pack','التعبئة داخل الطرد',p?.pack||'',nm)}<div class="field"><label for="m-unit">الوحدة</label><select id="m-unit">${[...new Set([...UNITS,(p&&p.unit)||'قطعة'])].map(u=>`<option ${u===((p&&p.unit)||'قطعة')?'selected':''}>${esc(u)}</option>`).join('')}</select></div></div>
    ${f('m-min','ملاحظة أقل كمية للطلب (اختياري)',p?.min)}
    ${p?`<div class="grid2">${f('m-cost','التكلفة بعد المصاريف ($)',nv((S.stock[code]||{}).cost)||'',nm)}${f('m-cny','رأسمال الصين (¥) بدون مصاريف',nv((S.stock[code]||{}).cny)||'',nm)}</div>`:`<div class="grid2">${f('m-qty','الكمية الموجودة الآن','',nm)}${f('m-cost','تكلفة الوحدة ($)','',nm)}</div>${f('m-cny','رأسمال الصين (¥) بدون مصاريف (اختياري)','',nm)}${S.wh.length>1?`<div class="field"><label for="m-wh">في مستودع</label><select id="m-wh">${whOpts(S.stockF.wh!=='all'?S.stockF.wh:'main')}</select></div>`:''}`}
    <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div>
-   ${p?`<button class="btn danger" type="button" data-act="prod-del" data-code="${esc(code)}">حذف المادة</button>`:''}</form>`)}
-document.addEventListener('input',e=>{const t=e.target;if(!t||!t.id||!/^m-(p2|price|pt|d1|d2|dt)$/.test(t.id))return;const o=$('#m-eff');if(!o)return;const g=i=>nv(($('#'+i)||{}).value);o.textContent=TIERS.map(([k,l,d])=>{const v=g(k==='price'?'m-price':'m-'+k);return v>0?`${l}: ${pr(r4(v*(1-g('m-'+d)/100)))}`:''}).filter(Boolean).join(' · ')});
+   ${p?`<button class="btn danger" type="button" data-act="prod-del" data-code="${esc(code)}">حذف المادة</button>`:''}</form>`);profSync(null)}
+const PT=[['m-p2','m-r2','m-d2'],['m-price','m-r1','m-d1'],['m-pt','m-rt','m-dt']];
+function profSync(src){const g=i=>nv(($('#'+i)||{}).value),cost=g('m-cost');
+  for(const [pi,ri,di] of PT){const P=$('#'+pi),R=$('#'+ri);if(!P||!R)continue;
+    if(src===ri){if(cost>0&&R.value!=='')P.value=r2(cost*(1+g(ri)/100))}
+    else if(src===pi||src==='m-cost'||src==null){if(cost>0&&g(pi)>0)R.value=r2((g(pi)/cost-1)*100);else if(src===pi)R.value=''}}
+  const o=$('#m-eff');if(!o)return;o.textContent=PT.map(([pi,ri,di],k)=>{const v=g(pi);if(!(v>0))return'';const e=r4(v*(1-g(di)/100));return `${TIERS[k][1]}: ${pr(e)}`+(cost>0?` (ربح ${r2((e/cost-1)*100)}%)`:'')}).filter(Boolean).join(' · ')}
+document.addEventListener('input',e=>{const id=e.target&&e.target.id;if(id&&(id==='m-cost'||PT.some(r=>r.includes(id))))profSync(id)});
 async function saveProdForm(f){const isNew=!f.dataset.code,code=(isNew?$('#m-code').value:f.dataset.code).trim(),name=$('#m-name').value.trim();if(!code||!name){toast('أدخل الكود والاسم');return}
   if(isNew&&S.products[code]){toast('هذا الكود موجود مسبقاً');return}
   const p={name,pack:nv($('#m-pack').value),unit:$('#m-unit').value,price:nv($('#m-price').value)},mn=$('#m-min').value.trim();for(const [k,,d] of TIERS){const id=k==='price'?'m-price':'m-'+k,did='m-'+d;if(k!=='price'){const v=nv($('#'+id).value);if(v>0)p[k]=v}const dv=nv($('#'+did).value);if(dv>0)p[d]=Math.min(dv,100)}if(mn)p.min=mn;
@@ -1542,7 +1548,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-0844';
+const BUILD='20261113-0846';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
