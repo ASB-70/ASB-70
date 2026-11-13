@@ -272,19 +272,42 @@ function makeSbDb(stat){stat=stat||(()=>{});
     if(r.status===401){tok=null;exp=0}
     if(!r.ok)throw Object.assign(new Error('db '+r.status),{code:r.status===401?'auth':r.status===404?'no_table':'unavailable',status:r.status});return r.status===204?null:r.json().catch(()=>null)}
   const snapDoc=(id,row,c)=>({id,exists:!!row,data:()=>row?row.data:undefined,metadata:meta(c)});
+  /* offline outbox: writes made without internet are kept on the device and uploaded when the connection returns */
+  const pend=new Map(),qn=()=>stat('q',pend.size),persist=()=>KV.set('outbox',[...pend.values()]),isNet=e=>!!e&&e.code==='unavailable'&&e.message==='network';
+  const ready=KV.get('outbox').then(a=>{for(const e of a||[])pend.set(e.path,e);qn();if(pend.size)setTimeout(()=>flush(),2500)}).catch(()=>{});
+  let qToast=0,flushing=false;
+  function enqueue(path,col,op,data,base){const prev=pend.get(path);pend.delete(path);pend.set(path,{path,col,op,data:data===undefined?null:data,base:prev?prev.base:base,ts:Date.now()});persist();qn();if(Date.now()-qToast>60000){qToast=Date.now();toast('غير متصل: حُفظ التعديل على جهازك وسيُرفع تلقائياً عند عودة الإنترنت.')}}
+  const ovDoc=(id,o,c)=>snapDoc(id,o.op==='set'?{data:o.data}:null,c);
+  const overlay=(col,r)=>{let any=false;for(const e of pend.values())if(e.col===col){any=true;break}if(!any)return r;const rows=r.rows.filter(x=>!pend.has(x.path));for(const e of pend.values())if(e.col===col&&e.op==='set')rows.push({path:e.path,data:e.data});rows.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);return{rows,cached:r.cached}};
+  const upsert=(path,col,data)=>rq('?on_conflict=path',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{path,col,data}])});
+  async function flush(){await ready;if(flushing||!pend.size||!refresh)return;flushing=true;let done=0,conf=0;
+    try{for(const e of [...pend.values()]){
+      try{
+        if(e.base!==undefined){const a=await rq('?path=eq.'+enc(e.path)+'&select=data'),row=a&&a[0],cur=JSON.stringify(row?row.data:null);
+          if(cur!==e.base&&cur!==JSON.stringify(e.op==='set'?e.data:null)){
+            await upsert('conflicts/c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),'conflicts',{path:e.path,op:e.op,local:e.data,server:row?row.data:null,at:new Date().toISOString()});
+            pend.delete(e.path);persist();qn();KV.set('d:'+e.path,{v:row?row.data:null});poke(e.path);conf++;continue}}
+        if(e.op==='set')await upsert(e.path,e.col,e.data);else await rq('?path=eq.'+enc(e.path),{method:'DELETE',headers:{Prefer:'return=minimal'}});
+        KV.set('d:'+e.path,{v:e.op==='set'?e.data:null});pend.delete(e.path);persist();qn();poke(e.path);done++
+      }catch(x){break}}}
+    finally{flushing=false}
+    if(conf)toast('رُفعت التعديلات، لكن '+conf+' منها تعارضت مع تعديل من جهاز آخر فبقيت نسخة الخادم وحُفظت نسختك في سجل التعارضات.');
+    else if(done)toast('رُفعت '+done+' تعديلات كانت محفوظة على جهازك.')}
+  setInterval(()=>{flush()},15000);
   const runAll=()=>{if(!document.hidden&&refresh)for(const x of subs)x.run()};
   let paused=false;
   function poke(path){if(paused)return;const col=path.slice(0,path.lastIndexOf('/'));for(const x of subs)if(x.path===path||x.col===col)x.run()}
   function sub(o){subs.add(o);o.run();return()=>subs.delete(o)}
   setInterval(runAll,30000);document.addEventListener('visibilitychange',runAll);
   function watcher(key,fetcher,sig,next,err){let busy=false,again=false,last;const o={...key,run:async()=>{if(busy){again=true;return}busy=true;try{do{again=false;const v=await fetcher(),j=sig(v);if(j!==last){last=j;next(v)}}while(again)}catch(e){if(e.code==='auth'&&err)err(e)}busy=false}};return sub(o)}
-  async function fetchAll(col){try{const out=[];for(let off=0;;off+=1000){const a=await rq('?col=eq.'+enc(col)+'&select=path,data&order=path&limit=1000&offset='+off)||[];out.push(...a);if(a.length<1000)break}KV.set('c:'+col,out);return{rows:out,cached:false}}
+  async function fetchAll(col){await ready;return fetchAll0(col).then(r=>overlay(col,r))}
+  async function fetchAll0(col){try{const out=[];for(let off=0;;off+=1000){const a=await rq('?col=eq.'+enc(col)+'&select=path,data&order=path&limit=1000&offset='+off)||[];out.push(...a);if(a.length<1000)break}KV.set('c:'+col,out);return{rows:out,cached:false}}
     catch(e){if(e.code==='unavailable'){const c=await KV.get('c:'+col);if(c)return{rows:c,cached:true}}throw e}}
   function docRef(path){const cut=path.lastIndexOf('/'),id=path.slice(cut+1),col=path.slice(0,cut);
-    const get=async()=>{try{const a=await rq('?path=eq.'+enc(path)+'&select=data'),row=a&&a[0];KV.set('d:'+path,{v:row?row.data:null});return snapDoc(id,row)}catch(e){if(e.code==='unavailable'){const c=await KV.get('d:'+path);if(c)return snapDoc(id,c.v?{data:c.v}:null,true)}throw e}};
-    const set=async data=>{await rq('?on_conflict=path',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{path,col,data}])});KV.set('d:'+path,{v:data});poke(path)};
+    const get=async()=>{await ready;const o=pend.get(path);try{const a=await rq('?path=eq.'+enc(path)+'&select=data'),row=a&&a[0];KV.set('d:'+path,{v:row?row.data:null});return o?ovDoc(id,o):snapDoc(id,row)}catch(e){if(e.code==='unavailable'){if(o)return ovDoc(id,o,true);const c=await KV.get('d:'+path);if(c)return snapDoc(id,c.v?{data:c.v}:null,true)}throw e}};
+    const set=async data=>{await ready;try{await upsert(path,col,data);KV.set('d:'+path,{v:data});if(pend.delete(path)){persist();qn()}}catch(e){if(!isNet(e))throw e;const c=await KV.get('d:'+path);enqueue(path,col,'set',data,pend.has(path)?undefined:(c?JSON.stringify(c.v):undefined))}poke(path)};
     return{id,path,get,set,update:async patch=>{const x=await get();if(!x.exists)throw Object.assign(new Error('missing'),{code:'invalid_argument'});await set({...x.data(),...patch})},
-      delete:async()=>{await rq('?path=eq.'+enc(path),{method:'DELETE',headers:{Prefer:'return=minimal'}});KV.set('d:'+path,{v:null});poke(path)},
+      delete:async()=>{await ready;try{await rq('?path=eq.'+enc(path),{method:'DELETE',headers:{Prefer:'return=minimal'}});KV.set('d:'+path,{v:null});if(pend.delete(path)){persist();qn()}}catch(e){if(!isNet(e))throw e;const c=await KV.get('d:'+path);enqueue(path,col,'delete',null,pend.has(path)?undefined:(c?JSON.stringify(c.v):undefined))}poke(path)},
       onSnapshot:(next,err)=>watcher({path},get,v=>JSON.stringify(v.data()??null),next,err),collection:c=>colRef(path+'/'+c)}}
   function colRef(col,q){q=q||{w:[],o:null,l:0};
     const apply=({rows,cached})=>{let L=rows.map(r=>({id:r.path.slice(r.path.lastIndexOf('/')+1),data:r.data}));
@@ -296,17 +319,17 @@ function makeSbDb(stat){stat=stat||(()=>{});
       doc:id=>docRef(col+'/'+(id||newId())),add:async data=>{const r=docRef(col+'/'+newId());await r.set(data);return r},
       onSnapshot:(next,err)=>watcher({col},get,v=>JSON.stringify(v.docs.map(d=>[d.id,d.data()])),next,err)}}
   const backups={list:()=>rq('?select=id,created_at,n,bytes&order=id.desc&limit=12',{table:'acc_backups'}).then(a=>a||[]),get:id=>rq('?id=eq.'+enc(id)+'&select=data',{table:'acc_backups'}).then(a=>a&&a[0]&&a[0].data)};
-  return{backups,doc:docRef,collection:c=>colRef(c),login:(email,password)=>auth({email,password},'password'),logout(){tok=null;refresh='';LS.set('thiqa-rt',null);KV.clear()},signedIn:()=>!!refresh,resync:()=>Promise.all([...subs].map(x=>x.run())),bulk(v){paused=!!v;if(!paused)for(const x of subs)x.run()}}}
+  return{flush,pending:()=>pend.size,backups,doc:docRef,collection:c=>colRef(c),login:(email,password)=>auth({email,password},'password'),logout(){tok=null;refresh='';LS.set('thiqa-rt',null);KV.clear()},signedIn:()=>!!refresh,resync:()=>Promise.all([...subs].map(x=>x.run())),bulk(v){paused=!!v;if(!paused)for(const x of subs)x.run()}}}
 const browserDl={save({filename,data}){const b=data instanceof Blob?data:new Blob([data]),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),8000);return Promise.resolve({status:'saved'})}};
 function loginShow(){return new Promise(res=>{$('#lock').hidden=false;$('#lockmsg').textContent='سجّل الدخول إلى حسابات الشركة';$('#lockform').hidden=true;$('#lockbio').hidden=true;$('#lockhelp').hidden=true;$('#loginform').hidden=false;$('#lockerr').textContent='';S.loginRes=res})}
-function syncHTML(short){if(!EXT)return'';const N=S.net,st=N.on===false?'off':(N.sync||N.busy>0)?'sync':'ok';
-  const txt=st==='off'?(short?'غير متصل':'غير متصل · للعرض فقط'):st==='sync'?(short?'مزامنة…':'جارٍ المزامنة مع الموقع…'):(short?'متصل':'متصل'+(N.last?' · آخر مزامنة '+new Date(N.last).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''));
+function syncHTML(short){if(!EXT)return'';const N=S.net,st=N.on===false?'off':(N.sync||N.busy>0||N.pend>0)?'sync':'ok',pn=N.pend?' ('+N.pend+')':'';
+  const txt=st==='off'?(short?'غير متصل'+pn:'غير متصل · التعديلات تُحفظ على الجهاز'+pn):st==='sync'?(N.pend&&!N.sync&&!N.busy?'بانتظار الرفع'+pn:short?'مزامنة…':'جارٍ المزامنة مع الموقع…'):(short?'متصل':'متصل'+(N.last?' · آخر مزامنة '+new Date(N.last).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''));
   return `<span class="syncpill s-${st}" data-short="${short?1:''}"><i></i>${txt}</span>`}
 function paintSync(){document.querySelectorAll('.syncpill').forEach(el=>{el.outerHTML=syncHTML(!!el.dataset.short)})}
-function netStat(ev){const N=S.net,was=N.on;if(ev==='ok'){N.on=true;N.last=Date.now()}else if(ev==='off')N.on=false;else if(ev==='w+')N.busy++;else if(ev==='w-')N.busy=Math.max(0,N.busy-1);
-  if(was===false&&N.on===true)reconnected();else if(was!==false&&N.on===false)toast('انقطع الاتصال بالإنترنت. البيانات للعرض فقط حتى يعود.');
+function netStat(ev,n){const N=S.net,was=N.on;if(ev==='ok'){N.on=true;N.last=Date.now()}else if(ev==='off')N.on=false;else if(ev==='w+')N.busy++;else if(ev==='w-')N.busy=Math.max(0,N.busy-1);else if(ev==='q')N.pend=n||0;
+  if(was===false&&N.on===true)reconnected();else if(was!==false&&N.on===false)toast('انقطع الاتصال بالإنترنت. تقدر تكمل شغلك، وتعديلاتك تُحفظ على الجهاز وتُرفع تلقائياً عند عودته.');
   paintSync()}
-async function reconnected(){const N=S.net;if(N.sync)return;N.sync=true;paintSync();toast('عاد الاتصال، جارٍ المزامنة مع الموقع…');try{await S.db.resync()}catch(e){}N.sync=false;paintSync();
+async function reconnected(){const N=S.net;if(N.sync)return;N.sync=true;paintSync();toast('عاد الاتصال، جارٍ المزامنة مع الموقع…');try{await S.db.flush()}catch(e){}try{await S.db.resync()}catch(e){}N.sync=false;paintSync();
   if(N.on){toast('تمت المزامنة مع الموقع');if(S.view==='cash')loadCash();else if($('#scrim').hidden)refresh()}}
 const typeOf=b=>b>0.005?'debt':b<-0.005?'credit':'zero';
 const typeChip=b=>{const t=typeOf(b);return `<span class="chip c-${t}">${t==='debt'?'مدين':t==='credit'?'دائن':'مسدَّد'}</span>`};
@@ -1646,7 +1669,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-1846';
+const BUILD='20261113-1854';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
