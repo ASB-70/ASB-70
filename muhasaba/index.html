@@ -1250,7 +1250,7 @@ async function ordPrint(id){const o=(S.orders||[]).find(x=>x.id===id),c=o&&cust(
   openSheet(`<h2>مسودة ${esc(c.name)}</h2><div id="stmtbox" class="empty">جارٍ تجهيز المسودة…</div>`);
   const inv={draftMode:true,no:r?String(r):'—',date:ldate(o.at),due:o.due||'',phone:dr.phone||c.phone,dest:dr.dest||'',shipper:dr.shipper||'',shipFee:dr.shipFee||'',pay:dr.pay||'',note:o.note||'',disc:dr.disc||0,items:(dr.items||[]).map(x=>({...x,code:codeOf(x)}))};
   try{const cv=await Promise.race([drawInvoice(c,inv),new Promise((_,j)=>setTimeout(()=>j(new Error('t')),15000))]);outBox(cv,'مسودة '+inv.no+' '+c.name,'')}catch(e){console.error(e);const bx=$('#stmtbox');if(bx)bx.textContent='تعذّر تجهيز المسودة.'}}
-function printCv(cv){if(window.Android){toast('احفظ ملف PDF ثم اطبعه من تطبيق الملفات أو من واتساب');return}
+function printCv(cv){if(window.Android){if(typeof window.Android.printImage==='function'){try{window.Android.printImage(fileName(S.outName||'document','x').replace(/\.x$/,''),'image/jpeg',cv.toDataURL('image/jpeg',0.92).split(',')[1])}catch(e){toast('تعذّرت الطباعة')}}else toast('حدّث تطبيق الأندرويد للطباعة، أو احفظ PDF واطبعه');return}
   const f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(f);
   const d=f.contentDocument;d.open();d.write('<html><head><style>@page{margin:0}body{margin:0}img{width:100%;display:block}</style></head><body><img id="i"></body></html>');d.close();
   const im=d.getElementById('i');im.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('الطباعة غير متاحة هنا، احفظ PDF واطبعه')}setTimeout(()=>f.remove(),60000)};im.src=cv.toDataURL('image/png')}
@@ -1737,7 +1737,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261114-0600';
+const BUILD='20261114-0604';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}

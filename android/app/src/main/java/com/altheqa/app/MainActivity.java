@@ -202,6 +202,29 @@ public class MainActivity extends Activity {
             });
         }
 
+        @JavascriptInterface public void printImage(String name, String mime, String b64) {
+            ui.post(() -> {
+                try {
+                    final String job = (name == null || name.isEmpty()) ? "Document" : name;
+                    final WebView pv = new WebView(MainActivity.this);
+                    pv.getSettings().setJavaScriptEnabled(false);
+                    pv.setWebViewClient(new WebViewClient() {
+                        @Override public void onPageFinished(WebView v, String url) {
+                            try {
+                                PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
+                                PrintAttributes pa = new PrintAttributes.Builder()
+                                        .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                                        .setMinMargins(PrintAttributes.Margins.NO_MARGINS).build();
+                                pm.print(job, v.createPrintDocumentAdapter(job), pa);
+                            } catch (Exception e) { toast("تعذرت الطباعة"); }
+                        }
+                    });
+                    String html = "<html><head><meta name='viewport' content='width=device-width'><style>@page{margin:0}body{margin:0}img{width:100%;display:block}</style></head><body><img src='data:" + mime + ";base64," + b64 + "'></body></html>";
+                    pv.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+                } catch (Exception e) { toast("تعذرت الطباعة"); }
+            });
+        }
+
         @JavascriptInterface public void share(String title, String text, String name, String mime, String b64) {
             ui.post(() -> {
                 try {
