@@ -432,6 +432,7 @@ function renderList(){
   const want='<option value="">كل المحافظات</option>'+cs.map(c=>`<option>${esc(c)}</option>`).join('');
   if(sel.dataset.sig!==cs.join('|')){sel.innerHTML=want;sel.dataset.sig=cs.join('|');sel.value=S.f.city}
   const q=S.f.q.trim();let L=S.customers.filter(c=>{
+    if(c.walkin)return false;
     if(S.f.type!=='all'&&typeOf(c.balance||0)!==S.f.type)return false;
     if(S.f.city&&c.city!==S.f.city)return false;
     if(q&&!((c.name||'')+' '+(c.city||'')+' '+(c.phone||'')).includes(q))return false;return true});
@@ -662,7 +663,7 @@ const invCart=d=>(d.items||[]).reduce((s,it)=>s+lineCart(it),0);
 const pr=n=>'$'+nv(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4});
 function loadImgs(){if(!S.imgP)S.imgP=S.db.collection('pimg').get().then(s=>{const rk=id=>id[0]==='m'?3:id[0]==='u'?2:1;for(const d of [...s.docs].sort((a,b)=>rk(a.id)-rk(b.id)||(a.id<b.id?-1:1)))for(const e of (d.data().list||[]))S.img[e.c]=e.d}).catch(()=>{S.imgP=null});return S.imgP}
 const f1=n=>(Math.round(n*10)/10).toLocaleString('en-US',{maximumFractionDigits:1});
-function nextNo(){const L=(S.ledger||[]).filter(t=>t.k==='inv'&&/^\d+$/.test(t.ref||''));return L.length?String(+L[L.length-1].ref+1):'1'}
+function nextNo(){if(S.cid==='walkin'&&S.rep.inv){const m=S.rep.inv.map(v=>/^\d+$/.test(v.no||'')?+v.no:0);return String(Math.max(0,...m)+1)}const L=(S.ledger||[]).filter(t=>t.k==='inv'&&/^\d+$/.test(t.ref||''));return L.length?String(+L[L.length-1].ref+1):'1'}
 function invSheet(inv){S.dupAsk=null;S.dupOK=false;S.stockOK=false;
   const c=cust(S.cid);if(!c||!S.ledger)return;
   S.draft=inv?{...JSON.parse(JSON.stringify(inv)),old:inv.stk?qtyMap(inv.items):{},wh:inv.wh||'main',oldWh:inv.wh||'main'}:{id:'',old:{},wh:'main',oldWh:'main',no:nextNo(),date:today(),dest:c.city||'',phone:c.phone||'',shipper:'',shipFee:'واصل على الزبون',pay:'آجل',note:'',items:[blankItem()]};
@@ -712,6 +713,7 @@ function renderInv(focusLast){
     ${d.dest===MYCITY?`<div class="note">داخل ${MYCITY}: تسليم مباشر بدون مكتب شحن وبدون أجور شحن.</div>`:`<div class="grid2">${hf('shipper','مكتب الشحن','list="shiplist" autocomplete="off"')}<div class="field"><label for="in-shipFee">أجور الشحن</label><select id="in-shipFee" data-f="shipFee">${[...new Set([...FEES,d.shipFee||FEES[0]])].map(o=>`<option ${o===(d.shipFee||FEES[0])?'selected':''}>${esc(o)}</option>`).join('')}</select></div></div><datalist id="shiplist">${shipList().map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`}
     <div class="field"><label for="in-pay">طريقة الدفع</label><select id="in-pay" data-f="pay">${PAY.map(o=>`<option ${o===d.pay?'selected':''}>${o}</option>`).join('')}</select></div>
     <div class="field"><label for="in-wh">تُسحب البضاعة من مستودع</label><select id="in-wh" data-f="wh">${whOpts(d.wh||'main')}</select></div>
+    ${d.tier?`<div class="field"><label>سعر البيع</label><div class="seg">${TIERS.slice().reverse().map(t=>`<button type="button" data-act="draft-tier" data-v="${t[0]}" aria-pressed="${d.tier===t[0]}">${t[1]}</button>`).join('')}</div></div>`:''}
     <div class="sechead"><h2>المواد</h2><small>${d.items.length} مادة</small></div>
     ${dupHTML(d)}
     ${d.items.map(itemHTML).join('')}
@@ -740,7 +742,7 @@ function sugFor(t){const kind=t.dataset.sug;if(!kind)return;document.querySelect
     box.innerHTML=L.map(c=>`<button type="button" data-act="sug-cust" data-id="${esc(c.id)}"><span><b>${esc(c.name)}</b> · ${esc(c.city||'')} · <span class="num">${money(c.balance||0)}</span></span></button>`).join('')}
   else{const src=kind==='city'?[...new Set([...CITIES,...S.customers.map(x=>x.city).filter(Boolean)])]:SHIPPERS,L=(kind==='city'&&!q)?[]:src.filter(v=>v!==q&&(!q||v.includes(q))).slice(0,8);
     box.innerHTML=L.map(v=>`<button type="button" data-act="sug-val" data-for="${t.id}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}}
-function fillItem(i,code,force,noOut){const p=S.products[code],d=S.draft;if(!p||!d||!d.items[i])return;const di=force?-1:dupIdx(d,code,i);if(di>=0){S.dupAsk={t:'fill',i,code,di};S.dupScroll=true;renderInv();return}if(!noOut&&avail(code)<=0){S.dupAsk={t:'outfill',i,code};S.dupScroll=true;renderInv();return}S.dupAsk=null;Object.assign(d.items[i],{code,name:p.name||'',pack:p.pack||'',unit:p.unit||'قطعة',price:defP(p)});renderInv();const q=$(`#it-${i}-qty`);if(q)q.focus()}
+function fillItem(i,code,force,noOut){const p=S.products[code],d=S.draft;if(!p||!d||!d.items[i])return;const di=force?-1:dupIdx(d,code,i);if(di>=0){S.dupAsk={t:'fill',i,code,di};S.dupScroll=true;renderInv();return}if(!noOut&&avail(code)<=0){S.dupAsk={t:'outfill',i,code};S.dupScroll=true;renderInv();return}S.dupAsk=null;Object.assign(d.items[i],{code,name:p.name||'',pack:p.pack||'',unit:p.unit||'قطعة',price:defPD(p)});renderInv();const q=$(`#it-${i}-qty`);if(q)q.focus()}
 $('#sheet').addEventListener('change',e=>{if(e.target.id==='e-role'){const b=$('#e-salbox');if(b)b.hidden=['head','mgr'].includes(e.target.value)}});
 $('#v-reports').addEventListener('input',e=>{if(e.target.id!=='rep-q')return;S.rep.q=e.target.value;const q=nrm(S.rep.q),L=(S.rep.inv||[]).filter(v=>!q||nrm(v.no).includes(q)||nrm(v.cname).includes(q)||String(v.total).includes(q)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.no).localeCompare(String(a.no),'en',{numeric:true}));$('#replist').innerHTML=repInvList(L);$('#repcnt').textContent=L.length});
 S.priv=true;applyPriv();
@@ -829,7 +831,7 @@ async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
   if(!NP){x.fillStyle='#13265C';x.fillRect(P,y+84,W-2*P,96);
   ar('قيمة الفاتورة الإجمالية',W-P-24,y+144,'600 30px '+DF,'#FFFFFF');nu(money(inv.total||invTotal(inv)),P+24,y+148,'700 46px '+DF,'#FFFFFF','left');
   const b=c.balance||0;
-  if(DR){ar('هذه مسودة طلب وليست فاتورة نهائية، ولا تدخل الحساب.',W-P,y+230,'400 26px '+BF,'#5A6684')}else{
+  if(DR){ar('هذه مسودة طلب وليست فاتورة نهائية، ولا تدخل الحساب.',W-P,y+230,'400 26px '+BF,'#5A6684')}else if(!c.walkin){
   ar(PAID.includes(inv.pay)?'الفاتورة مدفوعة '+(inv.pay==='حوالة'?'حوالة':'نقداً')+' · رصيد الحساب الحالي':'رصيد الحساب الحالي بعد الفاتورة',W-P,y+230,'400 26px '+BF,'#5A6684');
   nu(money(Math.abs(b))+(typeOf(b)==='credit'?'  (لكم)':''),P,y+232,'600 30px '+DF,typeOf(b)==='debt'?'#B3261E':'#0B7447','left')}
   }else ar('نسخة عمل للتجهيز والشحن، بدون أسعار أو قيمة إجمالية.',W-P,y+96,'400 24px '+BF,'#5A6684');
@@ -862,6 +864,7 @@ const rndSel=id=>`<div class="field"><label for="${id}">تقريب السعر ا
 const TIERS=[['p2','جملة الجملة','d2'],['price','نصف جملة','d1'],['pt','مفرق','dt']];
 const effP=(p,k)=>{const t=TIERS.find(x=>x[0]===k);return r4(nv(p[k])*(1-nv(p[t[2]])/100))};
 const defP=p=>effP(p,'price')||effP(p,'pt')||effP(p,'p2')||'';
+const defPD=p=>{const t=S.draft&&S.draft.tier;return t&&effP(p,t)?effP(p,t):defP(p)};
 const tierList=p=>TIERS.filter(t=>nv(p[t[0]])>0);
 function tierBlock(p,c){return TIERS.map(t=>{const v=nv(p[t[0]]);if(!(v>0))return'';const dd=nv(p[t[2]]),e=effP(p,t[0]);return `<br>${t[1]} <b class="num">${pr(v)}</b>${dd>0?` − حسم ${dd}% = <b class="num">${pr(e)}</b>`:''}${c>0?` · ربح <b class="num" style="color:var(--credit)">${pr(r4(e-c))} (${r2((e/c-1)*100)}%)</b>`:''}`}).join('')||'<br><span class="chip c-due">لم تُحدَّد أسعار البيع بعد</span>'}
 S.sel=null;
@@ -1219,7 +1222,7 @@ function ordHTML(){const all=S.orders||[],pend=all.filter(o=>o.st!=='d').sort((a
 function renderSales(){const el=$('#v-sales'),R=S.rep;if(!el)return;const L=R.inv?invFilt(R.sq):[];
   const seg=`<div class="seg"><button type="button" data-act="stab" data-v="ord" aria-pressed="${S.stab==='ord'}">دفتر الطلبات (مسودات)</button><button type="button" data-act="stab" data-v="reg" aria-pressed="${S.stab!=='ord'}">الفواتير</button></div>`;
   if(S.stab==='ord'){el.innerHTML=seg+ordHTML();return}
-  el.innerHTML=seg+`<button class="btn primary" type="button" data-act="sale-new" style="width:100%">＋ فاتورة جديدة</button>
+  el.innerHTML=seg+`<div class="grid2"><button class="btn primary" type="button" data-act="sale-new">＋ فاتورة جديدة</button><button class="btn wa" type="button" data-act="quick-sale">🛒 بيع نقدي (مفرق)</button></div>
    <div class="sec"><div class="sechead"><h2>سجل الفواتير</h2><small id="salecnt">${R.inv?L.length:''}</small></div>
    <div class="field"><label for="sale-q">بحث برقم الفاتورة أو الزبون أو المحافظة أو مكتب الشحن</label><input id="sale-q" type="search" value="${esc(R.sq||'')}" inputmode="search" autocomplete="off"></div>
    <div id="salelist">${R.err?'<div class="empty">تعذّر تحميل الفواتير.</div>':R.inv?repInvList(L):'<div class="empty">جارٍ التحميل…</div>'}</div></div>`}
@@ -1268,7 +1271,11 @@ function ordSheet(id){const o=(S.orders||[]).find(x=>x.id===id);if(!o)return;S.a
 function openInvFor(id,note,o){show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger){invSheet();if(S.draft){if(o&&o.draft){const dr=o.draft;Object.assign(S.draft,{dest:dr.dest!==undefined?dr.dest:S.draft.dest,phone:dr.phone||S.draft.phone,shipper:dr.shipper||'',shipFee:dr.shipFee||S.draft.shipFee,pay:dr.pay||'آجل',wh:dr.wh||'main',oldWh:dr.wh||'main',disc:dr.disc||'',fromOrd:o.id});if(dr.items&&dr.items.length)S.draft.items=dr.items.map(x=>({...x}))}if(note)S.draft.note=note;renderInv()}}}},100)}
 $('#v-sales').addEventListener('input',e=>{if(e.target.id!=='sale-q')return;S.rep.sq=e.target.value;const L=invFilt(S.rep.sq);$('#salelist').innerHTML=repInvList(L);$('#salecnt').textContent=L.length});
 function saleCustSheet(){openSheet(`<h2>${S.ordMode?'طلب جديد':'فاتورة جديدة'} · اختر الزبون</h2><div class="tools"><input type="search" id="sp-q" placeholder="اكتب اسم الزبون أو رقمه" autocomplete="off"></div><div id="sp-list" class="list"></div><button class="btn" type="button" data-act="new-customer">＋ زبون جديد</button>`);saleCustList('')}
-function saleCustList(q){q=nrm(q||'');const L=S.customers.filter(c=>!q||nrm(c.name).includes(q)||String(c.phone||'').includes(q)).slice(0,40);$('#sp-list').innerHTML=L.length?L.map(c=>`<button class="row" type="button" data-act="sale-cust" data-id="${esc(c.id)}"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'—')}</span><span class="num" dir="ltr">${esc(c.phone||'')}</span></small></span></button>`).join(''):!S.loaded?'<div class="empty">جارٍ تحميل الزبائن…</div>':!S.customers.length?'<div class="empty"><b>لا يوجد أي زبون في هذه النسخة.</b><span>افتح تبويب «الزبائن»: إذا كان فارغاً فأنت على نسخة غير متصلة بدفترك (مثلاً نسخة Claude بدل الموقع/التطبيق). افتح الموقع أو التطبيق.</span></div>':'<div class="empty">لا يوجد زبون بهذا الاسم.</div>'}
+async function quickSale(){if(!S.db)return;let c=S.customers.find(x=>x.walkin||x.id==='walkin');
+  if(!c){const data={name:'مبيع نقدي (مفرق)',city:MYCITY,phone:'',note:'زبون افتراضي لمبيعات المفرق النقدية بدون زبون',walkin:true,balance:0,dueAt:null,repeat:0,lastSent:null,createdAt:new Date().toISOString()};
+    await S.db.doc('customers/walkin').set(data);await S.db.doc('ledgers/walkin').set({tx:[]});c={id:'walkin',...data};if(!S.customers.some(x=>x.id==='walkin'))S.customers.push(c)}
+  const id=c.id;show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger){invSheet();if(S.draft){Object.assign(S.draft,{pay:'نقدي',tier:'pt',dest:MYCITY,shipper:'',shipFee:''});renderInv()}}}},100)}
+function saleCustList(q){q=nrm(q||'');const L=S.customers.filter(c=>!c.walkin&&(!q||nrm(c.name).includes(q)||String(c.phone||'').includes(q))).slice(0,40);$('#sp-list').innerHTML=L.length?L.map(c=>`<button class="row" type="button" data-act="sale-cust" data-id="${esc(c.id)}"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'—')}</span><span class="num" dir="ltr">${esc(c.phone||'')}</span></small></span></button>`).join(''):!S.loaded?'<div class="empty">جارٍ تحميل الزبائن…</div>':!S.customers.length?'<div class="empty"><b>لا يوجد أي زبون في هذه النسخة.</b><span>افتح تبويب «الزبائن»: إذا كان فارغاً فأنت على نسخة غير متصلة بدفترك (مثلاً نسخة Claude بدل الموقع/التطبيق). افتح الموقع أو التطبيق.</span></div>':'<div class="empty">لا يوجد زبون بهذا الاسم.</div>'}
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='sp-q')saleCustList(e.target.value)});
 function repInvList(inv){return inv.length?`<div class="list">${inv.slice(0,60).map(v=>`<button class="row" type="button" data-act="rep-inv" data-id="${esc(v.id)}" data-cid="${esc(v.cid||'')}"><span class="who"><b>فاتورة <span class="num">#${esc(v.no)}</span> · ${esc(v.cname||'')}</b><small><span class="num">${dmy(v.date)}</span><span>${esc(v.pay||'')}</span></small></span><span class="amt"><b class="num">${money(nv(v.total))}</b></span></button>`).join('')}</div>${inv.length>60?'<span class="small muted">يظهر أحدث 60 فاتورة. اكتب في البحث لتضييق النتائج.</span>':''}`:'<div class="empty">لا توجد فواتير مطابقة.</div>'}
 
@@ -1595,6 +1602,8 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='np-toggle'){if(!S.outRe||S.busy)return;S.busy=true;const nx=!S.outNP;S.outRe(nx).then(cv=>{S.outNP=nx;S.stmtCv=cv;const im=$('#stmtbox img');if(im)im.src=cv.toDataURL('image/png');b.textContent=nx?'👁 إظهار الأسعار والإجمالي':'🙈 إخفاء الأسعار والإجمالي (نسخة للعامل أو الشحن)';toast(nx?'صارت النسخة بدون أسعار':'رجعت النسخة بالأسعار')}).catch(()=>toast('تعذّر التبديل')).finally(()=>{S.busy=false});return}
   if(b.dataset.act==='print-out'){if(S.stmtCv)printCv(S.stmtCv);return}
   if(b.dataset.act==='ord-inv'){const o=S.orders.find(x=>x.id===b.dataset.id);if(!o)return;if(!cust(o.cid)){toast('هذا الزبون غير موجود');return}closeSheet();openInvFor(o.cid,(o.note||'').slice(0,200),o);return}
+  if(b.dataset.act==='quick-sale'){guard(quickSale);return}
+  if(b.dataset.act==='draft-tier'){const d=S.draft;if(!d)return;d.tier=b.dataset.v;for(const it of d.items){const p=S.products[ck(it)];if(p&&effP(p,d.tier))it.price=effP(p,d.tier)}renderInv();return}
   if(b.dataset.act==='sale-new'){S.ordMode=false;saleCustSheet();return}
   if(b.dataset.act==='sale-cust'&&S.ordMode){S.ordMode=false;closeSheet();ordDraftOpen(b.dataset.id);return}
   if(b.dataset.act==='sale-cust'){const id=b.dataset.id;closeSheet();show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger)invSheet()}},100);return}
@@ -1700,7 +1709,7 @@ document.addEventListener('click',e=>{
   else if(a==='sug-val'){const el=$('#'+b.dataset.for);if(el){el.value=b.dataset.v;if(el.dataset.f&&S.draft)S.draft[el.dataset.f]=b.dataset.v}b.parentElement.innerHTML=''}
   else if(a==='pick-open'){if(S.draft)pickSheet()}
   else if(a==='pick-back'){S.picking=false;if(S.draft)renderInv()}
-  else if(a==='pick'){const p=S.products[b.dataset.code],d=S.draft;if(!p||!d)return;const it={code:b.dataset.code,name:p.name||'',pack:p.pack||'',qty:'',unit:p.unit||'قطعة',price:defP(p)};
+  else if(a==='pick'){const p=S.products[b.dataset.code],d=S.draft;if(!p||!d)return;const it={code:b.dataset.code,name:p.name||'',pack:p.pack||'',qty:'',unit:p.unit||'قطعة',price:defPD(p)};
     pickItem(it)}
   else if(a==='dup-use'){const d=S.draft,k=S.dupAsk;if(!d||!k)return;let di=k.di;if(k.t==='fill'){const it=d.items[k.i];if(it&&!nv(it.qty)){d.items.splice(k.i,1);if(!d.items.length)d.items.push(blankItem());if(k.i<di)di--}else if(it){it.code='';it.name=''}}S.dupAsk=null;renderInv();const q=$(`#it-${di}-qty`);if(q){q.focus();q.scrollIntoView({block:'center'})}}
   else if(a==='dup-new'){const d=S.draft,k=S.dupAsk;if(!d||!k)return;S.dupAsk=null;if(k.t==='fill')fillItem(k.i,k.code,true);else addPicked(k.it)}
@@ -1742,7 +1751,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261114-1755';
+const BUILD='20261114-1757';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
