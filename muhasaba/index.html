@@ -984,21 +984,35 @@ function renderCash(){
    <button class="btn sm" type="button" data-act="cash-recalc">تحديث رصيد أول اليوم من اليوم السابق</button>`;
 }
 function cashRender(){const f=S.cf,sg=(k,v,l)=>`<button type="button" data-cfs="${k}:${v}" aria-pressed="${f[k]===v}">${l}</button>`;
-  $('#sheet').innerHTML=`<h2>حركة صندوق · ${dmy(S.cday)}</h2><form id="cashform">
-   <div class="seg">${sg('dir','in','مقبوض')}${sg('dir','out','مصروف')}${sg('dir','wd','سحب')}</div>${f.dir==='wd'?'<div class="note">«سحب»: بيطلع المبلغ من الصندوق وينقل لمكان خارج الشركة (حساب شخصي، بنك، شخص…)، ولا يُحسب مصروفاً ولا يؤثر على الأرباح بالتقارير. مثال البيان: تحويل لحساب المالك.</div>':''}<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
-   ${f.dir==='out'?`<div class="field"><label>المصروف على حساب مين؟</label><div class="seg">${sg('party','co','الشركة')}${sg('party','staff','موظف')}${sg('party','cust','زبون')}${sg('party','owner','رئيس الشركة')}</div></div>
+  $('#sheet').innerHTML=`<h2>${f.editId?'تعديل حركة صندوق':'حركة صندوق'} · ${dmy(S.cday)}</h2><form id="cashform">
+   ${f.linked?`<div class="note">هذه الحركة مرتبطة بكشف الزبون «${esc(f.cname||'')}». تقدر تعدّل المبلغ والبيان، ويتعدّل معهما قيد الكشف.</div>`:`<div class="seg">${sg('dir','in','مقبوض')}${sg('dir','out','مصروف')}${sg('dir','wd','سحب')}</div>`}${f.dir==='wd'?'<div class="note">«سحب»: بيطلع المبلغ من الصندوق وينقل لمكان خارج الشركة (حساب شخصي، بنك، شخص…)، ولا يُحسب مصروفاً ولا يؤثر على الأرباح بالتقارير. مثال البيان: تحويل لحساب المالك.</div>':''}<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
+   ${f.dir==='out'&&!f.linked?`<div class="field"><label>المصروف على حساب مين؟</label><div class="seg">${sg('party','co','الشركة')}${sg('party','staff','موظف')}${sg('party','cust','زبون')}${sg('party','owner','رئيس الشركة')}</div></div>
    ${f.party==='staff'?(()=>{staffSub();const L=(S.staff||[]).filter(e=>!ownerRole(e));return`<div class="field"><label for="cf-p">الموظف</label><select id="cf-p" data-cf="pid"><option value="">اختر الموظف</option>${L.map(e=>`<option value="${esc(e.id)}" ${e.id===f.pid?'selected':''}>${esc(e.name)}</option>`).join('')}</select></div><span class="small muted">للتحديد فقط. السلفة أو دفعة الراتب سجّلها من شاشة الموظف حتى تنخصم من راتبه.</span>`})():''}
    ${f.party==='owner'?'<span class="small muted">يُسجَّل المصروف على حساب رئيس الشركة ويظهر بسطر مستقل بالتقارير.</span>':''}`:''}
    <div class="field"><label for="cf-a">المبلغ ${f.cur==='usd'?'($)':'(ل.س)'}</label><input id="cf-a" data-cf="a" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.a)}"></div>
-   ${f.dir==='in'||(f.dir==='out'&&f.party==='cust')?`<div class="field"><label for="cf-c">${f.dir==='in'?'من زبون (اختياري، تُخصم من ذمته)':'على حساب الزبون'}</label><input id="cf-c" data-cf="cname" data-sug="cust" autocomplete="off" placeholder="اكتب اسم الزبون واختره" value="${esc(f.cname)}"></div><div class="sug rows" id="sug-h"></div>
-     ${f.dir==='out'&&f.cid?`<div class="seg">${sg('charge','0','تسجيل فقط')}${sg('charge','1','أضفه على ذمة الزبون')}</div>`:''}
+   ${f.linked&&f.cur==='syp'?`<div class="field"><label for="cf-r">سعر الصرف (ليرة لكل دولار)</label><input id="cf-r" data-cf="rate" type="number" step="any" min="0" inputmode="decimal" value="${esc(f.rate)}"></div>`:''}
+   ${f.linked?'':(!f.editId&&(f.dir==='in'||(f.dir==='out'&&f.party==='cust')))||(f.editId&&f.dir==='out'&&f.party==='cust')?`<div class="field"><label for="cf-c">${f.dir==='in'?'من زبون (اختياري، تُخصم من ذمته)':'على حساب الزبون'}</label><input id="cf-c" data-cf="cname" data-sug="cust" autocomplete="off" placeholder="اكتب اسم الزبون واختره" value="${esc(f.cname)}"></div><div class="sug rows" id="sug-h"></div>
+     ${f.dir==='out'&&f.cid&&!f.editId?`<div class="seg">${sg('charge','0','تسجيل فقط')}${sg('charge','1','أضفه على ذمة الزبون')}</div>`:''}
      ${f.cid&&f.cur==='syp'&&(f.dir==='in'||f.charge==='1')?`<div class="field"><label for="cf-r">سعر الصرف (ليرة لكل دولار)</label><input id="cf-r" data-cf="rate" type="number" step="any" min="0" inputmode="decimal" value="${esc(f.rate)}"></div>`:''}`:''}
    <span class="small" id="cfhint"></span>
    <div class="field"><label for="cf-n">البيان</label><input id="cf-n" data-cf="n" value="${esc(f.n)}" placeholder="${f.dir==='in'?'مثال: مبيع نقدي':f.dir==='wd'?'مثال: تحويل لحساب المالك، إيداع بنك':'مثال: أجور شحن، مصروف محل'}"></div>
-   <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`;
+   <div class="grid2"><button class="btn primary" type="submit">${f.editId?'حفظ التعديل':'حفظ'}</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`;
   $('#scrim').hidden=false;cashHint()}
 function cashHint(){const h=$('#cfhint'),f=S.cf;if(!h||!f)return;if(f.dir==='in'&&f.cid){const a=nv(f.a),r=nv(f.rate),usd=f.cur==='usd'?a:(r>0?a/r:0);h.className='note';h.textContent=`تُسجَّل دفعة في كشف ${f.cname} بقيمة ${money(r2(usd))}.`}else if(f.dir==='in'&&f.cname){h.className='small muted';h.textContent='اختر الزبون من الاقتراحات ليرتبط المقبوض بذمته.'}else{h.className='small';h.textContent=''}}
-async function saveCash(){const f=S.cf,a=r2(nv(f.a));if(!(a>0)){toast('أدخل المبلغ');return}
+async function editLedgerTx(cid,id,patch){const ref=S.db.doc('ledgers/'+cid);let list;if(S.cid===cid&&S.ledger)list=S.ledger;else{const s=await ref.get();list=s.exists?(s.data().tx||[]):[]}
+  const nl=list.map(t=>t.id===id?{...t,...patch}:t);await ref.set({tx:nl});await S.db.doc('customers/'+cid).update({balance:r2(nl.reduce((a,t)=>a+eff(t),0))});if(S.cid===cid)S.ledger=nl}
+async function saveCashEdit(){const f=S.cf,a=r2(nv(f.a));if(!(a>0)){toast('أدخل المبلغ');return}
+  const day=S.cday,{ref,v}=await cashDay(day,false);const i=v?v.tx.findIndex(t=>t.id===f.editId):-1;if(i<0){toast('الحركة غير موجودة');return}
+  const old=v.tx[i],e={...old,a,cur:f.cur,n:(f.n||'').trim()};
+  if(f.linked){const rate=nv(f.rate);if(f.cur==='syp'&&!(rate>0)){toast('أدخل سعر الصرف');return}const usd=f.cur==='usd'?a:r2(a/rate);e.usd=usd;
+    await editLedgerTx(old.cid,old.ltx,{a:usd,n:old.dir==='in'?(f.cur==='syp'?sy(a)+' على سعر '+rate.toLocaleString('en-US'):e.n):('مصروف: '+(e.n||'على الحساب'))})}
+  else{e.dir=f.dir==='wd'?'out':f.dir;delete e.wd;delete e.party;delete e.pid;delete e.pname;delete e.pcid;if(f.dir==='wd'){e.wd=true;if(!e.n)e.n='سحب من الصندوق'}
+    if(e.dir==='out'&&!e.wd){const pt=f.party||'co';
+      if(pt==='staff'){const em=emp(f.pid);if(!em){toast('اختر الموظف');return}Object.assign(e,{party:'staff',pid:em.id,pname:em.name})}
+      else if(pt==='owner')Object.assign(e,{party:'owner',pname:'رئيس الشركة'});
+      else if(pt==='cust'){if(!f.cid){toast('اختر الزبون من الاقتراحات');return}const c=cust(f.cid);Object.assign(e,{party:'cust',pcid:f.cid,pname:c?c.name:f.cname})}}}
+  v.tx[i]=e;v.closed=null;await ref.set(v);if(day===S.cday){S.cash=v;if(S.view==='cash')refresh()}S.cf=null;closeSheet();toast('تم تعديل الحركة')}
+async function saveCash(){if(S.cf&&S.cf.editId)return saveCashEdit();const f=S.cf,a=r2(nv(f.a));if(!(a>0)){toast('أدخل المبلغ');return}
   const day=S.cday,e={id:newId(),t:new Date().toISOString(),dir:f.dir==='wd'?'out':f.dir,cur:f.cur,a,n:(f.n||'').trim()||(f.dir==='wd'?'سحب من الصندوق':'')};if(f.dir==='wd')e.wd=true;
   if(f.dir==='in'&&f.cid){const rate=nv(f.rate);if(f.cur==='syp'&&!(rate>0)){toast('أدخل سعر الصرف');return}
     const usd=f.cur==='usd'?a:r2(a/rate),c=cust(f.cid),nm=c?c.name:f.cname;
@@ -1033,8 +1047,8 @@ function closeHint(){const h=$('#clhint');if(!h||!S.cash)return;const b=cashBal(
 function cashTxSheet(id){const t=(S.cash.tx||[]).find(x=>x.id===id);if(!t)return;S.armed=null;
   openSheet(`<h2>${t.dir==='in'?'مقبوض':t.wd?'سحب':'مصروف'} · <span class="num">${cm(t.cur,t.a)}</span></h2>
    <div class="card"><span>${esc(t.n||'بدون بيان')}</span><span class="small muted">${whenTxt(t.t)}${t.party&&t.pname?` · على حساب <b>${esc(t.pname)}</b>`:''}${t.cid?` · يعادل <b class="num">${money(nv(t.usd))}</b> في ذمة ${esc(t.cname||'')}`:''}</span></div>
-   ${t.ltx?`<div class="note">مرتبطة بدفعة في كشف الزبون. لحذفها احذف الدفعة من كشفه فتُزال من الصندوق تلقائياً.</div><button class="btn" type="button" data-open="${esc(t.cid)}" data-act="close">فتح كشف ${esc(t.cname||'الزبون')}</button>`
-     :`<button class="btn danger" type="button" data-act="cash-del" data-id="${esc(t.id)}">${t.pair?'حذف عملية التصريف كاملة':'حذف الحركة'}</button>`}
+   ${t.ltx?`<div class="note">مرتبطة بدفعة في كشف الزبون. لحذفها احذف الدفعة من كشفه فتُزال من الصندوق تلقائياً.</div><button class="btn" type="button" data-open="${esc(t.cid)}" data-act="close">فتح كشف ${esc(t.cname||'الزبون')}</button>${t.cid?`<button class="btn" type="button" data-act="cash-edit" data-id="${esc(t.id)}">✎ تعديل المبلغ والبيان</button>`:''}`
+     :`${t.pair?'':`<button class="btn" type="button" data-act="cash-edit" data-id="${esc(t.id)}">✎ تعديل الحركة</button>`}<button class="btn danger" type="button" data-act="cash-del" data-id="${esc(t.id)}">${t.pair?'حذف عملية التصريف كاملة':'حذف الحركة'}</button>`}
    <button class="btn" type="button" data-act="close">إغلاق</button>`)}
 
 /* ---------- staff & weekly payroll ---------- */
@@ -1709,6 +1723,9 @@ document.addEventListener('click',e=>{
   if(a==='cash-reopen'){guard(async()=>{const {ref,v}=await cashDay(S.cday,true);v.closed=null;await ref.set(v);S.cash=v;refresh();toast('أُعيد فتح اليوم')});return}
   if(a==='cash-recalc'){guard(async()=>{const {ref,v}=await cashDay(S.cday,true);v.open=await prevClose(S.cday);await ref.set(v);S.cash=v;refresh();toast('حُدّث رصيد أول اليوم')});return}
   if(a==='cash-tx'){cashTxSheet(b.dataset.id);return}
+  if(a==='cash-edit'){const t=(S.cash.tx||[]).find(x=>x.id===b.dataset.id);if(!t)return;
+    if(t.staff&&t.ltx){toast('عدّلها من سجل الموظف');return}
+    const linked=!!(t.ltx&&t.cid);S.cf={editId:t.id,linked,dir:t.wd?'wd':t.dir,party:t.party||'co',charge:'0',pid:t.pid||'',cur:t.cur,a:String(t.a),n:t.n||'',cname:t.pname||t.cname||'',cid:t.pcid||t.cid||null,rate:t.cur==='syp'&&nv(t.usd)>0?String(Math.round(t.a/t.usd)):(nv((S.cash||{}).rate)||nv(S.settings.rate)||'')};cashRender();return}
   if(a==='cash-del'){if(S.armed!=='cash'){S.armed='cash';b.textContent='اضغط ثانية لتأكيد الحذف';return}const id=b.dataset.id,e=(S.cash.tx||[]).find(x=>x.id===id);guard(async()=>{await cashRemove(S.cday,x=>x.id===id||(e&&e.pair&&x.pair===e.pair));closeSheet();toast('حُذفت الحركة')});return}
   if(a==='close')closeSheet();
   else if(a==='new-customer')customerSheet(null);
@@ -1762,7 +1779,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261114-1758';
+const BUILD='20261114-1801';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
