@@ -967,7 +967,7 @@ function renderCash(){
   el.innerHTML=`${lq?`<div class="sechead"><span class="small">سُجّلت: <b class="num ${lq.dir==='in'?'t-credit':'t-debt'}">${lq.dir==='in'?'+':'−'}${cm(lq.cur,lq.a)}</b> ${esc(lq.n||'')}</span><button class="btn sm danger" type="button" data-act="q-undo">تراجع</button></div>`:''}
    <div class="sechead"><button class="btn sm" type="button" data-act="cash-day" data-d="-1">→ السابق</button><b>${isToday?'اليوم · ':''}${dmy(S.cday)}</b>${isToday?'<span style="width:64px"></span>':'<button class="btn sm" type="button" data-act="cash-day" data-d="1">التالي ←</button>'}</div>
    ${isToday?'':'<button class="btn sm" type="button" data-act="cash-today">العودة إلى صندوق اليوم</button>'}
-   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"><button class="btn sm" type="button" data-act="cash-new" data-dir="in">قبض من زبون</button><button class="btn sm" type="button" data-act="cash-new" data-dir="wd">سحب من الصندوق (ليس مصروفاً)</button><button class="btn sm" type="button" data-act="cash-fx">تصريف</button><button class="btn sm" type="button" data-act="cash-rate">سعر الصرف</button></div>
+   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"><button class="btn sm" type="button" data-act="cash-new" data-dir="in">قبض من زبون</button><button class="btn sm" type="button" data-act="cash-new" data-dir="out">＋ مصروف (حدّد على حساب مين)</button><button class="btn sm" type="button" data-act="cash-new" data-dir="wd">سحب من الصندوق (ليس مصروفاً)</button><button class="btn sm" type="button" data-act="cash-fx">تصريف</button><button class="btn sm" type="button" data-act="cash-rate">سعر الصرف</button></div>
    <div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>
      <span class="l">رصيد أول اليوم</span><span class="n">${money(nv(v.open.usd))}</span><span class="n">${sy(nv(v.open.syp))}</span>
      <span class="l">المقبوضات</span><span class="n t-credit">+${money(sum('in','usd'))}</span><span class="n t-credit">+${sy(sum('in','syp'))}</span>
@@ -979,16 +979,20 @@ function renderCash(){
       <button class="btn sm" type="button" data-act="cash-reopen">إعادة فتح اليوم</button></div>`
      :`<button class="btn wa" type="button" data-act="cash-close">تسليم الكاش وإغلاق اليوم</button>`}
    <div class="sec"><div class="sechead"><h2>حركات اليوم</h2><small>${v.tx.length} حركة</small></div>
-   ${rows.length?`<div class="list">${rows.map(t=>`<button class="row" type="button" data-act="cash-tx" data-id="${esc(t.id)}"><span class="who"><b>${esc(t.n||(t.dir==='in'?'مقبوض':t.wd?'سحب':'مصروف'))}</b><small><span class="num">${new Date(t.t).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>${t.cid?'<span class="chip c-zero">ذمة زبون</span>':''}${t.pair?'<span class="chip c-zero">تصريف</span>':''}${t.wd?'<span class="chip c-zero">سحب</span>':''}</small></span>
+   ${rows.length?`<div class="list">${rows.map(t=>`<button class="row" type="button" data-act="cash-tx" data-id="${esc(t.id)}"><span class="who"><b>${esc(t.n||(t.dir==='in'?'مقبوض':t.wd?'سحب':'مصروف'))}</b><small><span class="num">${new Date(t.t).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>${t.cid?'<span class="chip c-zero">ذمة زبون</span>':''}${t.pair?'<span class="chip c-zero">تصريف</span>':''}${t.wd?'<span class="chip c-zero">سحب</span>':''}${t.party&&t.pname?`<span class="chip c-zero">على حساب ${esc(t.pname)}</span>`:''}</small></span>
       <span class="amt"><b class="${t.dir==='in'?'t-credit':'t-debt'}">${t.dir==='in'?'+':'−'}${cm(t.cur,t.a)}</b></span></button>`).join('')}</div>`:'<div class="empty">لا توجد حركات في هذا اليوم. سجّل أول مقبوض أو مصروف.</div>'}</div>
    <button class="btn sm" type="button" data-act="cash-recalc">تحديث رصيد أول اليوم من اليوم السابق</button>`;
 }
 function cashRender(){const f=S.cf,sg=(k,v,l)=>`<button type="button" data-cfs="${k}:${v}" aria-pressed="${f[k]===v}">${l}</button>`;
   $('#sheet').innerHTML=`<h2>حركة صندوق · ${dmy(S.cday)}</h2><form id="cashform">
    <div class="seg">${sg('dir','in','مقبوض')}${sg('dir','out','مصروف')}${sg('dir','wd','سحب')}</div>${f.dir==='wd'?'<div class="note">«سحب»: بيطلع المبلغ من الصندوق وينقل لمكان خارج الشركة (حساب شخصي، بنك، شخص…)، ولا يُحسب مصروفاً ولا يؤثر على الأرباح بالتقارير. مثال البيان: تحويل لحساب المالك.</div>':''}<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
+   ${f.dir==='out'?`<div class="field"><label>المصروف على حساب مين؟</label><div class="seg">${sg('party','co','الشركة')}${sg('party','staff','موظف')}${sg('party','cust','زبون')}${sg('party','owner','رئيس الشركة')}</div></div>
+   ${f.party==='staff'?(()=>{staffSub();const L=(S.staff||[]).filter(e=>!ownerRole(e));return`<div class="field"><label for="cf-p">الموظف</label><select id="cf-p" data-cf="pid"><option value="">اختر الموظف</option>${L.map(e=>`<option value="${esc(e.id)}" ${e.id===f.pid?'selected':''}>${esc(e.name)}</option>`).join('')}</select></div><span class="small muted">للتحديد فقط. السلفة أو دفعة الراتب سجّلها من شاشة الموظف حتى تنخصم من راتبه.</span>`})():''}
+   ${f.party==='owner'?'<span class="small muted">يُسجَّل المصروف على حساب رئيس الشركة ويظهر بسطر مستقل بالتقارير.</span>':''}`:''}
    <div class="field"><label for="cf-a">المبلغ ${f.cur==='usd'?'($)':'(ل.س)'}</label><input id="cf-a" data-cf="a" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.a)}"></div>
-   ${f.dir==='in'?`<div class="field"><label for="cf-c">من زبون (اختياري، تُخصم من ذمته)</label><input id="cf-c" data-cf="cname" data-sug="cust" autocomplete="off" placeholder="اكتب اسم الزبون واختره" value="${esc(f.cname)}"></div><div class="sug rows" id="sug-h"></div>
-     ${f.cid&&f.cur==='syp'?`<div class="field"><label for="cf-r">سعر الصرف (ليرة لكل دولار)</label><input id="cf-r" data-cf="rate" type="number" step="any" min="0" inputmode="decimal" value="${esc(f.rate)}"></div>`:''}`:''}
+   ${f.dir==='in'||(f.dir==='out'&&f.party==='cust')?`<div class="field"><label for="cf-c">${f.dir==='in'?'من زبون (اختياري، تُخصم من ذمته)':'على حساب الزبون'}</label><input id="cf-c" data-cf="cname" data-sug="cust" autocomplete="off" placeholder="اكتب اسم الزبون واختره" value="${esc(f.cname)}"></div><div class="sug rows" id="sug-h"></div>
+     ${f.dir==='out'&&f.cid?`<div class="seg">${sg('charge','0','تسجيل فقط')}${sg('charge','1','أضفه على ذمة الزبون')}</div>`:''}
+     ${f.cid&&f.cur==='syp'&&(f.dir==='in'||f.charge==='1')?`<div class="field"><label for="cf-r">سعر الصرف (ليرة لكل دولار)</label><input id="cf-r" data-cf="rate" type="number" step="any" min="0" inputmode="decimal" value="${esc(f.rate)}"></div>`:''}`:''}
    <span class="small" id="cfhint"></span>
    <div class="field"><label for="cf-n">البيان</label><input id="cf-n" data-cf="n" value="${esc(f.n)}" placeholder="${f.dir==='in'?'مثال: مبيع نقدي':f.dir==='wd'?'مثال: تحويل لحساب المالك، إيداع بنك':'مثال: أجور شحن، مصروف محل'}"></div>
    <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`;
@@ -1000,6 +1004,12 @@ async function saveCash(){const f=S.cf,a=r2(nv(f.a));if(!(a>0)){toast('أدخل 
     const usd=f.cur==='usd'?a:r2(a/rate),c=cust(f.cid),nm=c?c.name:f.cname;
     const lt={id:newId(),k:'pay',a:usd,d:day,ref:'',n:f.cur==='syp'?sy(a)+' على سعر '+rate.toLocaleString('en-US'):e.n,cash:day};
     await addLedgerTx(f.cid,lt);Object.assign(e,{cid:f.cid,cname:nm,ltx:lt.id,usd,n:e.n||('دفعة من '+nm)})}
+  if(f.dir==='out'){const pt=f.party||'co';
+    if(pt==='staff'){const em=emp(f.pid);if(!em){toast('اختر الموظف');return}Object.assign(e,{party:'staff',pid:em.id,pname:em.name})}
+    else if(pt==='owner')Object.assign(e,{party:'owner',pname:'رئيس الشركة'});
+    else if(pt==='cust'){if(!f.cid){toast('اختر الزبون من الاقتراحات');return}const c=cust(f.cid),nm=c?c.name:f.cname;Object.assign(e,{party:'cust',pcid:f.cid,pname:nm});
+      if(f.charge==='1'){const rate=nv(f.rate);if(f.cur==='syp'&&!(rate>0)){toast('أدخل سعر الصرف');return}const usd=f.cur==='usd'?a:r2(a/rate);
+        const lt={id:newId(),k:'inv',a:usd,d:day,ref:'',n:'مصروف: '+(e.n||'على الحساب'),cash:day};await addLedgerTx(f.cid,lt);Object.assign(e,{cid:f.cid,cname:nm,ltx:lt.id,usd,n:e.n||('مصروف على '+nm)})}}}
   await cashAdd(day,e);S.cf=null;closeSheet();toast(e.cid?'دخلت الصندوق وخُصمت من ذمة الزبون':'سُجّلت الحركة')}
 function fxRender(){const f=S.fx;$('#sheet').innerHTML=`<h2>تصريف بين العملتين</h2><form id="fxform">
    <div class="seg"><button type="button" data-fx="usd" aria-pressed="${f.from==='usd'}">من دولار إلى ليرة</button><button type="button" data-fx="syp" aria-pressed="${f.from==='syp'}">من ليرة إلى دولار</button></div>
@@ -1022,7 +1032,7 @@ function closeHint(){const h=$('#clhint');if(!h||!S.cash)return;const b=cashBal(
   const du=r2(nv(u)-b.usd),ds=r2(nv(s2)-b.syp),ok=Math.abs(du)<0.005&&Math.abs(ds)<0.005;h.className=ok?'chip c-credit':'note';h.textContent=ok?'الكاش مطابق تماماً':`الفرق: ${Math.abs(du)>=0.005?(du>0?'زيادة ':'نقص ')+money(Math.abs(du))+'  ':''}${Math.abs(ds)>=0.005?(ds>0?'زيادة ':'نقص ')+sy(Math.abs(ds)):''}`}
 function cashTxSheet(id){const t=(S.cash.tx||[]).find(x=>x.id===id);if(!t)return;S.armed=null;
   openSheet(`<h2>${t.dir==='in'?'مقبوض':t.wd?'سحب':'مصروف'} · <span class="num">${cm(t.cur,t.a)}</span></h2>
-   <div class="card"><span>${esc(t.n||'بدون بيان')}</span><span class="small muted">${whenTxt(t.t)}${t.cid?` · يعادل <b class="num">${money(nv(t.usd))}</b> في ذمة ${esc(t.cname||'')}`:''}</span></div>
+   <div class="card"><span>${esc(t.n||'بدون بيان')}</span><span class="small muted">${whenTxt(t.t)}${t.party&&t.pname?` · على حساب <b>${esc(t.pname)}</b>`:''}${t.cid?` · يعادل <b class="num">${money(nv(t.usd))}</b> في ذمة ${esc(t.cname||'')}`:''}</span></div>
    ${t.ltx?`<div class="note">مرتبطة بدفعة في كشف الزبون. لحذفها احذف الدفعة من كشفه فتُزال من الصندوق تلقائياً.</div><button class="btn" type="button" data-open="${esc(t.cid)}" data-act="close">فتح كشف ${esc(t.cname||'الزبون')}</button>`
      :`<button class="btn danger" type="button" data-act="cash-del" data-id="${esc(t.id)}">${t.pair?'حذف عملية التصريف كاملة':'حذف الحركة'}</button>`}
    <button class="btn" type="button" data-act="close">إغلاق</button>`)}
@@ -1161,10 +1171,10 @@ function repRange(per){const t=today();if(per==='day')return[t,t];if(per==='week
 function staffLogType(){const m={};for(const e of S.staff)for(const l of e.log||[])m[l.id]=l.type;return m}
 function expCat(t,lt){if(t.dir!=='out'||t.pair||t.cid||t.wd)return null;
   if(t.staff||t.ltx){const k=lt[t.ltx]||((t.n||'').startsWith('سلفة')?'adv':(t.n||'').startsWith('مصروف')?'exp':'pay');return k==='adv'?'adv':k==='exp'?'own':'sal'}return'oth'}
-function repCalc(lo,hi){const R=S.rep,lt=staffLogType(),o={sales:0,cashSales:0,credit:0,profit:0,n:0,noCost:0,exp:{sal:0,own:0,oth:0,adv:0},wd:0,noRate:false};
+function repCalc(lo,hi){const R=S.rep,lt=staffLogType(),o={sales:0,cashSales:0,credit:0,profit:0,n:0,noCost:0,exp:{sal:0,own:0,oth:0,adv:0},pt:{staff:0,cust:0,owner:0},wd:0,noRate:false};
   for(const v of R.inv){const d=v.date||'';if(d<lo||d>hi)continue;o.n++;o.sales+=nv(v.total);if(PAID.includes(v.pay))o.cashSales+=nv(v.total);else o.credit+=nv(v.total);if(v.profit==null)o.noCost++;else o.profit+=nv(v.profit)}
   for(const day of R.cash){const d=day.id||day.date||'';if(d<lo||d>hi)continue;const rate=nv(day.rate)||nv(S.settings.rate);
-    for(const t of day.tx||[]){if(t.wd&&t.dir==='out'){o.wd+=t.cur==='usd'?nv(t.a):rate>0?nv(t.a)/rate:0;if(t.cur!=='usd'&&!(rate>0))o.noRate=true;continue}const c=expCat(t,lt);if(!c)continue;let u=t.cur==='usd'?nv(t.a):rate>0?nv(t.a)/rate:0;if(t.cur!=='usd'&&!(rate>0))o.noRate=true;o.exp[c]+=u}}
+    for(const t of day.tx||[]){if(t.wd&&t.dir==='out'){o.wd+=t.cur==='usd'?nv(t.a):rate>0?nv(t.a)/rate:0;if(t.cur!=='usd'&&!(rate>0))o.noRate=true;continue}const c=expCat(t,lt);if(!c)continue;let u=t.cur==='usd'?nv(t.a):rate>0?nv(t.a)/rate:0;if(t.cur!=='usd'&&!(rate>0))o.noRate=true;o.exp[c]+=u;if(t.party&&o.pt[t.party]!==undefined)o.pt[t.party]+=u}}
   o.expTot=o.exp.sal+o.exp.own+o.exp.oth;return o}
 function renderReports(){const el=$('#v-reports'),R=S.rep;
   if(!S.db){el.innerHTML='<div class="empty">جارٍ التحميل…</div>';return}
@@ -1189,6 +1199,7 @@ function renderReports(){const el=$('#v-reports'),R=S.rep;
     <span class="l">· رواتب الموظفين</span><span class="n">${money(r2(c.exp.sal))}</span>
     <span class="l">· مسحوبات الإدارة</span><span class="n">${money(r2(c.exp.own))}</span>
     <span class="l">· مصاريف أخرى</span><span class="n">${money(r2(c.exp.oth))}</span>
+    ${c.pt.staff>0?`<span class="l">· منها على حساب موظفين</span><span class="n">${money(r2(c.pt.staff))}</span>`:''}${c.pt.cust>0?`<span class="l">· منها على حساب زبائن</span><span class="n">${money(r2(c.pt.cust))}</span>`:''}${c.pt.owner>0?`<span class="l">· منها على حساب رئيس الشركة</span><span class="n">${money(r2(c.pt.owner))}</span>`:''}
     ${c.wd>0?`<span class="l">سحوبات من الصندوق (ليست مصروفاً)</span><span class="n">${money(r2(c.wd))}</span>`:''}
     <span class="l t">الصافي (الربح − المصاريف)</span><span class="n t ${net<0?'t-debt':'t-credit'}">${money(net)}</span></div>
    <span class="small muted">المصاريف تؤخذ من الصندوق اليومي (الليرة تُحوَّل بسعر صرف اليوم). السلف المدفوعة للموظفين (${money(r2(c.exp.adv))}) لا تُحسب مصروفاً لأنها تُخصم لاحقاً. التصريف وما يخص الزبائن لا يُحسب.${c.noCost?` ${c.noCost} فاتورة بلا تكلفة معروفة لا تدخل في الربح.`:''}${c.noRate?' بعض مصاريف الليرة بلا سعر صرف فلم تُحسب.':''}</span>
@@ -1688,7 +1699,7 @@ document.addEventListener('click',e=>{
   if(a==='bio-off'){BIO.on=false;LS.set('thiqa-bio',null);LS.set('thiqa-bio-id',null);renderSettings();toast('أُوقف الدخول بالبصمة');return}
   if(a==='q-cash'){quickCash(b.dataset.dir,b.dataset.cur);return}
   if(a==='q-undo'){quickUndo();return}
-  if(a==='cash-new'){S.cf={dir:b.dataset.dir,cur:'usd',a:'',n:'',cname:'',cid:null,rate:nv((S.cash||{}).rate)||nv(S.settings.rate)||''};cashRender();return}
+  if(a==='cash-new'){S.cf={dir:b.dataset.dir,party:'co',charge:'0',pid:'',cur:'usd',a:'',n:'',cname:'',cid:null,rate:nv((S.cash||{}).rate)||nv(S.settings.rate)||''};cashRender();return}
   if(a==='sug-cust'){const c=cust(b.dataset.id);if(c&&S.cf){S.cf.cid=c.id;S.cf.cname=c.name;cashRender()}return}
   if(a==='cash-fx'){S.fx={from:'usd',a:'',rate:nv((S.cash||{}).rate)||nv(S.settings.rate)||''};fxRender();return}
   if(a==='cash-rate'){openSheet(`<h2>سعر الصرف</h2><form id="rateform"><div class="field"><label for="r-rate">كم ليرة سورية يساوي الدولار الواحد</label><input id="r-rate" type="number" step="any" min="0" inputmode="decimal" required value="${nv((S.cash||{}).rate)||''}"></div><span class="small muted">يُستخدم لتقويم الكاش بالليرة ولتحويل دفعات الليرة إلى دولار في ذمم الزبائن. يُحفظ لهذا اليوم ويبقى للأيام التالية حتى تغيّره.</span><div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`);return}
@@ -1751,7 +1762,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261114-1757';
+const BUILD='20261114-1758';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
