@@ -633,6 +633,7 @@ function outBox(cv,name,extra){
   box.className='sec';box.innerHTML=`${S.dl?`<div class="grid2"><button class="btn primary" type="button" data-act="save-stmt">حفظ كصورة</button><button class="btn primary" type="button" data-act="save-pdf">حفظ كملف PDF</button></div>`:`<div class="note">اضغط مطوّلاً على الصورة ثم «حفظ» أو «مشاركة».</div>`}
     ${window.Android&&typeof window.Android.sendToCompany==='function'&&num?`<div class="grid2"><button class="btn wa" type="button" data-act="wa-direct" data-kind="png">إرسال الصورة لواتساب الزبون</button><button class="btn wa" type="button" data-act="wa-direct" data-kind="pdf">إرسال PDF لواتساب الزبون</button></div>`:''}
     ${!(window.Android&&typeof window.Android.sendToCompany==='function')?`<div class="grid2"><button class="btn wa" type="button" data-act="share-out" data-kind="png">إرسال الصورة</button><button class="btn wa" type="button" data-act="share-out" data-kind="pdf">إرسال PDF</button></div>`:''}
+    <button class="btn" type="button" data-act="print-out">🖨 طباعة</button>
     ${num?`<a class="btn wa" href="https://wa.me/${num}" target="_blank" rel="noopener">فتح محادثة الزبون في واتساب</a>`:''}
     <span class="small muted">«إرسال الصورة» يفتح قائمة المشاركة ← اختر واتساب ثم الزبون. إذا ما ظهرت القائمة (اللابتوب) تُنسخ الصورة ويُفتح واتساب الزبون فتلصقها بـ Ctrl+V.</span>
     <span class="small muted">على الآيفون تظهر قائمة المشاركة وتختار واتساب مباشرة. على أندرويد يُحفظ الملف ثم ترفقه في محادثة الزبون.</span>
@@ -650,7 +651,7 @@ const blankItem=()=>({code:'',name:'',pack:'',qty:'',unit:'قطعة',price:''});
 const nv=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
 const lineTot=it=>r2(nv(it.qty)*nv(it.price));
 const cartText=it=>{const pk=nv(it.pack),q=nv(it.qty);if(!(pk>0))return q>0?'حدّد التعبئة':'—';if(!(q>0))return'—';const w=Math.floor(q/pk+1e-9),rem=r2(q-w*pk),u=it.unit||'قطعة';return rem<=0?`${w} طرد`:w>0?`${w} طرد و${f1(rem)} ${u}`:`أقل من طرد (${f1(rem)} ${u})`};
-const fileName=(base,ext)=>{let n=String(base||'').trim();{n=n.replace(/كشف حساب/g,'Statement').replace(/فاتورة/g,'Invoice').replace(/[^\x20-\x7E]/g,'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');if(!n)n='file'}return n+'.'+ext};
+const fileName=(base,ext)=>{let n=String(base||'').trim();{n=n.replace(/كشف حساب/g,'Statement').replace(/فاتورة/g,'Invoice').replace(/مسودة/g,'Draft').replace(/[^\x20-\x7E]/g,'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');if(!n)n='file'}return n+'.'+ext};
 const lineCart=it=>nv(it.pack)>0?nv(it.qty)/nv(it.pack):0;
 const invSub=d=>r2((d.items||[]).reduce((s,it)=>s+lineTot(it),0));
 const discPct=d=>Math.min(100,Math.max(0,nv(d.disc)));
@@ -799,11 +800,12 @@ async function drawInvoice(c,inv){
   const fit=(s,max,font)=>{s=String(s);x.font=font;if(x.measureText(s).width<=max)return s;while(s.length>1&&x.measureText(s+'…').width>max)s=s.slice(0,-1);return s+'…'};
   x.fillStyle='#FFFFFF';x.fillRect(0,0,W,H);x.fillStyle='#13265C';x.fillRect(0,0,W,headH);
   ar(fit(S.settings.company,W-2*P-430,'600 34px '+DF),W-P,78,'600 34px '+DF,'#F3F6FF');
-  ar('فاتورة مبيعات',W-P,134,'400 28px '+BF,'#AEBBE0');
+  const DR=!!inv.draftMode;
+  ar(DR?'مسودة طلب · غير نهائية':'فاتورة مبيعات',W-P,134,'400 28px '+BF,'#AEBBE0');
   const lx=drawLogo(x,P,20,170)?P+194:P;
-  nu('رقم الفاتورة',lx,62,'400 22px '+BF,'#AEBBE0','left');
+  if(DR)ar('رقم الطلب',lx+160,62,'400 22px '+BF,'#AEBBE0');else nu('رقم الفاتورة',lx,62,'400 22px '+BF,'#AEBBE0','left');
   nu('#'+fit(inv.no,200,'700 64px '+DF),lx,132,'700 64px '+DF,'#FFFFFF','left');
-  nu(dmy(inv.date),lx,178,'500 26px '+DF,'#AEBBE0','left');
+  if(DR)ar('طُلب '+dmy(inv.date)+(inv.due?' · التسليم '+dmy(inv.due):''),lx+430,178,'400 22px '+BF,'#AEBBE0');else nu(dmy(inv.date),lx,178,'500 26px '+DF,'#AEBBE0','left');
   let y=headH;x.fillStyle='#F4F6FB';x.fillRect(0,y,W,infoH);
   const colW=(W-2*P)/3,cell=(label,val,col,row,ltr)=>{const rx=W-P-col*colW,yy=y+48+row*98;ar(label,rx,yy,'400 22px '+BF,'#5A6684');
     if(ltr)nu(fit(val||'—',colW-20,'600 28px '+DF),rx,yy+40,'600 28px '+DF,'#101B33');else ar(fit(val||'—',colW-20,'600 28px '+BF),rx,yy+40,'600 28px '+BF,'#101B33')};
@@ -826,8 +828,9 @@ async function drawInvoice(c,inv){
   x.fillStyle='#13265C';x.fillRect(P,y+84,W-2*P,96);
   ar('قيمة الفاتورة الإجمالية',W-P-24,y+144,'600 30px '+DF,'#FFFFFF');nu(money(inv.total||invTotal(inv)),P+24,y+148,'700 46px '+DF,'#FFFFFF','left');
   const b=c.balance||0;
+  if(DR){ar('هذه مسودة طلب وليست فاتورة نهائية، ولا تدخل الحساب.',W-P,y+230,'400 26px '+BF,'#5A6684')}else{
   ar(PAID.includes(inv.pay)?'الفاتورة مدفوعة '+(inv.pay==='حوالة'?'حوالة':'نقداً')+' · رصيد الحساب الحالي':'رصيد الحساب الحالي بعد الفاتورة',W-P,y+230,'400 26px '+BF,'#5A6684');
-  nu(money(Math.abs(b))+(typeOf(b)==='credit'?'  (لكم)':''),P,y+232,'600 30px '+DF,typeOf(b)==='debt'?'#B3261E':'#0B7447','left');
+  nu(money(Math.abs(b))+(typeOf(b)==='credit'?'  (لكم)':''),P,y+232,'600 30px '+DF,typeOf(b)==='debt'?'#B3261E':'#0B7447','left')}
   if(inv.note)ar(fit('ملاحظة: '+inv.note,W-2*P,'400 24px '+BF),W-P,y+278,'400 24px '+BF,'#101B33');
   ar('شكراً لتعاملكم معنا.',W-P,y+footH-24,'400 22px '+BF,'#5A6684');
   return cv;
@@ -1242,9 +1245,19 @@ function ordStockLine(o,x){if(o.st==='d')return'';const k=codeOf(x);if(!k||!(S.p
   let oth=0;for(const o2 of S.orders||[]){if(o2.id===o.id||o2.st==='d'||!o2.draft||(o2.draft.wh||'main')!==wh)continue;for(const y of o2.draft.items||[])if(codeOf(y)===k)oth+=nv(y.qty)}
   const rem=have-q,all=rem-oth,col=v=>v<0?'var(--debt)':'var(--credit)';
   return`<br><span class="muted">بالمخزون</span> <b class="num">${f1(have)}</b> · <span class="muted">يبقى بعد هذا الطلب</span> <b class="num" style="color:${col(rem)}">${f1(rem)}</b>${oth>0?`<br><span class="muted">محجوز بمسودات أخرى</span> <b class="num">${f1(oth)}</b> · <span class="muted">يبقى بعد الكل</span> <b class="num" style="color:${col(all)}">${f1(all)}</b>`:''}`}
+async function ordPrint(id){const o=(S.orders||[]).find(x=>x.id===id),c=o&&cust(o.cid);if(!o)return;if(!c){toast('هذا الزبون غير موجود');return}
+  S.cid=o.cid;S.armed=null;const pend=(S.orders||[]).filter(x=>x.st!=='d').sort((a,b)=>(a.at||'').localeCompare(b.at||'')),r=pend.findIndex(x=>x.id===id)+1,dr=o.draft||{};
+  openSheet(`<h2>مسودة ${esc(c.name)}</h2><div id="stmtbox" class="empty">جارٍ تجهيز المسودة…</div>`);
+  const inv={draftMode:true,no:r?String(r):'—',date:ldate(o.at),due:o.due||'',phone:dr.phone||c.phone,dest:dr.dest||'',shipper:dr.shipper||'',shipFee:dr.shipFee||'',pay:dr.pay||'',note:o.note||'',disc:dr.disc||0,items:(dr.items||[]).map(x=>({...x,code:codeOf(x)}))};
+  try{const cv=await Promise.race([drawInvoice(c,inv),new Promise((_,j)=>setTimeout(()=>j(new Error('t')),15000))]);outBox(cv,'مسودة '+inv.no+' '+c.name,'')}catch(e){console.error(e);const bx=$('#stmtbox');if(bx)bx.textContent='تعذّر تجهيز المسودة.'}}
+function printCv(cv){if(window.Android){toast('احفظ ملف PDF ثم اطبعه من تطبيق الملفات أو من واتساب');return}
+  const f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(f);
+  const d=f.contentDocument;d.open();d.write('<html><head><style>@page{margin:0}body{margin:0}img{width:100%;display:block}</style></head><body><img id="i"></body></html>');d.close();
+  const im=d.getElementById('i');im.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('الطباعة غير متاحة هنا، احفظ PDF واطبعه')}setTimeout(()=>f.remove(),60000)};im.src=cv.toDataURL('image/png')}
 function ordSheet(id){const o=(S.orders||[]).find(x=>x.id===id);if(!o)return;S.armed=null;const pend=(S.orders||[]).filter(x=>x.st!=='d').sort((a,b)=>(a.at||'').localeCompare(b.at||'')),r=pend.findIndex(x=>x.id===id)+1;
   openSheet(`<h2>${esc(o.cname)}</h2>
    <div class="card small"><div style="line-height:1.9">${o.st==='d'?`<b>سُلّم بتاريخ ${dmy(o.doneAt||'')}</b>`:`<b>الدور رقم ${r} من ${pend.length}</b>`}<br>طُلب: <b class="num">${dmy((o.at||'').slice(0,10))} ${hm(o.at)}</b>${o.due?`<br>موعد التسليم: <b class="num">${dmy(o.due)}</b>`:''}${(()=>{const dr=o.draft||{},it=dr.items||[];return (dr.dest?`<br>المحافظة: <b>${esc(dr.dest)}</b>`:'')+(dr.shipper?` · مكتب الشحن: <b>${esc(dr.shipper)}</b>`:'')+(dr.pay?`<br>الدفع: <b>${esc(dr.pay)}</b>`:'')+(dr.shipFee&&dr.dest&&dr.dest!==MYCITY?` · الأجور: ${esc(dr.shipFee)}`:'')+(it.length?`<div style="margin-top:12px">${it.map(x=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><b>${esc(x.name||x.code)}</b>${codeOf(x)?` <span class="num muted">[${esc(codeOf(x))}]</span>`:' <span class="chip">بدون كود</span>'}<br><span class="muted">الكمية</span> <b class="num">${f1(nv(x.qty))}</b>${nv(x.pack)>0?` <span class="muted">(${cartText(x)})</span>`:''} · <span class="muted">السعر</span> <span class="num">${pr(nv(x.price))}</span>${ordStockLine(o,x)}</div>`).join('')}</div>${nv(dr.disc)>0?`<div style="border-top:1px solid var(--line);padding-top:8px">حسم ${f1(nv(dr.disc))}%</div>`:''}<div style="border-top:2px solid var(--line);padding-top:8px"><b>إجمالي الطرود <span class="num">${f1(invCart({items:it}))}</span> · الإجمالي <span class="num">${money(invTotal({items:it,disc:dr.disc}))}</span></b></div>`:'')})()}${o.invNo?`<br><br><span class="chip c-credit">حُوّلت إلى فاتورة #${esc(o.invNo)}</span>`:''}${o.note?`<br><br>${esc(o.note).replace(/\n/g,'<br>')}`:''}</div></div>
+   <button class="btn" type="button" data-act="ord-print" data-id="${esc(id)}">🖨 طباعة / حفظ / مشاركة المسودة</button>
    <button class="btn primary" type="button" data-act="ord-inv" data-id="${esc(id)}">🧾 ${o.invNo?'فاتورة جديدة من المسودة':'اعتماد وتحويل إلى فاتورة'}</button>
    <div class="grid2"><button class="btn" type="button" data-act="ord-done" data-id="${esc(id)}">${o.st==='d'?'↩ إعادة للانتظار':'✔ تم التسليم'}</button><button class="btn" type="button" data-act="ord-edit" data-id="${esc(id)}">✎ تعديل</button></div>
    <button class="btn danger" type="button" data-act="ord-del" data-id="${esc(id)}">🗑 حذف الطلب</button>`)}
@@ -1574,6 +1587,8 @@ document.addEventListener('click',e=>{
       await ordSave(old?S.orders.map(x=>x.id===o.id?o:x):[...S.orders,o]);closeSheet();S.stab='ord';S.ost='w';renderSales();toast('حُفظ الطلب في الدفتر')});return}
   if(b.dataset.act==='ord-done'){const id=b.dataset.id;guard(async()=>{await ordSave(S.orders.map(x=>{if(x.id!==id)return x;const y={...x};if(x.st==='d'){y.st='w';delete y.doneAt}else{y.st='d';y.doneAt=today()}return y}));closeSheet();renderSales();toast('تم التحديث')});return}
   if(b.dataset.act==='ord-del'){if(S.armed!=='od'){S.armed='od';b.textContent='اضغط ثانية لتأكيد الحذف';return}const id=b.dataset.id;guard(async()=>{await ordSave(S.orders.filter(x=>x.id!==id));S.armed=null;closeSheet();renderSales();toast('حُذف الطلب')});return}
+  if(b.dataset.act==='ord-print'){ordPrint(b.dataset.id);return}
+  if(b.dataset.act==='print-out'){if(S.stmtCv)printCv(S.stmtCv);return}
   if(b.dataset.act==='ord-inv'){const o=S.orders.find(x=>x.id===b.dataset.id);if(!o)return;if(!cust(o.cid)){toast('هذا الزبون غير موجود');return}closeSheet();openInvFor(o.cid,(o.note||'').slice(0,200),o);return}
   if(b.dataset.act==='sale-new'){S.ordMode=false;saleCustSheet();return}
   if(b.dataset.act==='sale-cust'&&S.ordMode){S.ordMode=false;closeSheet();ordDraftOpen(b.dataset.id);return}
@@ -1722,7 +1737,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261113-2335';
+const BUILD='20261114-0600';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
