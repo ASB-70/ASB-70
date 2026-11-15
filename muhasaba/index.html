@@ -1710,7 +1710,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.lfs){const [k,v]=b.dataset.lfs.split(':');if(S.lf){S.lf[k]=v;if(k==='cur'&&nv(S.lf.h)>0)S.lf.a=r2(nv(S.lf.h)*hourRate(emp(S.eid),v))||'';lgRender()}return}
   if(a==='rep-per'){S.rep.per=b.dataset.p;renderReports();return}
   if(a==='rep-reload'){S.rep.inv=null;S.rep.cash=null;renderReports();loadReports(true);return}
-  if(a==='rep-inv'){S.cid=b.dataset.cid||S.cid;if(!cust(S.cid)){toast('زبون هذه الفاتورة غير موجود');return}invView(b.dataset.id);return}
+  if(a==='rep-inv'){S.cid=b.dataset.cid||S.cid;if(!cust(S.cid)){toast('زبون هذه الفاتورة غير موجود');return}const cid0=S.cid,iid=b.dataset.id;S.db.doc('ledgers/'+cid0).get().then(sn=>{if(S.cid===cid0&&!(S.view==='detail'&&S.ledger))S.ledger=sn.exists?(sn.data().tx||[]).slice():[]}).catch(()=>{if(!S.ledger)S.ledger=[]}).then(()=>invView(iid));return}
   if(a==='abk-reload'){S.abk.err=null;loadAbk();renderSettings();return}
   if(a==='abk-dl'){const id=b.dataset.id;b.disabled=true;guard(async()=>{try{const d=await S.db.backups.get(id);if(!d)throw 0;const x=(S.abk.list||[]).find(z=>String(z.id)===String(id));await S.dl.save({filename:'نسخة تلقائية محاسبة الثقة '+String((x&&x.created_at)||today()).slice(0,10)+'.json',data:JSON.stringify(d)})}catch(er){if(!er||er.code!=='declined')toast('تعذّر تنزيل النسخة')}finally{b.disabled=false}});return}
   if(a==='abk-rs'){const id=b.dataset.id;if(S.armed!=='abk'+id){S.armed='abk'+id;renderSettings();return}b.disabled=true;S.armed=null;
@@ -1816,7 +1816,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261115-1405';
+const BUILD='20261115-1433';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
