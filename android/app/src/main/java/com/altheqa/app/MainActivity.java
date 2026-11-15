@@ -268,7 +268,17 @@ public class MainActivity extends Activity {
                             i.setClipData(android.content.ClipData.newRawUri("invoice", uri));
                             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                             grantUriPermission(pk, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                            startActivity(i);
+                            try {
+                                android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                                cm.setPrimaryClip(android.content.ClipData.newPlainText("invoice", text));
+                            } catch (Exception ignored) {}
+                            Intent launch = getPackageManager().getLaunchIntentForPackage(pk);
+                            if (launch != null) {
+                                // start WhatsApp first so it is fully alive, then the share screen on top of it
+                                startActivities(new Intent[]{launch, i});
+                            } else {
+                                startActivity(i);
+                            }
                             return;
                         } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {}
                     }
