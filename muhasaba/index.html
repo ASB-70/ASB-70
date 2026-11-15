@@ -668,6 +668,7 @@ function invSheet(inv){S.dupAsk=null;S.dupOK=false;S.stockOK=false;
   const c=cust(S.cid);if(!c||!S.ledger)return;
   S.draft=inv?{...JSON.parse(JSON.stringify(inv)),old:inv.stk?qtyMap(inv.items):{},wh:inv.wh||'main',oldWh:inv.wh||'main'}:{id:'',old:{},wh:'main',oldWh:'main',no:nextNo(),date:today(),cashCur:'usd',cashRate:'',cashUsd:'',dest:c.city||'',phone:c.phone||'',shipper:'',shipFee:'واصل على الزبون',pay:'آجل',note:'',items:[blankItem()]};
   if(!S.draft.phone)S.draft.phone=c.phone||'';
+  if(c.walkin){S.draft.wname=(inv&&inv.cname&&inv.cname!==c.name)?inv.cname:''}
   S.picking=false;loadImgs();renderInv();
 }
 const itCost=it=>nv(it.cost)>0?nv(it.cost):nv((S.stock[String(it.code||'').trim()]||{}).cost);
@@ -725,6 +726,7 @@ function renderInv(focusLast){
   const hf=(f,l,attr)=>`<div class="field"><label for="in-${f}">${l}</label><input id="in-${f}" data-f="${f}" value="${esc(d[f])}" ${attr||''}></div>`;
   $('#sheet').innerHTML=`<h2>${d.ord?'مسودة طلب':d.id?'تعديل الفاتورة':'فاتورة جديدة'} · ${esc(c.name)}</h2>${d.ord?'<div class="note">المسودة لا تدخل الذمة ولا المخزون ولا الصندوق. تُحفظ في دفتر الطلبات، وتغيّرها أو تلغيها متى شئت، وعندما يحين وقتها تعتمدها كفاتورة.</div>':''}<form id="iform">
     ${d.ord?`<div class="grid2">${hf('odate','تاريخ الطلب','type="date"')}${hf('otime','وقت كتابة الطلب','type="time"')}</div>${hf('odue','متى يجب تسليم الزبون','type="date"')}`:`<div class="grid2">${hf('no','رقم الفاتورة','required inputmode="numeric" dir="ltr"')}${hf('date','التاريخ','type="date" required')}</div>`}
+    ${cust(S.cid)&&cust(S.cid).walkin?hf('wname','اسم الزبون (اختياري)','autocomplete="off"'):''}
     <div class="grid2">${hf('phone','رقم الزبون','inputmode="tel" dir="ltr"')}<div class="field"><label for="in-dest">المحافظة</label><select id="in-dest" data-f="dest">${[...new Set(['',...GOVS,d.dest||''])].map(o=>`<option value="${esc(o)}" ${o===(d.dest||'')?'selected':''}>${esc(o||'اختر المحافظة')}</option>`).join('')}</select></div></div>
     ${d.dest===MYCITY?`<div class="note">داخل ${MYCITY}: تسليم مباشر بدون مكتب شحن وبدون أجور شحن.</div>`:`<div class="grid2">${hf('shipper','مكتب الشحن','list="shiplist" autocomplete="off"')}<div class="field"><label for="in-shipFee">أجور الشحن</label><select id="in-shipFee" data-f="shipFee">${[...new Set([...FEES,d.shipFee||FEES[0]])].map(o=>`<option ${o===(d.shipFee||FEES[0])?'selected':''}>${esc(o)}</option>`).join('')}</select></div></div><datalist id="shiplist">${shipList().map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`}
     <div class="field"><label for="in-pay">طريقة الدفع</label><select id="in-pay" data-f="pay">${PAY.map(o=>`<option ${o===d.pay?'selected':''}>${o}</option>`).join('')}</select></div>
@@ -785,7 +787,8 @@ async function saveInvoice(){
   const total=invTotal({items,disc:d.disc});if(!(total>0)){toast('أدخل أسعار المواد');return}
   const CP=d.pay==='نقدي'?cashPlan(d,total):null;if(CP&&!CP.ok){toast('أدخل سعر الصرف');return}
   const ref=d.id?S.db.doc('invoices/'+d.id):S.db.collection('invoices').doc(),id=ref.id,no=String(d.no).trim();
-  await ref.set({no,cid:c.id,cname:c.name,phone:(d.phone||c.phone||'').trim(),date:d.date||today(),dest:(d.dest||'').trim(),shipper:d.dest===MYCITY?'':(d.shipper||'').trim(),shipFee:d.dest===MYCITY?'':(d.shipFee||'').trim(),pay:d.pay,cashCur:d.pay==='نقدي'?(d.cashCur||'usd'):'usd',cashRate:nv(d.cashRate)||0,cashUsd:nv(d.cashUsd)||0,note:(d.note||'').trim(),items,total,sub:invSub({items}),disc:discPct(d),discAmt:invDisc({items,disc:d.disc}),cartons:r2(invCart({items})),stk:true,wh:d.wh||'main',...(pf=>({profit:pf.profit,costTotal:pf.cost,noCost:pf.noCost}))(draftProfit({items,disc:d.disc})),createdAt:d.createdAt||new Date().toISOString()});
+  const nmShown=(c.walkin&&(d.wname||'').trim())||c.name;
+  await ref.set({no,cid:c.id,cname:nmShown,phone:(d.phone||c.phone||'').trim(),date:d.date||today(),dest:(d.dest||'').trim(),shipper:d.dest===MYCITY?'':(d.shipper||'').trim(),shipFee:d.dest===MYCITY?'':(d.shipFee||'').trim(),pay:d.pay,cashCur:d.pay==='نقدي'?(d.cashCur||'usd'):'usd',cashRate:nv(d.cashRate)||0,cashUsd:nv(d.cashUsd)||0,note:(d.note||'').trim(),items,total,sub:invSub({items}),disc:discPct(d),discAmt:invDisc({items,disc:d.disc}),cartons:r2(invCart({items})),stk:true,wh:d.wh||'main',...(pf=>({profit:pf.profit,costTotal:pf.cost,noCost:pf.noCost}))(draftProfit({items,disc:d.disc})),createdAt:d.createdAt||new Date().toISOString()});
   const lines=[{id:newId(),k:'inv',a:total,d:d.date||today(),ref:no,n:items.length+' مادة',inv:id}],oldCash=S.ledger.filter(t=>t.inv===id&&t.cash);
   if(PAID.includes(d.pay))lines.push({id:newId(),k:'pay',a:total,d:d.date||today(),ref:no,n:d.pay,inv:id,...(d.pay==='نقدي'?{cash:d.date||today()}:{})});
   const at=S.ledger.findIndex(t=>t.inv===id),rest=S.ledger.filter(t=>t.inv!==id);
@@ -794,7 +797,7 @@ async function saveInvoice(){
   try{if(d.fromOrd&&S.orders.some(x=>x.id===d.fromOrd))await ordSave(S.orders.map(x=>x.id===d.fromOrd?{...x,invNo:no,invId:id}:x))}catch(e){}
   try{const sh=(d.shipper||'').trim();if(sh&&d.dest!==MYCITY&&!shipList().includes(sh)){const st={...S.settings,ships:[...(S.settings.ships||[]),sh]};await S.db.doc('settings/main').set(st);S.settings=st}}catch(e){}
   for(const o of oldCash)await cashRemove(o.cash,e=>e.ltx===o.id);
-  if(d.pay==='نقدي')await cashAdd(lines[1].cash,CP.list.map(e=>({id:newId(),t:new Date().toISOString(),dir:'in',cur:e.cur,a:e.a,n:'فاتورة نقدية '+no+' · '+c.name+(e.cur==='syp'?' (على سعر '+CP.rate.toLocaleString('en-US')+')':''),cid:c.id,cname:c.name,ltx:lines[1].id,usd:e.usd,invoice:id})));
+  if(d.pay==='نقدي')await cashAdd(lines[1].cash,CP.list.map(e=>({id:newId(),t:new Date().toISOString(),dir:'in',cur:e.cur,a:e.a,n:'فاتورة نقدية '+no+' · '+nmShown+(e.cur==='syp'?' (على سعر '+CP.rate.toLocaleString('en-US')+')':''),cid:c.id,cname:nmShown,ltx:lines[1].id,usd:e.usd,invoice:id})));
   {const nq=qtyMap(items),oq=d.old||{},st={...S.stock},wn=d.wh||'main',wo=d.oldWh||'main';let chg=false;const tr=k=>S.products[k]||st[k];
    for(const k in oq)if(oq[k]&&tr(k)){addW(st,k,wo,oq[k]);chg=true}
    for(const k in nq)if(nq[k]&&tr(k)){addW(st,k,wn,-nq[k]);chg=true}
@@ -832,7 +835,7 @@ async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
   let y=headH;x.fillStyle='#F4F6FB';x.fillRect(0,y,W,infoH);
   const colW=(W-2*P)/3,cell=(label,val,col,row,ltr)=>{const rx=W-P-col*colW,yy=y+48+row*98;ar(label,rx,yy,'400 22px '+BF,'#5A6684');
     if(ltr)nu(fit(val||'—',colW-20,'600 28px '+DF),rx,yy+40,'600 28px '+DF,'#101B33');else ar(fit(val||'—',colW-20,'600 28px '+BF),rx,yy+40,'600 28px '+BF,'#101B33')};
-  cell('اسم الزبون',c.name,0,0);cell('رقم الزبون',inv.phone||c.phone,0,1,true);cell('المحافظة',inv.dest,1,0);cell('مكتب الشحن',inv.shipper||(inv.dest===MYCITY?'تسليم مباشر':''),1,1);cell('طريقة الدفع',inv.pay,2,0);cell('أجور الشحن',inv.shipFee,2,1);
+  cell('اسم الزبون',(c.walkin&&inv.cname)||c.name,0,0);cell('رقم الزبون',inv.phone||c.phone,0,1,true);cell('المحافظة',inv.dest,1,0);cell('مكتب الشحن',inv.shipper||(inv.dest===MYCITY?'تسليم مباشر':''),1,1);cell('طريقة الدفع',inv.pay,2,0);cell('أجور الشحن',inv.shipFee,2,1);
   y+=infoH;x.fillStyle='#E3E8F1';x.fillRect(0,y,W,thH);
   try{await Promise.race([loadImgs(),new Promise(r=>setTimeout(r,3500))])}catch(e){}
   const pics=await Promise.all(items.map(it=>{const u=S.img[it.code];if(!u)return null;return new Promise(r=>{const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);setTimeout(()=>r(null),2500);im.src=u})}));
@@ -1809,7 +1812,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261115-1353';
+const BUILD='20261115-1356';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
