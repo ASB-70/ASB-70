@@ -666,7 +666,7 @@ const f1=n=>(Math.round(n*10)/10).toLocaleString('en-US',{maximumFractionDigits:
 function nextNo(){if(S.cid==='walkin'&&S.rep.inv){const m=S.rep.inv.map(v=>/^\d+$/.test(v.no||'')?+v.no:0);return String(Math.max(0,...m)+1)}const L=(S.ledger||[]).filter(t=>t.k==='inv'&&/^\d+$/.test(t.ref||''));return L.length?String(+L[L.length-1].ref+1):'1'}
 function invSheet(inv){S.dupAsk=null;S.dupOK=false;S.stockOK=false;
   const c=cust(S.cid);if(!c||!S.ledger)return;
-  S.draft=inv?{...JSON.parse(JSON.stringify(inv)),old:inv.stk?qtyMap(inv.items):{},wh:inv.wh||'main',oldWh:inv.wh||'main'}:{id:'',old:{},wh:'main',oldWh:'main',no:nextNo(),date:today(),cashCur:'usd',cashRate:'',cashUsd:'',dest:c.city||'',phone:c.phone||'',shipper:'',shipFee:'واصل على الزبون',pay:'آجل',note:'',items:[blankItem()]};
+  S.draft=inv?{...JSON.parse(JSON.stringify(inv)),old:inv.stk?qtyMap(inv.items):{},wh:inv.wh||'main',oldWh:inv.wh||'main'}:{id:'',old:{},wh:'main',oldWh:'main',no:nextNo(),date:today(),cashCur:'usd',cashRate:'',cashUsd:'',cashSyp:'',dest:c.city||'',phone:c.phone||'',shipper:'',shipFee:'واصل على الزبون',pay:'آجل',note:'',items:[blankItem()]};
   if(!S.draft.phone)S.draft.phone=c.phone||'';
   if(c.walkin){S.draft.wname=(inv&&inv.cname&&inv.cname!==c.name)?inv.cname:''}
   S.picking=false;loadImgs();renderInv();
@@ -716,10 +716,13 @@ const defRate=()=>nv((S.cash||{}).rate)||nv(S.settings.rate)||'';
 function cashPlan(d,total){const cc=d.cashCur||'usd',rate=nv(d.cashRate)||nv(S.settings.rate);
   if(cc==='usd')return{ok:true,list:[{cur:'usd',a:total,usd:total}],rate};
   if(!(rate>0))return{ok:false,list:[],rate};
-  if(cc==='syp')return{ok:true,list:[{cur:'syp',a:Math.round(total*rate),usd:total}],rate};
-  const u=Math.min(total,Math.max(0,r2(nv(d.cashUsd)))),rem=r2(total-u),L=[];if(u>0)L.push({cur:'usd',a:u,usd:u});if(rem>0)L.push({cur:'syp',a:Math.round(rem*rate),usd:rem});return{ok:true,list:L,rate}}
+  if(cc==='syp')return{ok:true,list:[{cur:'syp',a:nv(d.cashSyp)>0?Math.round(nv(d.cashSyp)):Math.round(total*rate),usd:total}],rate};
+  const u=Math.min(total,Math.max(0,r2(nv(d.cashUsd)))),rem=r2(total-u),L=[];if(u>0)L.push({cur:'usd',a:u,usd:u});if(rem>0)L.push({cur:'syp',a:nv(d.cashSyp)>0?Math.round(nv(d.cashSyp)):Math.round(rem*rate),usd:rem});return{ok:true,list:L,rate}}
 const cashInfo=d=>{if(d.pay!=='نقدي'||(d.cashCur||'usd')==='usd')return'';const Q=cashPlan(d,invTotal(d));return Q.ok?`سيدخل الصندوق: <b class="num">${Q.list.map(e=>cm(e.cur,e.a)).join(' + ')}</b>`:'<span style="color:var(--debt)">أدخل سعر الصرف</span>'};
-const refreshCashInfo=d=>{const e=$('#cashinfo');if(e)e.innerHTML=cashInfo(d)};
+function syncCash(d,src){const cc=d.cashCur||'usd';if(cc==='usd')return;const total=invTotal(d),u=cc==='mix'?Math.min(total,Math.max(0,r2(nv(d.cashUsd)))):0,rem=r2(total-u);
+  if(src==='syp'){if(rem>0&&nv(d.cashSyp)>0){d.cashRate=String(Math.round(nv(d.cashSyp)/rem*100)/100);const e=$('#in-cashRate');if(e)e.value=d.cashRate}}
+  else{const rate=nv(d.cashRate);d.cashSyp=rate>0&&rem>0?String(Math.round(rem*rate)):'';const e=$('#in-cashSyp');if(e&&document.activeElement!==e)e.value=d.cashSyp}}
+const refreshCashInfo=(d,src)=>{syncCash(d,src);const e=$('#cashinfo');if(e)e.innerHTML=cashInfo(d)};
 const discInfo=d=>discPct(d)>0?`قبل الحسم <b class="num">${money(invSub(d))}</b> · الحسم ${f1(discPct(d))}% = <b class="num" style="color:var(--debt)">−${money(invDisc(d))}</b>`:'';
 function renderInv(focusLast){
   const d=S.draft,c=cust(S.cid),sh=$('#sheet'),st=sh.scrollTop;
@@ -731,7 +734,8 @@ function renderInv(focusLast){
     ${d.dest===MYCITY?`<div class="note">داخل ${MYCITY}: تسليم مباشر بدون مكتب شحن وبدون أجور شحن.</div>`:`<div class="grid2">${hf('shipper','مكتب الشحن','list="shiplist" autocomplete="off"')}<div class="field"><label for="in-shipFee">أجور الشحن</label><select id="in-shipFee" data-f="shipFee">${[...new Set([...FEES,d.shipFee||FEES[0]])].map(o=>`<option ${o===(d.shipFee||FEES[0])?'selected':''}>${esc(o)}</option>`).join('')}</select></div></div><datalist id="shiplist">${shipList().map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`}
     <div class="field"><label for="in-pay">طريقة الدفع</label><select id="in-pay" data-f="pay">${PAY.map(o=>`<option ${o===d.pay?'selected':''}>${o}</option>`).join('')}</select></div>
     ${d.pay==='نقدي'?`<div class="field"><label>العملة التي قبضتها</label><div class="seg">${[['usd','دولار'],['syp','ليرة سورية'],['mix','دولار + ليرة']].map(([k,l])=>`<button type="button" data-act="inv-cc" data-v="${k}" aria-pressed="${(d.cashCur||'usd')===k}">${l}</button>`).join('')}</div></div>
-    ${(d.cashCur||'usd')!=='usd'?`<div class="grid2"><div class="field"><label for="in-cashRate">سعر الصرف (ليرة لكل دولار)</label><input id="in-cashRate" data-f="cashRate" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashRate)}"></div>${d.cashCur==='mix'?`<div class="field"><label for="in-cashUsd">المقبوض بالدولار ($)</label><input id="in-cashUsd" data-f="cashUsd" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashUsd)}"></div>`:''}</div>`:''}
+    ${d.cashCur==='mix'?`<div class="field"><label for="in-cashUsd">المقبوض بالدولار ($)</label><input id="in-cashUsd" data-f="cashUsd" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashUsd)}"></div>`:''}
+    ${(d.cashCur||'usd')!=='usd'?`<div class="grid2"><div class="field"><label for="in-cashSyp">${d.cashCur==='mix'?'المقبوض بالليرة السورية (ل.س)':'المبلغ بالليرة السورية (ل.س)'}</label><input id="in-cashSyp" data-f="cashSyp" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashSyp)}"></div><div class="field"><label for="in-cashRate">سعر الصرف (ل.س لكل $)</label><input id="in-cashRate" data-f="cashRate" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashRate)}"></div></div>`:''}
     <div class="small muted" id="cashinfo">${cashInfo(d)}</div>`:''}
     <div class="field"><label for="in-wh">تُسحب البضاعة من مستودع</label><select id="in-wh" data-f="wh">${whOpts(d.wh||'main')}</select></div>
     ${d.tier?`<div class="field"><label>سعر البيع</label><div class="seg">${TIERS.slice().reverse().map(t=>`<button type="button" data-act="draft-tier" data-v="${t[0]}" aria-pressed="${d.tier===t[0]}">${t[1]}</button>`).join('')}</div></div>`:''}
@@ -771,7 +775,7 @@ $('#sheet').addEventListener('input',e=>{if(e.target.id==='crop-z')cropZoom(+e.t
 $('#sheet').addEventListener('focusin',e=>{const t=e.target;if(t.dataset&&t.dataset.sug)sugFor(t)});
 $('#sheet').addEventListener('change',e=>{const t=e.target,d=S.draft;if(d&&t.dataset.p==='code'){const k=t.value.trim(),it=d.items[+t.dataset.i];if(it&&S.products[k]&&!it.name)setTimeout(()=>{if(S.draft===d&&d.items[+t.dataset.i]===it&&!it.name)fillItem(+t.dataset.i,k)},250)}});
 $('#sheet').addEventListener('input',e=>{const t=e.target,d=S.draft;if(t.id==='pq'){S.pq=t.value;renderPick();return}if(t.id==='cq'){S.cq=t.value;renderCount();return}if(t.dataset.cf&&S.cf){S.cf[t.dataset.cf]=t.value;if(t.dataset.cf==='cname')S.cf.cid=null;if(t.dataset.sug)sugFor(t);cashHint();return}if(t.dataset.lf&&S.lf){S.lf[t.dataset.lf]=t.value;if(t.dataset.lf==='tm'){const h=hoursFrom(S.lf.type,t.value);S.lf.h=h||'';const eh=$('#lf-h');if(eh)eh.value=h||'';const a=r2(h*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||'';return}if(t.dataset.lf==='h'){const a=r2(nv(t.value)*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||''}return}if(t.dataset.fxf&&S.fx){S.fx[t.dataset.fxf]=t.value;fxHint();return}if(t.id==='cl-u'||t.id==='cl-s'){closeHint();return}if(t.dataset.cc&&S.count){(S.count[t.dataset.cc]||(S.count[t.dataset.cc]={}))[t.dataset.cp]=t.value;return}if(t.dataset.sug)sugFor(t);if(!d||!t.closest('#iform'))return;
-  if(t.dataset.f){d[t.dataset.f]=t.value;if(t.dataset.f==='cashRate'||t.dataset.f==='cashUsd'){refreshCashInfo(d);return}if(t.dataset.f==='disc'){refreshLP(d);const a=$('#itot'),b=$('#iprof'),i=$('#idinfo');if(a)a.textContent=money(invTotal(d));if(b)b.textContent=pc(money(draftProfit(d).profit));if(i)i.innerHTML=discInfo(d);return}if(t.dataset.f==='pay'||t.dataset.f==='wh'||t.dataset.f==='dest')renderInv();return}
+  if(t.dataset.f){d[t.dataset.f]=t.value;if(t.dataset.f==='cashSyp'){refreshCashInfo(d,'syp');return}if(t.dataset.f==='cashRate'||t.dataset.f==='cashUsd'){refreshCashInfo(d);return}if(t.dataset.f==='disc'){refreshLP(d);const a=$('#itot'),b=$('#iprof'),i=$('#idinfo');if(a)a.textContent=money(invTotal(d));if(b)b.textContent=pc(money(draftProfit(d).profit));if(i)i.innerHTML=discInfo(d);return}if(t.dataset.f==='pay'||t.dataset.f==='wh'||t.dataset.f==='dest')renderInv();return}
   if(t.dataset.i!==undefined){const i=+t.dataset.i,it=d.items[i];if(!it)return;
     if(t.dataset.p==='ctn'){if(!(nv(it.pack)>0)){toast('حدّد «التعبئة بالطرد» لهذه المادة أولاً');return}it.qty=t.value===''?'':r2(nv(t.value)*nv(it.pack));const qi=$('#it-'+i+'-qty');if(qi)qi.value=it.qty}
     else{it[t.dataset.p]=t.value;if(t.dataset.p==='qty'||t.dataset.p==='pack'){const ci=$('#it-'+i+'-ctn');if(ci)ci.value=nv(it.pack)>0&&nv(it.qty)>0?r2(nv(it.qty)/nv(it.pack)):''}}
@@ -788,7 +792,7 @@ async function saveInvoice(){
   const CP=d.pay==='نقدي'?cashPlan(d,total):null;if(CP&&!CP.ok){toast('أدخل سعر الصرف');return}
   const ref=d.id?S.db.doc('invoices/'+d.id):S.db.collection('invoices').doc(),id=ref.id,no=String(d.no).trim();
   const nmShown=(c.walkin&&(d.wname||'').trim())||c.name;
-  await ref.set({no,cid:c.id,cname:nmShown,phone:(d.phone||c.phone||'').trim(),date:d.date||today(),dest:(d.dest||'').trim(),shipper:d.dest===MYCITY?'':(d.shipper||'').trim(),shipFee:d.dest===MYCITY?'':(d.shipFee||'').trim(),pay:d.pay,cashCur:d.pay==='نقدي'?(d.cashCur||'usd'):'usd',cashRate:nv(d.cashRate)||0,cashUsd:nv(d.cashUsd)||0,note:(d.note||'').trim(),items,total,sub:invSub({items}),disc:discPct(d),discAmt:invDisc({items,disc:d.disc}),cartons:r2(invCart({items})),stk:true,wh:d.wh||'main',...(pf=>({profit:pf.profit,costTotal:pf.cost,noCost:pf.noCost}))(draftProfit({items,disc:d.disc})),createdAt:d.createdAt||new Date().toISOString()});
+  await ref.set({no,cid:c.id,cname:nmShown,phone:(d.phone||c.phone||'').trim(),date:d.date||today(),dest:(d.dest||'').trim(),shipper:d.dest===MYCITY?'':(d.shipper||'').trim(),shipFee:d.dest===MYCITY?'':(d.shipFee||'').trim(),pay:d.pay,cashCur:d.pay==='نقدي'?(d.cashCur||'usd'):'usd',cashRate:nv(d.cashRate)||0,cashUsd:nv(d.cashUsd)||0,cashSyp:nv(d.cashSyp)||0,note:(d.note||'').trim(),items,total,sub:invSub({items}),disc:discPct(d),discAmt:invDisc({items,disc:d.disc}),cartons:r2(invCart({items})),stk:true,wh:d.wh||'main',...(pf=>({profit:pf.profit,costTotal:pf.cost,noCost:pf.noCost}))(draftProfit({items,disc:d.disc})),createdAt:d.createdAt||new Date().toISOString()});
   const lines=[{id:newId(),k:'inv',a:total,d:d.date||today(),ref:no,n:items.length+' مادة',inv:id}],oldCash=S.ledger.filter(t=>t.inv===id&&t.cash);
   if(PAID.includes(d.pay))lines.push({id:newId(),k:'pay',a:total,d:d.date||today(),ref:no,n:d.pay,inv:id,...(d.pay==='نقدي'?{cash:d.date||today()}:{})});
   const at=S.ledger.findIndex(t=>t.inv===id),rest=S.ledger.filter(t=>t.inv!==id);
@@ -1658,7 +1662,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='pk-open'){S.pkBack=!!$('#iform');pkeySheet();return}
   if(b.dataset.act==='pk-back'){if(S.pkBack&&S.draft)renderInv();else closeSheet();return}
   if(b.dataset.act==='pk-mode'){guard(async()=>{S.settings={...S.settings,pcode:b.dataset.v==='1'};await S.db.doc('settings/main').set(S.settings);pkeySheet()});return}
-  if(b.dataset.act==='inv-cc'){const d=S.draft;if(!d)return;d.cashCur=b.dataset.v;if(d.cashCur!=='usd'&&!nv(d.cashRate))d.cashRate=defRate();renderInv();return}
+  if(b.dataset.act==='inv-cc'){const d=S.draft;if(!d)return;d.cashCur=b.dataset.v;if(d.cashCur!=='usd'&&!nv(d.cashRate))d.cashRate=defRate();syncCash(d);renderInv();return}
   if(b.dataset.act==='quick-sale'){guard(quickSale);return}
   if(b.dataset.act==='draft-tier'){const d=S.draft;if(!d)return;d.tier=b.dataset.v;for(const it of d.items){const p=S.products[ck(it)];if(p&&effP(p,d.tier))it.price=effP(p,d.tier)}renderInv();return}
   if(b.dataset.act==='sale-new'){S.ordMode=false;saleCustSheet();return}
@@ -1812,7 +1816,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261115-1356';
+const BUILD='20261115-1405';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
