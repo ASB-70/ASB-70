@@ -384,6 +384,7 @@ body.pb>*{visibility:hidden}
     <input id="so" placeholder="اسم مكتب الشحن" hidden>
   </div>
   <a id="sw" class="big" href="#" target="_blank" rel="noopener"></a>
+  <button type="button" class="big ghost" id="im" style="margin-top:8px;width:100%">🖼 إرسال الفاتورة كصورة</button>
     <div class="two"><button type="button" class="big ghost" id="cc" style="grid-column:1/-1">تفريغ الفاتورة</button></div>
 </section>
 
@@ -418,8 +419,9 @@ function fx(){$("so").hidden=$("sh").value!=="__other";var v=$("pm").value;$("qr
 function rf(){try{var o0=JSON.parse(localStorage.getItem("cf")||"{}");FI.forEach(function(x){if(o0[x]!==undefined)$(x).value=o0[x]})}catch(e){}fx()}
 fx();
 FI.forEach(function(x){$(x).addEventListener("input",function(){fx();sf();sm()});$(x).addEventListener("change",function(){fx();sf();sm()})});
-$("sw").addEventListener("click",function(e){var need=[["ph","رقم الزبون"],["gv","المحافظة"],["pm","طريقة الدفع"],["sh","مكتب الشحن"]];for(var k=0;k<need.length;k++){var el=$(need[k][0]);if(!el.value.trim()||(need[k][0]==="ph"&&el.value.replace(/\D/g,"").length<7)){e.preventDefault();toast("يرجى تعبئة: "+need[k][1]);el.focus();return}}if($("sh").value==="__other"&&!$("so").value.trim()){e.preventDefault();toast("يرجى كتابة اسم مكتب الشحن");$("so").focus();return}ordSend();mkS();e.preventDefault();openSend()});
-$("sw").innerHTML=WI+"إرسال الفاتورة عبر واتساب";
+$("sw").addEventListener("click",function(e){if(!chk()){e.preventDefault();return}ordSend();mkS();$("sw").href=wa(msg())});
+$("im").onclick=function(){if(!chk())return;ordSend();mkS();openSend()};
+$("sw").innerHTML=WI+"إرسال الفاتورة نصاً عبر واتساب";
 $("cc").onclick=function(){var b=this;if(!b.getAttribute("data-s")){b.setAttribute("data-s","1");b.textContent="اضغط مرة ثانية للتأكيد";setTimeout(function(){b.removeAttribute("data-s");b.textContent=cl()},3000);return}b.removeAttribute("data-s");var was=S.s;if(S.s){S.n++;S.s=false;sS()}CT={};CP={};sv();closeC();render();bar();toast(was?"فاتورة جديدة: "+INVN():"تم تفريغ الفاتورة")};
 var S={n:1,s:false};try{var s0=JSON.parse(localStorage.getItem("inv")||"null");if(s0&&s0.n>=1)S=s0}catch(e){}
 function sS(){try{localStorage.setItem("inv",JSON.stringify(S))}catch(e){}}
@@ -477,13 +479,13 @@ function buildImg(){
  $("pi2").src=IMD}
 var FORCE=false;
 function canSh(){return !!(IMF&&navigator.canShare&&navigator.canShare({files:[IMF]})&&navigator.share)}
-function unlock(){if(!FORCE)return;$("pwa").href=wa(msg());$("pwa").innerHTML=WI+"الخطوة 2: أرسل نص الفاتورة";$("pwa").style.display="block";$("pst").innerHTML="✔ تم حفظ الصورة. <b>الخطوة 2:</b> اضغط الزر أدناه لفتح محادثة الشركة فقط، <b>أرفق الصورة المحفوظة</b> ثم أرسل النص."}
+function unlock(){if(!FORCE)return;$("pwa").href=wa("");$("pwa").innerHTML=WI+"الخطوة 2: افتح محادثة الشركة";$("pwa").style.display="flex";$("pst").innerHTML="✔ تم حفظ الصورة. <b>الخطوة 2:</b> اضغط الزر أدناه لفتح محادثة الشركة، ثم <b>أرفق صورة الفاتورة المحفوظة</b> وأرسلها."}
 var APK=!!(window.Android&&window.Android.sendToCompany);
-function openSend(){FORCE=true;buildImg();$("pvt").textContent="إرسال الفاتورة";$("pwa").style.display="none";$("pok").style.display="none";
- if(APK){$("ps").style.display="";$("pd").style.display="none";$("ps").textContent="📤 إرسال الفاتورة (صورة + نص) إلى الشركة";$("pst").innerHTML="<b>تُرسل الفاتورة صورة ونصاً مباشرة إلى واتساب الشركة فقط</b> <b dir=\"ltr\">"+SET.phone+"</b>."}
- else{$("ps").style.display="none";$("pd").style.display="";$("pst").innerHTML="<b>الخطوة 1:</b> احفظ صورة الفاتورة بالجهاز (زر الحفظ أدناه أو اضغط مطولاً على الصورة)، وبعدها يظهر زر الإرسال إلى واتساب الشركة.";$("pok").style.display="block"}
+function openSend(){FORCE=true;buildImg();$("pvt").textContent="إرسال الفاتورة كصورة";$("pwa").style.display="none";$("pok").style.display="none";
+ if(APK){$("ps").style.display="";$("pd").style.display="none";$("ps").textContent="📤 إرسال صورة الفاتورة إلى واتساب الشركة";$("pst").innerHTML="<b>تُرسل صورة الفاتورة مباشرة إلى واتساب الشركة</b> <b dir=\"ltr\">"+SET.phone+"</b>."}
+ else{$("ps").style.display="none";$("pd").style.display="";$("pst").innerHTML="<b>الخطوة 1:</b> احفظ صورة الفاتورة بالجهاز (زر الحفظ أدناه أو اضغط مطولاً على الصورة)، وبعدها يظهر زر فتح محادثة الشركة.";$("pok").style.display="block"}
  $("pv").hidden=false}
-$("ps").onclick=function(){if(!APK)return;try{Android.sendToCompany(N,msg(),"فاتورة-"+INVN().replace("#","")+".png","image/png",IMD.split(",")[1]);toast("تم فتح محادثة الشركة");$("pwa").href=wa(msg());$("pwa").innerHTML=WI+"الصورة أو النص ما ظهروا؟ افتح محادثة الشركة بالنص";$("pwa").style.display="flex";$("ps").textContent="🔁 الفاتورة ما ظهرت بالمحادثة؟ اضغط لإعادة الإرسال";$("pst").innerHTML="<b>اضغط إرسال بواتساب.</b> إذا انفتحت المحادثة بدون الفاتورة، ارجع هون واضغط الزر مرة ثانية."}catch(e){toast("تعذر الإرسال")}};
+$("ps").onclick=function(){if(!APK)return;try{Android.sendToCompany(N,"","فاتورة-"+INVN().replace("#","")+".png","image/png",IMD.split(",")[1]);toast("تم فتح محادثة الشركة");$("ps").textContent="🔁 إعادة إرسال صورة الفاتورة";$("pst").innerHTML="<b>اضغط إرسال بواتساب.</b> إذا انفتحت المحادثة بدون الصورة، ارجع هون واضغط الزر مرة ثانية."}catch(e){toast("تعذر الإرسال")}};
 $("pok").onclick=unlock;
 $("pd").onclick=function(){
  try{var a=document.createElement("a");a.href=URL.createObjectURL(IMB);a.download="فاتورة-"+INVN().replace("#","")+".png";document.body.appendChild(a);a.click();document.body.removeChild(a);toast("إذا ما انحفظت، اضغط مطولاً على الصورة واختر حفظ");unlock()}catch(e){toast("اضغط مطولاً على الصورة واختر حفظ")}

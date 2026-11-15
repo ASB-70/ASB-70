@@ -263,12 +263,12 @@ public class MainActivity extends Activity {
                             i.setType(mime);
                             i.setPackage(pk);
                             i.putExtra(Intent.EXTRA_STREAM, uri);
-                            i.putExtra(Intent.EXTRA_TEXT, text);
+                            if (text != null && !text.isEmpty()) i.putExtra(Intent.EXTRA_TEXT, text);
                             i.putExtra("jid", num + "@s.whatsapp.net");
                             i.setClipData(android.content.ClipData.newRawUri("invoice", uri));
                             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                             grantUriPermission(pk, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                            try {
+                            if (text != null && !text.isEmpty()) try {
                                 android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
                                 cm.setPrimaryClip(android.content.ClipData.newPlainText("invoice", text));
                             } catch (Exception ignored) {}
