@@ -130,6 +130,7 @@ nav .badge{position:absolute;top:2px;inset-inline-start:calc(50% + 6px);backgrou
 .qb{border:0;border-radius:12px;padding:16px 8px;font-family:var(--display);font-weight:600;font-size:17px}
 .qb.in{background:var(--credit);color:var(--surface)}.qb.out{background:var(--debt-bg);color:var(--debt);padding:11px 8px;font-size:14.5px}
 #cqn{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+#peye{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:max(8px,env(safe-area-inset-left,0px));z-index:30;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);opacity:.88;font-size:19px;line-height:1;padding:0;cursor:pointer}
 #lock{position:fixed;inset:0;z-index:100;background:linear-gradient(160deg,var(--cover),var(--cover-2));color:var(--on-cover);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
 #lock img{background:#fff;border-radius:18px;padding:8px;object-fit:contain}
 #lock form{display:flex;flex-direction:column;gap:10px;width:min(260px,100%)}
@@ -705,10 +706,13 @@ const remTxt=(d,it)=>{const k=ck(it);if(!k||!d)return'';return f1(avail(k)-(qtyM
 function refreshLP(d){refreshCashInfo(d);d.items.forEach((it,i)=>{const e=$('#rm-'+i);if(e){const v=avail(ck(it))-(qtyMap(d.items)[ck(it)]||0);e.textContent=f1(v);e.style.color=v<0?'var(--debt)':'var(--credit)'}});d.items.forEach((it,i)=>{const e=$('#lp-'+i);if(e){e.textContent=lpText(it,d);e.style.color=lpColor(it,d)}})}
 const profList=inv=>{const L=(inv.items||[]).map(it=>({it,r:lineProf(it,inv)})).filter(x=>x.r);return L.length?`<div class="list">${L.map(({it,r})=>`<div class="row"><span class="who"><b>${esc(it.name||it.code)}</b><small class="num">${f1(nv(it.qty))} × ${pr(it.price)}</small></span><b class="num" style="color:${r.p<0?'var(--debt)':'var(--credit)'}">${pc((r.p<0?'−':'+')+money(Math.abs(r.p))+' · '+r.pct+'%')}</b></div>`).join('')}</div>`:''};
 const pkey=()=>{const k=[...String(S.settings.pkey||'')].filter(c=>c.trim());return k.length>=10?k.slice(0,10):[...'صحعنفملكزر']};
-const pcOn=()=>S.settings.pcode!==false;
-const pc=v=>{const t=String(v);return pcOn()?t.replace(/\d/g,d=>pkey()[+d]).replace(/\$/g,''):t};
-function pkeySheet(){const k=pkey();openSheet(`<h2>🔑 رموز الأرباح</h2><div class="note">بدل ما تظهر أرباحك بالأرقام قدام الزبون، بتظهر برموز (حروف). كل رقم من 0 إلى 9 إلو حرف، وإنت وحدك بتعرف المفتاح.</div><form id="pkform">
-   <div class="seg"><button type="button" data-act="pk-mode" data-v="1" aria-pressed="${pcOn()}">رموز</button><button type="button" data-act="pk-mode" data-v="0" aria-pressed="${!pcOn()}">أرقام</button></div>
+const pmode=()=>S.settings.pmode||(S.settings.pcode===false?'num':'star');
+const pcOn=()=>pmode()!=='num';
+const pc=v=>{const t=String(v),m=pmode();if(m==='num'||S.pshow)return t;return m==='code'?t.replace(/\d/g,d=>pkey()[+d]).replace(/\$/g,''):t.replace(/[\d.,$]+/g,'******')};
+function peyeSync(){const b=$('#peye');if(b){b.textContent=S.pshow?'🙈':'👁';b.setAttribute('aria-label',S.pshow?'إخفاء الأرباح':'إظهار الأرباح');b.hidden=pmode()==='num'}}
+function peyeToggle(){S.pshow=!S.pshow;peyeSync();try{refresh()}catch(e){}if($('#iform')&&S.draft)renderInv();else if(S.curInv&&!$('#scrim').hidden&&$('#stmtbox'))invView(S.curInv.id)}
+function pkeySheet(){const k=pkey();openSheet(`<h2>🔑 رموز الأرباح</h2><div class="note">الأرباح بتظهر نجوم (******). كبسة على زر 👁 (فوق عالشمال) بتظهرها أرقام عادية، وكبسة تانية بتخفيها. أو اختار «رموز» لتظهر حروف.</div><form id="pkform">
+   <div class="seg"><button type="button" data-act="pk-mode" data-v="star" aria-pressed="${pmode()==='star'}">نجوم</button><button type="button" data-act="pk-mode" data-v="code" aria-pressed="${pmode()==='code'}">رموز</button><button type="button" data-act="pk-mode" data-v="num" aria-pressed="${pmode()==='num'}">أرقام دائماً</button></div>
    <div class="field"><label for="pk-in">المفتاح: 10 حروف مختلفة (الأول للصفر والأخير للتسعة)</label><input id="pk-in" value="${esc(k.join(''))}" maxlength="10" autocomplete="off" dir="rtl"></div>
    <div class="ctab"><span class="h">الرقم</span><span class="h">الرمز</span><span class="h"></span>${k.map((c,i)=>`<span class="l">${i}</span><span class="n">${esc(c)}</span><span></span>`).join('')}</div>
    <div class="grid2"><button class="btn primary" type="submit">حفظ المفتاح</button><button class="btn" type="button" data-act="pk-back">رجوع</button></div></form>`)}
@@ -1661,7 +1665,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='ord-inv'){const o=S.orders.find(x=>x.id===b.dataset.id);if(!o)return;if(!cust(o.cid)){toast('هذا الزبون غير موجود');return}closeSheet();openInvFor(o.cid,(o.note||'').slice(0,200),o);return}
   if(b.dataset.act==='pk-open'){S.pkBack=!!$('#iform');pkeySheet();return}
   if(b.dataset.act==='pk-back'){if(S.pkBack&&S.draft)renderInv();else closeSheet();return}
-  if(b.dataset.act==='pk-mode'){guard(async()=>{S.settings={...S.settings,pcode:b.dataset.v==='1'};await S.db.doc('settings/main').set(S.settings);pkeySheet()});return}
+  if(b.dataset.act==='pk-mode'){guard(async()=>{S.settings={...S.settings,pmode:b.dataset.v,pcode:b.dataset.v!=='num'};await S.db.doc('settings/main').set(S.settings);S.pshow=false;peyeSync();pkeySheet()});return}
   if(b.dataset.act==='inv-cc'){const d=S.draft;if(!d)return;d.cashCur=b.dataset.v;if(d.cashCur!=='usd'&&!nv(d.cashRate))d.cashRate=defRate();syncCash(d);renderInv();return}
   if(b.dataset.act==='quick-sale'){guard(quickSale);return}
   if(b.dataset.act==='draft-tier'){const d=S.draft;if(!d)return;d.tier=b.dataset.v;for(const it of d.items){const p=S.products[ck(it)];if(p&&effP(p,d.tier))it.price=effP(p,d.tier)}renderInv();return}
@@ -1816,7 +1820,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261115-1433';
+const BUILD='20261115-2207';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -1865,6 +1869,7 @@ show('home');
   db.doc('settings/main').get().then(s=>{if(s.exists){S.settings={...DEF,...s.data()};renderCover();if(S.view==='settings')renderSettings();if(S.view==='home')refresh()}lockSync(S.settings.pin)}).catch(()=>{if(LK.pin)lockShow();else lockHide()});
   setInterval(()=>{if($('#scrim').hidden&&S.askSent===null&&S.view!=='settings'&&S.view!=='customers')refresh()},60000);
 })();
+(function(){const b=document.createElement('button');b.id='peye';b.type='button';b.addEventListener('click',peyeToggle);document.body.appendChild(b);peyeSync();setInterval(()=>{if(!$('#lock').hidden&&S.pshow){S.pshow=false;peyeSync()}},1000)})();
 </script>
 
 </body></html>
