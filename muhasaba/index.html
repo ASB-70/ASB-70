@@ -131,7 +131,7 @@ nav .badge{position:absolute;top:2px;inset-inline-start:calc(50% + 6px);backgrou
 .qb.in{background:var(--credit);color:var(--surface)}.qb.out{background:var(--debt-bg);color:var(--debt);padding:11px 8px;font-size:14.5px}
 #cqn{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
 #peye{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:max(8px,env(safe-area-inset-left,0px));z-index:30;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);opacity:.88;font-size:19px;line-height:1;padding:0;cursor:pointer}
-@page{size:auto;margin:4mm 0 11mm;@bottom-center{content:counter(page) ' / ' counter(pages);direction:ltr;unicode-bidi:isolate;font:13px sans-serif;color:#222;vertical-align:middle}}
+@page{size:auto;margin:4mm 0 11mm;@bottom-right{content:counter(page) ' / ' counter(pages);direction:ltr;unicode-bidi:isolate;font:13px sans-serif;color:#222;vertical-align:middle;padding-right:8mm}}
 #printzone{display:none}
 @media print{body.printing>*:not(#printzone){display:none!important}body.printing{background:#fff!important}body.printing #printzone{display:block!important}#printzone img{width:100%;display:block}#printzone .pd{font:11px sans-serif;color:#444;padding:0 8mm 2mm;direction:ltr}}
 #lock{position:fixed;inset:0;z-index:100;background:linear-gradient(160deg,var(--cover),var(--cover-2));color:var(--on-cover);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
@@ -1322,7 +1322,7 @@ async function ordPrint(id){const o=(S.orders||[]).find(x=>x.id===id),c=o&&cust(
   const inv={draftMode:true,no:r?String(r):'—',date:ldate(o.at),due:o.due||'',phone:dr.phone||c.phone,dest:dr.dest||'',shipper:dr.shipper||'',shipFee:dr.shipFee||'',pay:dr.pay||'',note:o.note||'',disc:dr.disc||0,items:(dr.items||[]).map(x=>({...x,code:codeOf(x)}))};
   try{const cv=await Promise.race([drawInvoice(c,inv,{noPrice:true}),new Promise((_,j)=>setTimeout(()=>j(new Error('t')),15000))]);outBox(cv,'مسودة '+inv.no+' '+c.name,'',np=>drawInvoice(c,inv,{noPrice:np}));S.outNP=true;const nb=$('#np-btn');if(nb)nb.textContent='👁 إظهار الأسعار والإجمالي'}catch(e){console.error(e);const bx=$('#stmtbox');if(bx)bx.textContent='تعذّر تجهيز المسودة.'}}
 function printCv(cv){if(window.Android){if(typeof window.Android.printImage==='function'){try{window.Android.printImage(fileName(S.outName||'document','x').replace(/\.x$/,''),'image/jpeg',cv.toDataURL('image/jpeg',0.92).split(',')[1])}catch(e){toast('تعذّرت الطباعة')}}else toast('حدّث تطبيق الأندرويد للطباعة، أو احفظ PDF واطبعه');return}
-  const z=document.createElement('div');z.id='printzone';const dts=new Date().toLocaleDateString('en-GB')+' '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),stl=document.createElement('style');stl.textContent='@page{@bottom-right{content:"'+dts+'";direction:ltr;unicode-bidi:isolate;font:13px sans-serif;color:#222;vertical-align:middle;padding-right:8mm}}';document.head.appendChild(stl);const im=new Image();z.appendChild(im);document.body.appendChild(z);
+  const z=document.createElement('div');z.id='printzone';const dts=new Date().toLocaleDateString('en-GB')+' '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),stl=document.createElement('style');stl.textContent='@page{@bottom-left{content:"'+dts+'";direction:ltr;unicode-bidi:isolate;font:13px sans-serif;color:#222;vertical-align:middle;padding-left:8mm}}';document.head.appendChild(stl);const im=new Image();z.appendChild(im);document.body.appendChild(z);
   const t0=document.title,done=()=>{document.body.classList.remove('printing');z.remove();stl.remove();document.title=t0;window.removeEventListener('afterprint',done)};
   im.onload=()=>{document.body.classList.add('printing');document.title=' ';window.addEventListener('afterprint',done);try{window.print()}catch(e){toast('الطباعة غير متاحة هنا، احفظ PDF واطبعه');done()}setTimeout(done,120000)};im.src=cv.toDataURL('image/png')}
 function ordSheet(id){const o=(S.orders||[]).find(x=>x.id===id);if(!o)return;S.armed=null;const pend=(S.orders||[]).filter(x=>x.st!=='d').sort((a,b)=>(a.at||'').localeCompare(b.at||'')),r=pend.findIndex(x=>x.id===id)+1;
@@ -1825,7 +1825,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261116-0934';
+const BUILD='20261116-0936';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
