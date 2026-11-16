@@ -837,17 +837,18 @@ async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
   const nu=(s,px,py,font,col,al)=>{x.direction='ltr';x.textAlign=al||'right';x.font=font;x.fillStyle=col;x.fillText(s,px,py)};
   const fit=(s,max,font)=>{s=String(s);x.font=font;if(x.measureText(s).width<=max)return s;while(s.length>1&&x.measureText(s+'…').width>max)s=s.slice(0,-1);return s+'…'};
   x.fillStyle='#FFFFFF';x.fillRect(0,0,W,H);x.fillStyle='#13265C';x.fillRect(0,0,W,headH);
-  const QX=452,QS=160,TW=W-P-(QX+QS+22),shr=(t,w,sz,mn,fam)=>{let z=sz;x.font=w+' '+z+'px '+fam;while(z>mn&&x.measureText(t).width>TW){z--;x.font=w+' '+z+'px '+fam}return w+' '+z+'px '+fam};
+  const QX=452,QS=160,TW=NP?W-P-(QX+QS+22):W-2*P-430,shr=(t,w,sz,mn,fam)=>{let z=sz;x.font=w+' '+z+'px '+fam;while(z>mn&&x.measureText(t).width>TW){z--;x.font=w+' '+z+'px '+fam}return w+' '+z+'px '+fam};
   {const f=shr(S.settings.company,'600',34,24,DF);ar(fit(S.settings.company,TW,f),W-P,78,f,'#F3F6FF')}
   const DR=!!inv.draftMode;
   {const t=(DR?'مسودة طلب · غير نهائية':'فاتورة مبيعات')+(NP?' · نسخة عمل':''),f=shr(t,'400',28,20,BF);ar(t,W-P,134,f,'#AEBBE0')}
   try{await (SHAM.img.decode?SHAM.img.decode():0)}catch(e){}
-  if(SHAM.img.complete&&SHAM.img.naturalWidth){x.fillStyle='#FFFFFF';x.beginPath();if(x.roundRect)x.roundRect(QX,12,QS,QS,12);else x.rect(QX,12,QS,QS);x.fill();x.imageSmoothingEnabled=false;x.drawImage(SHAM.img,QX+4,16,QS-8,QS-8);x.imageSmoothingEnabled=true;
+  const QOK=SHAM.img.complete&&SHAM.img.naturalWidth;
+  if(NP&&QOK){x.fillStyle='#FFFFFF';x.beginPath();if(x.roundRect)x.roundRect(QX,12,QS,QS,12);else x.rect(QX,12,QS,QS);x.fill();x.imageSmoothingEnabled=false;x.drawImage(SHAM.img,QX+4,16,QS-8,QS-8);x.imageSmoothingEnabled=true;
    x.direction='rtl';x.textAlign='center';x.font='600 21px '+BF;x.fillStyle='#FFFFFF';x.fillText('ادفع عبر شام كاش',QX+QS/2,198)}
   const lx=drawLogo(x,P,20,170)?P+194:P;
   if(DR)ar('رقم الطلب',lx+160,62,'400 22px '+BF,'#AEBBE0');else nu('رقم الفاتورة',lx,62,'400 22px '+BF,'#AEBBE0','left');
   nu('#'+fit(inv.no,200,'700 64px '+DF),lx,132,'700 64px '+DF,'#FFFFFF','left');
-  if(DR)ar('طُلب '+dmy(inv.date)+(inv.due?' · التسليم '+dmy(inv.due):''),W-P,178,'400 22px '+BF,'#AEBBE0');else nu(dmy(inv.date),lx,178,'500 26px '+DF,'#AEBBE0','left');
+  if(DR)ar('طُلب '+dmy(inv.date)+(inv.due?' · التسليم '+dmy(inv.due):''),NP?W-P:lx+430,178,'400 22px '+BF,'#AEBBE0');else nu(dmy(inv.date),lx,178,'500 26px '+DF,'#AEBBE0','left');
   let y=headH;x.fillStyle='#F4F6FB';x.fillRect(0,y,W,infoH);
   const colW=(W-2*P)/3,cell=(label,val,col,row,ltr)=>{const rx=W-P-col*colW,yy=y+48+row*98;ar(label,rx,yy,'400 22px '+BF,'#5A6684');
     if(ltr)nu(fit(val||'—',colW-20,'600 28px '+DF),rx,yy+40,'600 28px '+DF,'#101B33');else ar(fit(val||'—',colW-20,'600 28px '+BF),rx,yy+40,'600 28px '+BF,'#101B33')};
@@ -867,13 +868,16 @@ async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
   if(!items.length)y+=RH;cv._re=y*K;
   ar('عدد المواد: '+items.length+'   ·   إجمالي الطرود: '+f1(invCart(inv)),W-P,y+56,'400 26px '+BF,'#5A6684');
   if(!NP&&nv(inv.disc)>0)nu('قبل الحسم '+money(invSub(inv))+'  ·  حسم '+f1(discPct(inv))+'% −'+money(invDisc(inv)),P,y+56,'500 24px '+DF,'#B3261E','left');
-  if(!NP){x.fillStyle='#13265C';x.fillRect(P,y+84,W-2*P,96);
-  ar('قيمة الفاتورة الإجمالية',W-P-24,y+144,'600 30px '+DF,'#FFFFFF');nu(money(inv.total||invTotal(inv)),P+24,y+148,'700 46px '+DF,'#FFFFFF','left');
+  const QB=QOK?170:0;
+  if(!NP){x.fillStyle='#13265C';x.fillRect(P+QB,y+84,W-2*P-QB,96);
+  if(QB){x.fillStyle='#13265C';x.fillRect(P,y+84,QB,160);x.fillStyle='#FFFFFF';x.fillRect(P+8,y+92,144,144);x.imageSmoothingEnabled=false;x.drawImage(SHAM.img,P+10,y+94,140,140);x.imageSmoothingEnabled=true;
+   x.direction='rtl';x.textAlign='center';x.font='600 19px '+BF;x.fillStyle='#13265C';x.fillText('ادفع عبر شام كاش',P+80,y+268)}
+  ar('قيمة الفاتورة الإجمالية',W-P-24,y+144,'600 30px '+DF,'#FFFFFF');nu(money(inv.total||invTotal(inv)),P+QB+24,y+148,'700 46px '+DF,'#FFFFFF','left');
   if(!NP&&inv.pay==='نقدي'&&inv.cashCur&&inv.cashCur!=='usd'){const Q=cashPlan(inv,nv(inv.total)||invTotal(inv));if(Q.ok)ar('المقبوض نقداً: '+Q.list.map(e=>cm(e.cur,e.a)).join(' + ')+' · سعر الصرف '+Q.rate.toLocaleString('en-US'),W-P,y+210,'400 22px '+BF,'#5A6684')}
   const b=(S.ledger&&S.cid===c.id)?r2(S.ledger.reduce((a,t)=>a+eff(t),0)):(c.balance||0);
   if(DR){ar('هذه مسودة طلب وليست فاتورة نهائية، ولا تدخل الحساب.',W-P,y+230,'400 26px '+BF,'#5A6684')}else if(!c.walkin){
   ar(PAID.includes(inv.pay)?'الفاتورة مدفوعة '+(inv.pay==='حوالة'?'حوالة':'نقداً')+' · رصيد الحساب الحالي':'رصيد الحساب الحالي بعد الفاتورة',W-P,y+230,'400 26px '+BF,'#5A6684');
-  nu(money(Math.abs(b))+(typeOf(b)==='credit'?'  (لكم)':''),P,y+232,'600 30px '+DF,typeOf(b)==='debt'?'#B3261E':'#0B7447','left')}
+  nu(money(Math.abs(b))+(typeOf(b)==='credit'?'  (لكم)':''),P+QB+(QB?16:0),y+232,'600 30px '+DF,typeOf(b)==='debt'?'#B3261E':'#0B7447','left')}
   }else ar('نسخة عمل للتجهيز والشحن، بدون أسعار أو قيمة إجمالية.',W-P,y+96,'400 24px '+BF,'#5A6684');
   if(inv.note)ar(fit('ملاحظة: '+inv.note,W-2*P,'400 24px '+BF),W-P,NP?y+138:y+278,'400 24px '+BF,'#101B33');
   ar('شكراً لتعاملكم معنا.',W-P,y+footH-24,'400 22px '+BF,'#5A6684');
@@ -1836,7 +1840,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261116-1406';
+const BUILD='20261116-1410';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
