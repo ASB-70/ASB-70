@@ -1030,6 +1030,7 @@ function cashRender(){const f=S.cf,sg=(k,v,l)=>`<button type="button" data-cfs="
    <div class="field"><label for="cf-a">المبلغ ${f.cur==='usd'?'($)':'(ل.س)'}</label><input id="cf-a" data-cf="a" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.a)}"></div>
    ${f.linked&&f.cur==='syp'?`<div class="field"><label for="cf-r">سعر الصرف (ليرة لكل دولار)</label><input id="cf-r" data-cf="rate" type="number" step="any" min="0" inputmode="decimal" value="${esc(f.rate)}"></div>`:''}
    ${f.linked?'':(!f.editId&&(f.dir==='in'||(f.dir==='out'&&f.party==='cust')))||(f.editId&&f.dir==='out'&&f.party==='cust')?`<div class="field"><label for="cf-c">${f.dir==='in'?'من زبون (اختياري، تُخصم من ذمته)':'على حساب الزبون'}</label><input id="cf-c" data-cf="cname" data-sug="cust" autocomplete="off" placeholder="اكتب اسم الزبون واختره" value="${esc(f.cname)}"></div><div class="sug rows" id="sug-h"></div>
+     ${f.dir==='in'&&f.cid&&!f.editId?`<div class="seg"><button type="button" data-cfs="nobox:0" aria-pressed="${f.nobox!=='1'}">تدخل الصندوق</button><button type="button" data-cfs="nobox:1" aria-pressed="${f.nobox==='1'}">على حسابه فقط، بدون الصندوق</button></div>${f.nobox==='1'?'<span class="small muted">مثال: استلم الدفعة شخص غيرك أو قبضتها بالشام. بتنخصم من ذمة الزبون وما بتدخل صندوق اليوم ولا بتأثر على رصيده.</span>':''}`:''}
      ${f.dir==='out'&&f.cid&&!f.editId?`<div class="seg">${sg('charge','0','تسجيل فقط')}${sg('charge','1','أضفه على ذمة الزبون')}</div>`:''}
      ${f.cid&&f.cur==='syp'&&(f.dir==='in'||f.charge==='1')?`<div class="field"><label for="cf-r">سعر الصرف (ليرة لكل دولار)</label><input id="cf-r" data-cf="rate" type="number" step="any" min="0" inputmode="decimal" value="${esc(f.rate)}"></div>`:''}`:''}
    <span class="small" id="cfhint"></span>
@@ -1054,8 +1055,8 @@ async function saveCash(){if(S.cf&&S.cf.editId)return saveCashEdit();const f=S.c
   const day=S.cday,e={id:newId(),t:new Date().toISOString(),dir:f.dir==='wd'?'out':f.dir,cur:f.cur,a,n:(f.n||'').trim()||(f.dir==='wd'?'سحب من الصندوق':'')};if(f.dir==='wd')e.wd=true;
   if(f.dir==='in'&&f.cid){const rate=nv(f.rate);if(f.cur==='syp'&&!(rate>0)){toast('أدخل سعر الصرف');return}
     const usd=f.cur==='usd'?a:r2(a/rate),c=cust(f.cid),nm=c?c.name:f.cname;
-    const lt={id:newId(),k:'pay',a:usd,d:day,ref:'',n:f.cur==='syp'?sy(a)+' على سعر '+rate.toLocaleString('en-US'):e.n,cash:day};
-    await addLedgerTx(f.cid,lt);Object.assign(e,{cid:f.cid,cname:nm,ltx:lt.id,usd,n:e.n||('دفعة من '+nm)})}
+    const nb=f.nobox==='1',lt={id:newId(),k:'pay',a:usd,d:day,ref:'',n:((f.cur==='syp'?sy(a)+' على سعر '+rate.toLocaleString('en-US'):e.n)+(nb?' (بدون الصندوق)':'')).trim(),...(nb?{}:{cash:day})};
+    await addLedgerTx(f.cid,lt);if(nb){S.cf=null;closeSheet();toast('سُجّلت الدفعة على حساب '+nm+' بدون الصندوق');return}Object.assign(e,{cid:f.cid,cname:nm,ltx:lt.id,usd,n:e.n||('دفعة من '+nm)})}
   if(f.dir==='out'){const pt=f.party||'co';
     if(pt==='staff'){const em=emp(f.pid);if(!em){toast('اختر الموظف');return}Object.assign(e,{party:'staff',pid:em.id,pname:em.name})}
     else if(pt==='owner')Object.assign(e,{party:'owner',pname:'رئيس الشركة'});
@@ -1824,7 +1825,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261116-0924';
+const BUILD='20261116-0926';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
