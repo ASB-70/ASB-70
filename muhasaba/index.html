@@ -595,7 +595,7 @@ async function drawStatement(c,tx,lastN){
   x.fillStyle='#13265C';x.fillRect(P,y+18,W-2*P,3);
   ar('إجمالي الفواتير',W-P,y+70,tf,'#5A6684');nu(money(r2(inv)),W-P-300,y+70,nf,'#101B33');
   ar('إجمالي المدفوع والمرتجع',W-P,y+112,tf,'#5A6684');nu(money(r2(paid)),W-P-300,y+112,nf,'#101B33');
-  const b=c.balance||0;
+  const b=Array.isArray(tx)&&tx.length?r2(tx.reduce((a,t)=>a+eff(t),0)):(c.balance||0);
   ar(typeOf(b)==='credit'?'رصيدكم لدينا':typeOf(b)==='debt'?'الرصيد المستحق عليكم':'الحساب مسدَّد',W-P,y+178,'600 32px '+DF,'#101B33');
   x.direction='ltr';x.textAlign='left';x.font='700 46px '+DF;x.fillStyle=typeOf(b)==='debt'?'#B3261E':'#0B7447';x.fillText(money(Math.abs(b)),P,y+182);
   ar('لأي ملاحظة على الكشف يرجى التواصل معنا. شكراً لتعاملكم.',W-P,y+226,'400 22px '+BF,'#5A6684');
@@ -862,7 +862,7 @@ async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
   if(!NP){x.fillStyle='#13265C';x.fillRect(P,y+84,W-2*P,96);
   ar('قيمة الفاتورة الإجمالية',W-P-24,y+144,'600 30px '+DF,'#FFFFFF');nu(money(inv.total||invTotal(inv)),P+24,y+148,'700 46px '+DF,'#FFFFFF','left');
   if(!NP&&inv.pay==='نقدي'&&inv.cashCur&&inv.cashCur!=='usd'){const Q=cashPlan(inv,nv(inv.total)||invTotal(inv));if(Q.ok)ar('المقبوض نقداً: '+Q.list.map(e=>cm(e.cur,e.a)).join(' + ')+' · سعر الصرف '+Q.rate.toLocaleString('en-US'),W-P,y+210,'400 22px '+BF,'#5A6684')}
-  const b=c.balance||0;
+  const b=(S.ledger&&S.cid===c.id)?r2(S.ledger.reduce((a,t)=>a+eff(t),0)):(c.balance||0);
   if(DR){ar('هذه مسودة طلب وليست فاتورة نهائية، ولا تدخل الحساب.',W-P,y+230,'400 26px '+BF,'#5A6684')}else if(!c.walkin){
   ar(PAID.includes(inv.pay)?'الفاتورة مدفوعة '+(inv.pay==='حوالة'?'حوالة':'نقداً')+' · رصيد الحساب الحالي':'رصيد الحساب الحالي بعد الفاتورة',W-P,y+230,'400 26px '+BF,'#5A6684');
   nu(money(Math.abs(b))+(typeOf(b)==='credit'?'  (لكم)':''),P,y+232,'600 30px '+DF,typeOf(b)==='debt'?'#B3261E':'#0B7447','left')}
@@ -1577,7 +1577,7 @@ async function doCustImport(){const R=S.imp;if(!R||!R.cust)return;const msg=t=>{
 async function guard(fn){if(S.busy||!S.db)return;S.busy=true;try{await fn()}catch(e){fail(e)}finally{S.busy=false}}
 async function saveLedger(tx){
   const id=S.cid,bal=r2(tx.reduce((s,t)=>s+eff(t),0));
-  await S.db.doc('ledgers/'+id).set({tx});await S.db.doc('customers/'+id).update({balance:bal});S.ledger=tx}
+  await S.db.doc('ledgers/'+id).set({tx});await S.db.doc('customers/'+id).update({balance:bal});S.ledger=tx;{const cc=S.customers.find(x=>x.id===id);if(cc)cc.balance=bal}}
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
@@ -1821,7 +1821,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261115-2207';
+const BUILD='20261116-0842';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
