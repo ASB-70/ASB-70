@@ -500,12 +500,13 @@ function renderSettings(){
       <span class="small muted">تُستبدل تلقائياً: {الاسم} باسم الزبون، {المبلغ} برصيده، {الشركة} باسم الشركة.</span></div>
     <button class="btn primary" type="submit">حفظ الإعدادات</button></form>
    <div class="card"><b>النسخة الاحتياطية الكاملة</b><span class="muted small">ملف واحد فيه كل شيء: الزبائن والكشوف والفواتير والمخزون والصندوق والموظفون. نزّله كل أسبوع واحفظه خارج الموبايل. ${S.settings.lastBackup?'آخر نسخة: '+dmy(S.settings.lastBackup):'لم تُنزَّل أي نسخة بعد.'}</span>
-     <button class="btn primary" type="button" data-act="backup" ${S.dl?'':'disabled'}>تنزيل نسخة احتياطية كاملة</button>
+     <button class="btn primary" type="button" data-act="backup-xlsx" ${S.dl?'':'disabled'}>📊 تنزيل نسخة احتياطية إكسل (كل البيانات)</button>
+     <button class="btn" type="button" data-act="backup" ${S.dl?'':'disabled'}>تنزيل نسخة احتياطية للاسترجاع (ملف JSON)</button>
      <button class="btn" type="button" data-act="export" ${S.dl?'':'disabled'}>تنزيل قائمة الزبائن فقط (إكسل)</button>
      <span class="small" id="bkmsg"></span></div>
    ${EXT?abkCard():''}
    <div class="card"><b>استرجاع من نسخة احتياطية</b><span class="muted small">يعيد كتابة كل ما في الملف فوق الموجود حالياً. ما أُضيف بعد تاريخ النسخة ولم يكن فيها يبقى كما هو.</span>
-     <div class="field"><label for="rfile">اختر ملف النسخة (json)</label><input id="rfile" type="file" accept=".json,application/json" style="padding:8px;font-size:13px"></div><div id="rbox"></div></div>
+     <div class="field"><label for="rfile">اختر ملف النسخة (إكسل أو json)</label><input id="rfile" type="file" accept=".json,application/json,.xlsx" style="padding:8px;font-size:13px"></div><div id="rbox"></div></div>
    <form id="pinform" class="card"><b>رمز الدخول</b><span class="muted small">${LK.pin?'الرمز مفعّل. يُطلب عند فتح البرنامج وبعد دقيقتين من تركه.':'ضع رمزاً من 4 إلى 8 أرقام يُطلب كل مرة يُفتح فيها البرنامج. يحميك ممن يمسك موبايلك وهو مفتوح.'}</span>
      ${LK.pin?`<div class="field"><label for="pin-cur">الرمز الحالي</label><input id="pin-cur" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" required></div>`:''}
      <div class="field"><label for="pin-new">${LK.pin?'الرمز الجديد (اتركه فارغاً لإلغاء الرمز)':'الرمز الجديد'}</label><input id="pin-new" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" ${LK.pin?'':'required'}></div>
@@ -1361,13 +1362,47 @@ function repInvList(inv){return inv.length?`<div class="list">${inv.slice(0,60).
 /* ---------- backup, restore, PIN ---------- */
 const BCOLS=['customers','ledgers','invoices','cash','staff','pimg','meta','settings'];
 const bmsg=t=>{const m=$('#bkmsg');if(m)m.textContent=t};
+async function doBackupXlsx(){bmsg('جارٍ تحميل مكتبة الإكسل…');try{await loadXLSX()}catch(e){bmsg('');toast('تعذّر تحميل مكتبة الإكسل. تحقق من الإنترنت.');return}
+  const D={},big=[];for(const c of BCOLS){bmsg('جارٍ جلب البيانات… '+c);const sn=await S.db.collection(c).limit(5000).get();D[c]=sn.docs.map(d=>({id:d.id,d:d.data()}));if(sn.docs.length>=5000)big.push(c)}
+  bmsg('جارٍ تجهيز ملف الإكسل…');
+  const X=window.XLSX,wb=X.utils.book_new(),N=v=>{const n=Number(v);return v===''||v==null||isNaN(n)?(v??''):n},cn={};
+  const add=(name,head,rows,wd)=>{const ws=X.utils.aoa_to_sheet([head,...rows]);ws['!cols']=head.map((h,i)=>({wch:(wd&&wd[i])||Math.max(10,String(h).length+4)}));if(rows.length)ws['!autofilter']={ref:X.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:head.length-1}})};X.utils.book_append_sheet(wb,ws,name)};
+  const cus=D.customers.map(x=>({id:x.id,...x.d}));for(const c of cus)cn[c.id]=c.name;
+  add('الزبائن',['الاسم','المحافظة','الهاتف','الرصيد $','الحالة','ملاحظة','موعد التذكير','تاريخ الإضافة','المعرّف'],cus.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar')).map(c=>{const b=r2(c.balance||0);return[c.name||'',c.city||'',c.phone||'',b,b>0.005?'مدين (عليه)':b<-0.005?'دائن (له)':'مسدد',c.note||'',c.dueAt||'',(c.createdAt||'').slice(0,10),c.id]}),[28,12,14,12,12,24,12,12,22]);
+  const led=[];for(const L of D.ledgers){let run=0;for(const t of (L.d.tx||[])){run=r2(run+eff(t));led.push([cn[L.id]||L.id,t.d||'',KIND[t.k]||t.k||'',t.ref||'',t.n||'',t.k==='inv'?N(t.a):'',t.k==='inv'?'':N(t.a),run,t.cash?'نعم':''])}}
+  add('كشوف الحسابات',['الزبون','التاريخ','النوع','رقم','البيان','عليه (فاتورة) $','له (دفعة/مرتجع/حسم) $','الرصيد بعد الحركة $','دخلت الصندوق'],led,[28,12,10,8,34,14,16,16,10]);
+  const invs=D.invoices.map(x=>({id:x.id,...x.d})).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(+a.no||0)-(+b.no||0));
+  add('الفواتير',['رقم الفاتورة','التاريخ','الزبون','طريقة الدفع','المحافظة','مكتب الشحن','أجور الشحن','عدد المواد','الطرود','قبل الحسم $','حسم %','الإجمالي $','رأس المال $','الربح $','المستودع','ملاحظة','المعرّف'],invs.map(v=>[N(v.no),v.date||'',v.cname||cn[v.cid]||'',v.pay||'',v.dest||'',v.shipper||'',v.shipFee||'',(v.items||[]).length,N(v.cartons),N(v.sub),N(v.disc),N(v.total),v.costTotal==null?'':N(v.costTotal),v.profit==null?'':N(v.profit),whName(v.wh||'main'),v.note||'',v.id]),[10,12,26,10,10,14,10,8,8,12,8,12,12,12,12,24,22]);
+  const ln=[];for(const v of invs)for(const it of (v.items||[]))ln.push([N(v.no),v.date||'',v.cname||cn[v.cid]||'',it.code||'',it.name||'',N(it.pack),N(it.qty),it.unit||'',N(it.price),r2(nv(it.qty)*nv(it.price)),N(it.cost),nv(it.cost)>0?r2(nv(it.qty)*(nv(it.price)-nv(it.cost))):'']);
+  add('مواد الفواتير',['رقم الفاتورة','التاريخ','الزبون','الكود','المادة','التعبئة','الكمية','الوحدة','السعر $','الإجمالي $','التكلفة $','الربح $'],ln,[10,12,26,10,30,8,8,8,10,12,10,10]);
+  const meta={};for(const m of D.meta)meta[m.id]=m.d;const P=(meta.products||{}).items||{},ST=(meta.stock||{}).items||{},WH=(meta.stock||{}).wh||S.wh||[],ORD=(meta.orders||{}).list||[];
+  const rsv=(k,wid)=>{let t=0;for(const o of ORD){if(o.st==='d'||o.invNo||!o.draft)continue;if(wid!=='all'&&(o.draft.wh||'main')!==wid)continue;for(const y of o.draft.items||[])if(codeOf(y)===k)t+=nv(y.qty)}return t};
+  const codes=[...new Set([...Object.keys(P),...Object.keys(ST)])].sort();
+  add('المخزون',['الكود','المادة','الوحدة','التعبئة','الكمية الإجمالية',...WH.map(w=>'كمية: '+w.name),'محجوز للمسودات','المتاح للبيع','التكلفة $','رأسمال الصين ¥','جملة الجملة $','نصف جملة $','مفرق $','قيمة رأس المال $'],codes.map(k=>{const p=P[k]||{},st=ST[k]||{},q=nv(st.q),w=getW(st),r=rsv(k,'all');return[k,p.name||'',p.unit||'',N(p.pack),q,...WH.map(x=>nv(w[x.id])),r,r2(q-r),N(st.cost),N(st.cny),N(p.p2),N(p.price),N(p.pt),r2(q*nv(st.cost))]}),[10,30,8,8,10,...WH.map(()=>12),12,12,10,10,10,10,10,14]);
+  add('مسودات الطلبات',['الزبون','تاريخ الطلب','التسليم','الحالة','حُوّلت لفاتورة رقم','الكود','المادة','الكمية','الوحدة','السعر $','المستودع','ملاحظة'],ORD.flatMap(o=>{const its=(o.draft&&o.draft.items)||[],h=[o.cname||cn[o.cid]||'',(o.at||'').slice(0,10),o.due||'',o.st==='d'?'منتهية':'قيد التجهيز',o.invNo||''];return its.length?its.map(y=>[...h,codeOf(y),y.name||'',N(y.qty),y.unit||'',N(y.price),whName((o.draft&&o.draft.wh)||'main'),o.note||'']):[[...h,'','','','','','',o.note||'']]}),[26,12,12,12,12,10,30,8,8,10,12,24]);
+  const days=D.cash.map(x=>({id:x.id,...x.d})).sort((a,b)=>(a.date||a.id).localeCompare(b.date||b.id));
+  add('الصندوق اليومي',['التاريخ','رصيد أول اليوم $','رصيد أول اليوم ل.س','سعر الصرف','عدد الحركات','المعدود عند الإغلاق $','المعدود عند الإغلاق ل.س'],days.map(v=>[v.date||v.id,N((v.open||{}).usd),N((v.open||{}).syp),N(v.rate),(v.tx||[]).length,v.closed?N(v.closed.usd):'',v.closed?N(v.closed.syp):'']),[12,14,16,10,10,16,18]);
+  add('حركات الصندوق',['التاريخ','الوقت','النوع','العملة','المبلغ','البيان','الزبون','على حساب','بالدولار $'],days.flatMap(v=>(v.tx||[]).map(t=>[v.date||v.id,t.t?new Date(t.t).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'',t.pair?'تصريف':t.wd?'سحب':t.dir==='in'?'مقبوض':'مصروف',t.cur==='syp'?'ليرة':'دولار',N(t.a),t.n||'',t.cname||'',t.pname||'',t.usd==null?'':N(t.usd)])),[12,8,10,8,14,34,24,20,12]);
+  const stf=D.staff.map(x=>({id:x.id,...x.d}));
+  add('الموظفون',['الاسم','الصفة','الهاتف','تاريخ البدء','تاريخ الترك','الراتب $','الراتب ل.س','اسم الأب','اسم الأم','تاريخ الميلاد','الرقم الوطني','الحالة الصحية','ملاحظة'],stf.map(e=>[e.name||'',ROLES[roleOf(e)]||'',e.phone||'',e.start||'',e.end||'',N(e.usd),N(e.syp),e.father||'',e.mother||'',e.birth||'',e.nid||'',e.health||'',e.note||'']),[24,14,14,12,12,10,12,14,14,12,14,14,24]);
+  add('حركات الموظفين',['الموظف','التاريخ','النوع','العملة','المبلغ','دفع راتب $','دفع راتب ل.س','البيان'],stf.flatMap(e=>(e.log||[]).map(l=>[e.name||'',l.d||'',LGL[l.type]||l.type||'',l.cur==='syp'?'ليرة':l.cur?'دولار':'',N(l.a),l.type==='pay'?N(l.usd):'',l.type==='pay'?N(l.syp):'',l.n||''])),[24,12,14,8,12,12,14,30]);
+  {const raw={app:'thiqa-accounting',v:1,at:new Date().toISOString(),data:D},js=JSON.stringify(raw),ch=[];for(let i=0;i<js.length;i+=30000)ch.push([js.slice(i,i+30000)]);
+   const ws=X.utils.aoa_to_sheet([['بيانات خام للاسترجاع الكامل — لا تعدّل هذه الورقة'],...ch]);X.utils.book_append_sheet(wb,ws,'بيانات خام');}
+  wb.Workbook={Views:[{RTL:true}],Sheets:wb.SheetNames.map((n,i)=>({Hidden:n==='بيانات خام'?1:0}))};
+  const u8=X.write(wb,{bookType:'xlsx',type:'array',compression:true});bmsg('');
+  try{await S.dl.save({filename:fileName('Backup Al-Thiqa '+today(),'xlsx'),data:new Blob([u8],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})})}catch(er){if(er&&er.code!=='declined')toast('تعذّر تنزيل الملف هنا');return}
+  S.settings={...S.settings,lastBackup:today()};try{await S.db.doc('settings/main').set(S.settings)}catch(e){}
+  renderSettings();toast('نُزّلت نسخة الإكسل: '+cus.length+' زبون · '+invs.length+' فاتورة · '+codes.length+' مادة'+(big.length?' (تنبيه: بعض الأقسام كبيرة جداً)':''))}
 async function doBackup(){const out={app:'thiqa-accounting',v:1,at:new Date().toISOString(),data:{},truncated:[]};
   for(const c of BCOLS){bmsg('جارٍ تجهيز النسخة… '+c);const s=await S.db.collection(c).limit(1000).get();out.data[c]=s.docs.map(d=>({id:d.id,d:d.data()}));if(s.docs.length>=1000)out.truncated.push(c)}
   const n=Object.values(out.data).reduce((a,l)=>a+l.length,0);bmsg('');
   try{await S.dl.save({filename:'نسخة احتياطية محاسبة الثقة '+today()+'.json',data:JSON.stringify(out)})}catch(er){if(er&&er.code!=='declined')toast('تعذّر تنزيل الملف هنا');return}
   S.settings={...S.settings,lastBackup:today()};try{await S.db.doc('settings/main').set(S.settings)}catch(e){}
   renderSettings();toast('نُزّلت النسخة: '+n+' سجل'+(out.truncated.length?' (بعض الأقسام أكبر من الحد)':''))}
-function readRestore(file){const r=new FileReader();r.onerror=()=>toast('تعذّرت قراءة الملف');r.onload=()=>{const box=$('#rbox');if(!box)return;let o;try{o=JSON.parse(r.result)}catch(e){o=null}
+function readRestore(file){if(/\.xlsx$/i.test(file.name)){const box=$('#rbox');if(box)box.innerHTML='<div class="note">جارٍ قراءة ملف الإكسل…</div>';
+    loadXLSX().then(()=>file.arrayBuffer()).then(ab=>{const wb=window.XLSX.read(new Uint8Array(ab),{type:'array'}),ws=wb.Sheets['بيانات خام'];if(!ws)throw 0;const rows=window.XLSX.utils.sheet_to_json(ws,{header:1,raw:true});const js=rows.slice(1).map(r=>r[0]==null?'':String(r[0])).join('');
+      const f=new File([js],'x.json',{type:'application/json'});readRestore(f)}).catch(()=>{const b=$('#rbox');if(b)b.innerHTML='<div class="note">ملف الإكسل هذا ما فيه بيانات الاسترجاع. استخدم ملف «نسخة احتياطية إكسل» اللي نزّله البرنامج.</div>'});return}
+  const r=new FileReader();r.onerror=()=>toast('تعذّرت قراءة الملف');r.onload=()=>{const box=$('#rbox');if(!box)return;let o;try{o=JSON.parse(r.result)}catch(e){o=null}
   if(!o||o.app!=='thiqa-accounting'||!o.data){S.rest=null;box.innerHTML='<div class="note">هذا الملف ليس نسخة احتياطية من هذا البرنامج.</div>';return}
   S.rest=o;S.armed=null;const n=BCOLS.reduce((a,c)=>a+((o.data[c]||[]).length),0);
   box.innerHTML=`<div class="note">نسخة بتاريخ <b class="num">${dmy((o.at||'').slice(0,10))}</b>: ${(o.data.customers||[]).length} زبون، ${(o.data.invoices||[]).length} فاتورة، ${(o.data.staff||[]).length} موظف، ${n} سجل بالمجموع.</div><button class="btn danger" type="button" data-act="restore">استرجاع هذه النسخة</button><span class="small" id="rmsg"></span>`};r.readAsText(file)}
@@ -1766,6 +1801,7 @@ document.addEventListener('click',e=>{
   if(a==='app-update'){location.replace(location.pathname+'?v='+Date.now());return}
   if(a==='logout'){S.db.logout();location.reload();return}
   if(a==='backup'){if(S.dl)guard(doBackup);return}
+  if(a==='backup-xlsx'){if(S.dl)guard(doBackupXlsx);return}
   if(a==='restore'){if(S.armed!=='rest'){S.armed='rest';b.textContent='اضغط ثانية للتأكيد: سيُكتب فوق البيانات الحالية';return}b.disabled=true;guard(doRestore);return}
   if(a==='lock-now'){LK.open=false;lockShow();return}
   if(a==='bio-unlock'){tryBio();return}
@@ -1840,7 +1876,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261116-1410';
+const BUILD='20261118-1400';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
