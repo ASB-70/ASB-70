@@ -313,7 +313,7 @@ function makeSbDb(stat){stat=stat||(()=>{});
   let paused=false;
   function poke(path){if(paused)return;const col=path.slice(0,path.lastIndexOf('/'));for(const x of subs)if(x.path===path||x.col===col)x.run()}
   function sub(o){subs.add(o);o.run();return()=>subs.delete(o)}
-  setInterval(runAll,30000);document.addEventListener('visibilitychange',runAll);
+  setInterval(runAll,12000);document.addEventListener('visibilitychange',runAll);window.addEventListener('focus',runAll);window.addEventListener('online',()=>setTimeout(runAll,2500));
   function watcher(key,fetcher,sig,next,err){let busy=false,again=false,last;const o={...key,run:async()=>{if(busy){again=true;return}busy=true;try{do{again=false;const v=await fetcher(),j=sig(v);if(j!==last){last=j;next(v)}}while(again)}catch(e){if(e.code==='auth'&&err)err(e)}busy=false}};return sub(o)}
   async function fetchAll(col){await ready;return fetchAll0(col).then(r=>overlay(col,r))}
   async function fetchAll0(col){try{const out=[];for(let off=0;;off+=1000){const a=await rq('?col=eq.'+enc(col)+'&select=path,data&order=path&limit=1000&offset='+off)||[];out.push(...a);if(a.length<1000)break}KV.set('c:'+col,out);return{rows:out,cached:false}}
@@ -829,7 +829,7 @@ async function saveInvoice(){
    if(chg)await saveStock(st)}
   S.invStats=null;
   let ch=false;const P={...S.products};for(const it of items)if(it.code){const p={name:it.name,pack:it.pack,unit:it.unit,price:it.price};if(!P[it.code]){P[it.code]=p;ch=true}}
-  if(ch){S.products=P;try{await S.db.doc('meta/products').set({items:P})}catch(e){}}
+  if(ch){try{await saveProducts(P)}catch(e){S.products=P}}
   S.draft=null;toast('حُفظت الفاتورة: أُضيفت إلى الذمة ونزلت من المخزون');invView(id);
 }
 async function invView(id){
@@ -914,7 +914,25 @@ function avail(k){return availReal(k)-resv(k)}
 function resvAll(k,wid){let t=0;for(const o of S.orders||[]){if(o.st==='d'||o.invNo||!o.draft)continue;if(wid!=='all'&&(o.draft.wh||'main')!==wid)continue;for(const y of o.draft.items||[])if(codeOf(y)===k)t+=nv(y.qty)}return t}
 function draftProfit(d){let profit=0,cost=0,noCost=0,cs=0;for(const it of d.items||[]){const k=(it.code||'').trim(),q=nv(it.qty);if(!q)continue;const c=nv(it.cost)>0?nv(it.cost):nv((S.stock[k]||{}).cost);if(c>0){profit+=q*(nv(it.price)-c);cost+=q*c;cs+=lineTot(it)}else noCost++}const sb=invSub(d);return{profit:r2(profit-(sb>0?invDisc(d)*cs/sb:0)),cost:r2(cost),noCost}}
 function stockTotals(wid){let cap=0,sale=0,inStock=0,n=0;for(const k in S.products){n++;const q=wq(k,wid||'all');if(q>0){inStock++;cap+=q*nv((S.stock[k]||{}).cost);sale+=q*nv(S.products[k].price)}}return{cap:r2(cap),sale:r2(sale),inStock,n}}
-async function saveStock(items,meta){const m={...S.stockMeta,...(meta||{})};await S.db.doc('meta/stock').set({items,wh:S.wh,...m});S.stock=items;S.stockMeta=m}
+/* ---------- device sync: every save is merged on top of the latest copy on the server ----------
+   each device only applies what IT changed (added / edited / removed), so the laptop and the phone never wipe each other's work */
+const J=v=>JSON.stringify(v);
+async function freshDoc(path){try{const s=await S.db.doc(path).get();return{ok:true,v:s.exists?s.data():null}}catch(e){return{ok:false}}}
+function mergeById(prev,next,remote){const pm=new Map((prev||[]).map(o=>[o.id,J(o)])),nx=new Set(next.map(o=>o.id)),rm=new Set([...pm.keys()].filter(id=>!nx.has(id)));
+  const out=(remote||[]).filter(o=>!rm.has(o.id));
+  next.forEach((o,i)=>{if(pm.get(o.id)===J(o))return;const at=out.findIndex(x=>x.id===o.id);if(at>=0){out[at]=o;return}
+    if(!next.slice(i+1).some(n=>out.some(x=>x.id===n.id))){out.push(o);return}
+    let j=i-1;while(j>=0&&!out.some(x=>x.id===next[j].id))j--;const after=j>=0?out.findIndex(x=>x.id===next[j].id):-1;out.splice(after+1,0,o)});
+  return out}
+function mergeMap(prev,next,remote){prev=prev||{};const out={...(remote||{})};for(const k of new Set([...Object.keys(prev),...Object.keys(next)])){if(J(prev[k])===J(next[k]))continue;if(next[k]===undefined)delete out[k];else out[k]=next[k]}return out}
+function mergeStock(prev,next,remote){prev=prev||{};const out={...(remote||{})};
+  for(const k of new Set([...Object.keys(prev),...Object.keys(next)])){const a=prev[k],b=next[k];if(J(a)===J(b))continue;
+    if(b===undefined){delete out[k];continue}const r=out[k];if(!r){out[k]=b;continue}
+    const wa=a?getW(a):{},wb=getW(b),wr={...getW(r)};for(const w of new Set([...Object.keys(wa),...Object.keys(wb)])){const d=nv(wb[w])-nv(wa[w]);if(d)wr[w]=r4(nv(wr[w])+d)}
+    const e={...r,...b,w:wr};e.q=r4(Object.values(wr).reduce((x,y)=>x+nv(y),0));if(a&&nv(a.cost)===nv(b.cost))e.cost=nv(r.cost);out[k]=e}
+  return out}
+async function saveProducts(P){const f=await freshDoc('meta/products');if(f.ok&&f.v)P=mergeMap(S.products,P,f.v.items||{});await S.db.doc('meta/products').set({items:P});S.products=P;return P}
+async function saveStock(items,meta){const m={...S.stockMeta,...(meta||{})};const f=await freshDoc('meta/stock');if(f.ok&&f.v)items=mergeStock(S.stock,items,f.v.items||{});await S.db.doc('meta/stock').set({items,wh:S.wh,...m});S.stock=items;S.stockMeta=m}
 async function addLog(entries){S.slog=[...entries,...S.slog].slice(0,300);try{await S.db.doc('meta/stocklog').set({list:S.slog})}catch(e){}}
 function loadInvStats(){if(S.invStats||!S.db)return;S.db.collection('invoices').limit(1000).get().then(s=>{const m=today().slice(0,7);let profit=0,n=0;for(const d of s.docs){const v=d.data();if((v.date||'').startsWith(m)&&v.profit!=null){profit+=v.profit;n++}}S.invStats={profit:r2(profit),n};if(S.view==='stock')renderCover()}).catch(()=>{})}
 const rndTol=()=>{const v=S.settings&&S.settings.rnd;return v===undefined||v===null?1.5:nv(v)};
@@ -930,7 +948,7 @@ const tierList=p=>TIERS.filter(t=>nv(p[t[0]])>0);
 function tierBlock(p,c){return TIERS.map(t=>{const v=nv(p[t[0]]);if(!(v>0))return'';const dd=nv(p[t[2]]),e=effP(p,t[0]);return `<br>${t[1]} <b class="num">${pr(v)}</b>${dd>0?` − حسم ${dd}% = <b class="num">${pr(e)}</b>`:''}${c>0?` · ربح <b class="num" style="color:var(--credit)">${pr(r4(e-c))} (${r2((e/c-1)*100)}%)</b>`:''}`}).join('')||'<br><span class="chip c-due">لم تُحدَّد أسعار البيع بعد</span>'}
 S.sel=null;
 async function deleteProducts(codes){const P={...S.products},st={...S.stock},set=new Set(codes);for(const c of codes){delete P[c];delete st[c]}
-  await S.db.doc('meta/products').set({items:P});S.products=P;await saveStock(st);for(const c of codes)delete S.img[c];
+  await saveProducts(P);await saveStock(st);for(const c of codes)delete S.img[c];
   try{const g=await S.db.collection('pimg').get();for(const d of g.docs){const L=d.data().list||[],K=L.filter(e=>!set.has(e.c));if(K.length===L.length)continue;if(K.length)await S.db.doc('pimg/'+d.id).set({list:K});else await S.db.doc('pimg/'+d.id).delete()}}catch(e){}}
 function renderStock(){
   const el=$('#slist'),q=S.stockF.q.trim(),ql=q.toLowerCase(),f=S.stockF.f;if(S.stockF.wh!=='all'&&!S.wh.some(w=>w.id===S.stockF.wh))S.stockF.wh='all';const wid=S.stockF.wh;
@@ -1017,7 +1035,7 @@ async function cashDay(day,create){if(S.flushP)await S.flushP;const ref=S.db.doc
   return{ref,v:{date:day,rate,open:await prevClose(day),tx:[],closed:null}}}
 async function cashAdd(day,entries){const {ref,v}=await cashDay(day,true);v.tx=[...v.tx,...[].concat(entries)];v.closed=null;await ref.set(v);if(day===S.cday){S.cash=v;if(S.view==='cash')refresh()}}
 async function cashRemove(day,pred){const {ref,v}=await cashDay(day,false);if(!v)return;const n=v.tx.filter(t=>!pred(t));if(n.length===v.tx.length)return;v.tx=n;await ref.set(v);if(day===S.cday){S.cash=v;if(S.view==='cash')refresh()}}
-async function addLedgerTx(cid,tx){const ref=S.db.doc('ledgers/'+cid);let list;if(S.cid===cid&&S.ledger)list=S.ledger;else{const s=await ref.get();list=s.exists?(s.data().tx||[]):[]}
+async function addLedgerTx(cid,tx){const ref=S.db.doc('ledgers/'+cid);let list;const f=await freshDoc('ledgers/'+cid);if(f.ok)list=f.v?(f.v.tx||[]):[];else if(S.cid===cid&&S.ledger)list=S.ledger;else list=[];
   const nl=[...list,tx];await ref.set({tx:nl});await S.db.doc('customers/'+cid).update({balance:r2(nl.reduce((a,t)=>a+eff(t),0))});if(S.cid===cid)S.ledger=nl}
 function loadCash(){S.cash=null;S.qlastId=null;refresh();const day=S.cday;cashDay(day,true).then(r=>{if(S.cday===day){S.cash=r.v;if(S.view==='cash')refresh()}}).catch(()=>{if(S.cday===day){S.cash={date:day,rate:nv(S.settings.rate),open:{usd:0,syp:0},tx:[],closed:null};if(S.view==='cash')refresh()}})}
 function renderCash(){
@@ -1061,7 +1079,7 @@ function cashRender(){const f=S.cf,sg=(k,v,l)=>`<button type="button" data-cfs="
    <div class="grid2"><button class="btn primary" type="submit">${f.editId?'حفظ التعديل':'حفظ'}</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`;
   $('#scrim').hidden=false;cashHint()}
 function cashHint(){const h=$('#cfhint'),f=S.cf;if(!h||!f)return;if(f.dir==='in'&&f.cid){const a=nv(f.a),r=nv(f.rate),usd=f.cur==='usd'?a:(r>0?a/r:0);h.className='note';h.textContent=`تُسجَّل دفعة في كشف ${f.cname} بقيمة ${money(r2(usd))}.`}else if(f.dir==='in'&&f.cname){h.className='small muted';h.textContent='اختر الزبون من الاقتراحات ليرتبط المقبوض بذمته.'}else{h.className='small';h.textContent=''}}
-async function editLedgerTx(cid,id,patch){const ref=S.db.doc('ledgers/'+cid);let list;if(S.cid===cid&&S.ledger)list=S.ledger;else{const s=await ref.get();list=s.exists?(s.data().tx||[]):[]}
+async function editLedgerTx(cid,id,patch){const ref=S.db.doc('ledgers/'+cid);let list;const f=await freshDoc('ledgers/'+cid);if(f.ok)list=f.v?(f.v.tx||[]):[];else if(S.cid===cid&&S.ledger)list=S.ledger;else list=[];
   const nl=list.map(t=>t.id===id?{...t,...patch}:t);await ref.set({tx:nl});await S.db.doc('customers/'+cid).update({balance:r2(nl.reduce((a,t)=>a+eff(t),0))});if(S.cid===cid)S.ledger=nl}
 async function saveCashEdit(){const f=S.cf,a=r2(nv(f.a));if(!(a>0)){toast('أدخل المبلغ');return}
   const day=S.cday,{ref,v}=await cashDay(day,false);const i=v?v.tx.findIndex(t=>t.id===f.editId):-1;if(i<0){toast('الحركة غير موجودة');return}
@@ -1297,7 +1315,7 @@ async function ordFresh(){try{const s=await S.db.doc('meta/orders').get();return
 /* merge-save: only the drafts this device added/changed/removed are applied on top of the latest list from the server, so another device's drafts are never wiped */
 const ordSave=async L=>{const prev=S.orders||[],remote=await ordFresh();
   if(remote){const pm=new Map(prev.map(o=>[o.id,JSON.stringify(o)])),lm=new Set(L.map(o=>o.id)),rm=new Set([...pm.keys()].filter(id=>!lm.has(id)));
-    const out=remote.filter(o=>!rm.has(o.id));for(const o of L){if(pm.get(o.id)===JSON.stringify(o))continue;const i=out.findIndex(x=>x.id===o.id);if(i>=0)out[i]=o;else out.push(o)}L=out}
+    L=mergeById(prev,L,remote)}
   await S.db.doc('meta/orders').set({list:L});S.orders=L};
 async function ordPatch(id,patch){const remote=await ordFresh(),base=remote||S.orders||[];if(!base.some(x=>x.id===id))return false;const L=base.map(x=>x.id===id?{...x,...patch}:x);await S.db.doc('meta/orders').set({list:L});S.orders=L;return true}
 const hm=iso=>{const d=new Date(iso);return isNaN(d)?'':String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
@@ -1525,7 +1543,7 @@ async function doImport(){const R=S.imp;if(!R||!R.items)return;const msg=t=>{con
     if(!R.whCols.length&&it.qty!=null)setW(st,it.code,it.rowWh?wid(it.rowWh):selWh,it.qty);
     if(it.cost!=null){own(it.code);st[it.code].cost=it.cost}
     if(it.cny!=null){own(it.code);st[it.code].cny=it.cny}}
-  msg('جارٍ حفظ المواد…');await S.db.doc('meta/products').set({items:P});S.products=P;
+  msg('جارٍ حفظ المواد…');await saveProducts(P);
   if(R.col.qty!==undefined||R.col.cost!==undefined||R.col.cny!==undefined||R.col.total!==undefined||R.col.ctn!==undefined||R.whCols.length||R.rowWhUsed){S.wh=wh;try{await saveStock(st)}catch(e){S.wh=oldWh;throw e}}
   const codes=Object.keys(R.imgs||{});let ni=0;if(codes.length){const ts='u'+Date.now().toString(36);let cur=[],sz=0,k=0;const flush=async()=>{if(cur.length){await S.db.doc('pimg/'+ts+'_'+String(k++).padStart(3,'0')).set({list:cur});cur=[];sz=0}};
     for(const c of codes){msg(`جارٍ تجهيز الصور ${ni+1} من ${codes.length}…`);const d=await thumbOf(R.imgs[c].bytes,R.imgs[c].mime);if(!d)continue;if(sz+d.length>170000)await flush();cur.push({c,d});sz+=d.length;S.img[c]=d;ni++}
@@ -1556,7 +1574,7 @@ document.addEventListener('input',e=>{const id=e.target&&e.target.id;if(id==='m-
 async function saveProdForm(f){const isNew=!f.dataset.code,code=(isNew?$('#m-code').value:f.dataset.code).trim(),name=$('#m-name').value.trim();if(!code||!name){toast('أدخل الكود والاسم');return}
   if(isNew&&S.products[code]){toast('هذا الكود موجود مسبقاً');return}
   const p={name,pack:nv($('#m-pack').value),unit:$('#m-unit').value,price:nv($('#m-price').value)},mn=$('#m-min').value.trim();for(const [k,,d] of TIERS){const id=k==='price'?'m-price':'m-'+k,did='m-'+d;if(k!=='price'){const v=nv($('#'+id).value);if(v>0)p[k]=v}const dv=nv($('#'+did).value);if(dv>0)p[d]=Math.min(dv,100)}if(mn)p.min=mn;
-  const P={...S.products,[code]:p};await S.db.doc('meta/products').set({items:P});S.products=P;
+  const P={...S.products,[code]:p};await saveProducts(P);
   const cc=nv(($('#m-cost')||{}).value),yy=nv(($('#m-cny')||{}).value);
   if(isNew){const q=nv($('#m-qty').value);if(q>0||cc>0||yy>0){const st={...S.stock};setW(st,code,($('#m-wh')||{}).value||'main',q);st[code].cost=cc;if(yy>0)st[code].cny=yy;await saveStock(st)}}
   else{const cur=S.stock[code]||{};if(cc!==nv(cur.cost)||yy!==nv(cur.cny)){const st={...S.stock};if(!st[code])setW(st,code,'main',0);else st[code]={...st[code]};st[code].cost=cc;if(yy>0)st[code].cny=yy;else delete st[code].cny;await saveStock(st)}}
@@ -1649,7 +1667,7 @@ async function doCustImport(){const R=S.imp;if(!R||!R.cust)return;const msg=t=>{
 /* ---------- writes ---------- */
 async function guard(fn){if(S.busy||!S.db)return;S.busy=true;try{await fn()}catch(e){fail(e)}finally{S.busy=false}}
 async function saveLedger(tx){
-  const id=S.cid,bal=r2(tx.reduce((s,t)=>s+eff(t),0));
+  const id=S.cid,f=await freshDoc('ledgers/'+id);if(f.ok)tx=mergeById(S.ledger||[],tx,f.v?(f.v.tx||[]):[]);const bal=r2(tx.reduce((s,t)=>s+eff(t),0));
   await S.db.doc('ledgers/'+id).set({tx});await S.db.doc('customers/'+id).update({balance:bal});S.ledger=tx;{const cc=S.customers.find(x=>x.id===id);if(cc)cc.balance=bal}}
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
@@ -1753,7 +1771,7 @@ document.addEventListener('click',e=>{
     <div class="grid2"><button class="btn primary" type="button" data-act="bulk-go">طبّق</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`);return}
   if(b.dataset.act==='bulk-go'){const only=$('#bp-only').checked,tol=nv($('#bp-rnd').value),pc={};for(const k of ['p2','price','pt']){const v=$('#bp-'+k).value;if(v!=='')pc[k]=nv(v)}if(!Object.keys(pc).length){toast('أدخل نسبة لفئة واحدة على الأقل');return}
     guard(async()=>{const P={...S.products};let n=0;for(const c in P){const cost=nv((S.stock[c]||{}).cost);if(!(cost>0))continue;const q={...P[c]};let ch=false;for(const k in pc){if(only&&nv(q[k])>0)continue;q[k]=niceRound(cost*(1+pc[k]/100),tol);ch=true}if(ch){P[c]=q;n++}}
-      await S.db.doc('meta/products').set({items:P});S.products=P;closeSheet();refresh();toast('سُعّرت '+n+' مادة')});return}
+      await saveProducts(P);closeSheet();refresh();toast('سُعّرت '+n+' مادة')});return}
   if(b.dataset.act==='prod-del'){const code=b.dataset.code,q=nv((S.stock[code]||{}).q);if(S.armed!=='pd'){S.armed='pd';b.textContent='اضغط ثانية للتأكيد'+(q>0?` (تُحذف كميتها ${f1(q)})`:'');return}
     guard(async()=>{await deleteProducts([code]);S.armed=null;closeSheet();refresh();toast('حُذفت المادة')});return}
   if(b.dataset.act==='sel-mode'){S.sel=S.sel?null:new Set();S.armed=null;renderStock();return}
@@ -1895,7 +1913,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261119-0647';
+const BUILD='20261119-0653';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
