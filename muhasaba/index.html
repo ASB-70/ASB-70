@@ -462,8 +462,24 @@ function renderList(){
 function sendBlock(c){
   if(S.askSent===c.id)return `<div class="note">هل أرسلت الرسالة في واتساب؟</div><div class="grid2"><button class="btn primary" type="button" data-act="sent" data-id="${esc(c.id)}">نعم، أُرسلت</button><button class="btn" type="button" data-act="notsent">ليس بعد</button></div>`;
   const link=waLink(c,fillMsg(c));
-  return link?`<a class="btn wa" href="${esc(link)}" target="_blank" rel="noopener" data-act="wa" data-id="${esc(c.id)}">إرسال التذكير عبر واتساب</a>`
+  return link?`<button class="btn wa" type="button" data-act="rem-send" data-id="${esc(c.id)}">📤 إرسال التذكير + الكشف بكبسة وحدة</button><a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener" data-act="wa" data-id="${esc(c.id)}">إرسال نص التذكير فقط</a>`
     :`<button class="btn" type="button" data-act="edit-customer" data-id="${esc(c.id)}">أضف رقم الزبون لإرسال التذكير</button>`}
+/* one-tap payment reminder: fresh statement image + reminder text, straight to the customer's WhatsApp chat */
+async function markSent(c){const now=new Date();let next=null;if(c.repeat>0){const d=new Date(c.dueAt||now);do{d.setDate(d.getDate()+c.repeat)}while(d<=now);next=localISO(d)}
+  await S.db.doc('customers/'+c.id).update({dueAt:next,lastSent:now.toISOString()});c.dueAt=next;c.lastSent=now.toISOString();S.askSent=null;refresh();return next}
+async function remSend(c,b){const num=waNum(c.phone);if(!num){toast('أضف رقم واتساب لهذا الزبون أولاً');return}if(S.busy)return;S.busy=true;const t0=b.textContent;b.disabled=true;b.textContent='جارٍ تجهيز الكشف…';
+  try{let tx=[];try{const s=await S.db.doc('ledgers/'+c.id).get();tx=s.exists?(s.data().tx||[]):[]}catch(e){}
+    const bal=tx.length?r2(tx.reduce((a,t)=>a+eff(t),0)):(c.balance||0),cc={...c,balance:bal},text=fillMsg(cc);
+    const cv=await Promise.race([drawStatement(cc,tx,20),new Promise((_,j)=>setTimeout(()=>j(new Error('t')),15000))]);
+    const nm=fileName('كشف حساب '+c.name+' '+today(),'png');let sent=false;
+    if(window.Android&&typeof window.Android.sendToCompany==='function'){window.Android.sendToCompany(num,text,nm,'image/png',cv.toDataURL('image/png').split(',')[1]);sent=true}
+    else{const blob=await new Promise(r=>cv.toBlob(r,'image/png')),file=new File([blob],nm,{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){try{await navigator.share({files:[file],text});sent=true}catch(er){if(er&&er.name==='AbortError'){return}}}
+      if(!sent){let copied=false;if(navigator.clipboard&&window.ClipboardItem){try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);copied=true}catch(er){}}
+        window.open(waLink(c,text),'_blank','noopener');sent=true;toast(copied?'انفتح واتساب مع نص التذكير. الكشف منسوخ: الصقه بالمحادثة (Ctrl+V) واكبس إرسال.':'انفتح واتساب مع نص التذكير.')}}
+    if(sent){const next=await markSent(c);setTimeout(()=>toast(next?'سُجّل التذكير كمرسَل، والموعد القادم '+dmy(next.slice(0,10)):'سُجّل التذكير كمرسَل'),1800)}
+  }catch(e){console.error(e);toast('تعذّر تجهيز التذكير، حاول مرة ثانية')}
+  finally{S.busy=false;b.disabled=false;b.textContent=t0}}
 function dueCard(c){
   return `<div class="card duecard"><div class="sechead"><button class="btn sm" type="button" data-open="${esc(c.id)}" style="border:0;padding:0;background:none;font-size:15px">${esc(c.name)} ←</button><b class="num t-debt">${money(c.balance||0)}</b></div>
     <div class="small muted">${esc(c.city||'')} · موعده ${whenTxt(c.dueAt)}</div>${c.lastSent?`<div>${sentChip(c)}</div>`:''}${sendBlock(c)}</div>`}
@@ -1893,6 +1909,7 @@ document.addEventListener('click',e=>{
   else if(a==='clear-due')guard(async()=>{await S.db.doc('customers/'+S.cid).update({dueAt:null,repeat:0});closeSheet();toast('أُلغي التذكير')});
   else if(a==='wa'){S.askSent=b.dataset.id;setTimeout(refresh,400)}
   else if(a==='notsent'){S.askSent=null;refresh()}
+  else if(a==='rem-send'){const c=cust(b.dataset.id);if(c)remSend(c,b);}
   else if(a==='sent')guard(async()=>{const c=cust(b.dataset.id);if(!c)return;const now=new Date();let next=null;
     if(c.repeat>0){const d=new Date(c.dueAt||now);do{d.setDate(d.getDate()+c.repeat)}while(d<=now);next=localISO(d)}
     await S.db.doc('customers/'+c.id).update({dueAt:next,lastSent:now.toISOString()});S.askSent=null;toast(next?'سُجّل الإرسال، والتذكير القادم مجدول':'سُجّل الإرسال');refresh()});
@@ -1913,7 +1930,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261119-0653';
+const BUILD='20261119-0655';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
