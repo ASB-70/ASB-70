@@ -773,7 +773,7 @@ function itemHTML(it,i){const fld=(p,l,cls,attr)=>`<div class="field ${cls||''}"
     ${fld('qty','الكمية','','type="number" step="any" min="0" inputmode="decimal"')}${fld('price','السعر ($)','','type="number" step="any" min="0" inputmode="decimal"')}${fld('pack','التعبئة بالطرد','','type="number" step="any" min="0" inputmode="decimal"')}
     <div class="field"><label for="it-${i}-unit">الوحدة</label><select id="it-${i}-unit" data-i="${i}" data-p="unit">${[...new Set([...UNITS,it.unit||'قطعة'])].map(u=>`<option ${u===(it.unit||'قطعة')?'selected':''}>${esc(u)}</option>`).join('')}</select></div>
     <div class="field"><label for="it-${i}-ctn">📦 عدد الطرود (اكتب الطرد المختوم وتُحسب القطع)</label><input id="it-${i}-ctn" data-i="${i}" data-p="ctn" type="number" step="any" min="0" inputmode="decimal" value="${nv(it.pack)>0&&nv(it.qty)>0?r2(nv(it.qty)/nv(it.pack)):''}"></div>
-    ${(()=>{const k=(it.code||'').trim(),p=S.products[k],T=p?tierList(p):[];return (S.img[k]||T.length>1)?`<div class="lt">${S.img[k]?`<img src="${S.img[k]}" alt="" width="46" height="46" style="border-radius:8px;object-fit:cover">`:'<span></span>'}${T.length>1?`<span style="display:flex;gap:6px;flex-wrap:wrap">${T.map(t=>`<button class="btn sm${nv(it.price)===effP(p,t[0])?' primary':''}" type="button" data-act="use-p" data-i="${i}" data-v="${effP(p,t[0])}">${t[1]} ${pr(effP(p,t[0]))}</button>`).join('')}</span>`:''}</div>`:''})()}
+    ${(()=>{const k=(it.code||'').trim(),p=S.products[k],T=p?tierList(p):[];return (S.img[k]||T.length>=1)?`<div class="lt">${S.img[k]?`<img src="${S.img[k]}" alt="" width="46" height="46" style="border-radius:8px;object-fit:cover">`:'<span></span>'}${T.length>=1?`<span style="display:flex;gap:6px;flex-wrap:wrap"><small class="muted" style="align-self:center">سعر البيع:</small>${T.map(t=>`<button class="btn sm${nv(it.price)===effP(p,t[0])?' primary':''}" type="button" data-act="use-p" data-i="${i}" data-v="${effP(p,t[0])}">${t[1]} ${pr(effP(p,t[0]))}</button>`).join('')}</span>`:''}</div>`:''})()}
     <div class="lt two" style="grid-column:span 2"><span>الإجمالي <b class="num" id="lt-${i}" style="color:var(--ink)">${money(lineTot(it))}</b> · <b id="lc-${i}" style="color:var(--brand);font-size:1.05em">${cartText(it)}</b> · ربحك <b class="num" id="lp-${i}" style="color:${lpColor(it,S.draft)}">${lpText(it,S.draft)}</b>${S.products[(it.code||'').trim()]?` · المتوفر <b class="num" id="av-${i}" style="color:${nv(it.qty)>avail((it.code||'').trim())?'var(--debt)':'var(--ink)'}">${f1(avail((it.code||'').trim()))}</b>${resv((it.code||'').trim())>0?` <span class="muted">(محجوز بمسودات ${f1(resv((it.code||'').trim()))})</span>`:''} · يبقى <b class="num" id="rm-${i}">${remTxt(S.draft,it)}</b>`:''}</span><button class="btn sm danger" type="button" data-act="del-item" data-i="${i}">حذف</button></div></div>`}
 const ck=it=>String(it.code||'').trim();
 const ik=it=>{const c=ck(it);if(c)return c;const n=nrm(it.name||'');return n?'n:'+n:''};
@@ -834,7 +834,7 @@ function renderInv(focusLast){
     ${(d.cashCur||'usd')!=='usd'?`<div class="grid2"><div class="field"><label for="in-cashSyp">${d.cashCur==='mix'?'المقبوض بالليرة السورية (ل.س)':'المبلغ بالليرة السورية (ل.س)'}</label><input id="in-cashSyp" data-f="cashSyp" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashSyp)}"></div><div class="field"><label for="in-cashRate">سعر الصرف (ل.س لكل $)</label><input id="in-cashRate" data-f="cashRate" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashRate)}"></div></div>`:''}
     <div class="small muted" id="cashinfo">${cashInfo(d)}</div>`:''}
     <div class="field"><label for="in-wh">تُسحب البضاعة من مستودع</label><select id="in-wh" data-f="wh">${whOpts(d.wh||'main')}</select></div>
-    ${d.tier?`<div class="field"><label>سعر البيع</label><div class="seg">${TIERS.slice().reverse().map(t=>`<button type="button" data-act="draft-tier" data-v="${t[0]}" aria-pressed="${d.tier===t[0]}">${t[1]}</button>`).join('')}</div></div>`:''}
+    <div class="field"><label>سعر البيع لكل المواد (اختياري)</label><div class="seg"><button type="button" data-act="draft-tier" data-v="" aria-pressed="${!d.tier}">يدوي</button>${TIERS.slice().reverse().map(t=>`<button type="button" data-act="draft-tier" data-v="${t[0]}" aria-pressed="${d.tier===t[0]}">${t[1]}</button>`).join('')}</div><span class="small muted">اختار شريحة السعر فتتعبّى أسعار كل المواد منها، أو خليها «يدوي» واكتب السعر بنفسك. وتحت كل مادة في أزرار بأسعارها.</span></div>
     <div class="sechead"><h2>المواد</h2><small>${d.items.length} مادة</small></div>
     ${dupHTML(d)}
     ${d.items.map(itemHTML).join('')}
@@ -1914,7 +1914,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='pk-mode'){guard(async()=>{S.settings={...S.settings,pmode:b.dataset.v,pcode:b.dataset.v!=='num'};await S.db.doc('settings/main').set(S.settings);S.pshow=false;peyeSync();pkeySheet()});return}
   if(b.dataset.act==='inv-cc'){const d=S.draft;if(!d)return;d.cashCur=b.dataset.v;if(d.cashCur!=='usd'&&!nv(d.cashRate))d.cashRate=defRate();syncCash(d);renderInv();return}
   if(b.dataset.act==='quick-sale'){guard(quickSale);return}
-  if(b.dataset.act==='draft-tier'){const d=S.draft;if(!d)return;d.tier=b.dataset.v;for(const it of d.items){const p=S.products[ck(it)];if(p&&effP(p,d.tier))it.price=effP(p,d.tier)}renderInv();return}
+  if(b.dataset.act==='draft-tier'){const d=S.draft;if(!d)return;d.tier=b.dataset.v;if(!d.tier){renderInv();return}for(const it of d.items){const p=S.products[ck(it)];if(p&&effP(p,d.tier))it.price=effP(p,d.tier);else if(p&&!nv(it.price)&&defP(p))it.price=defP(p)}renderInv();return}
   if(b.dataset.act==='sale-new'){S.ordMode=false;saleCustSheet();return}
   if(b.dataset.act==='sale-cust'&&S.ordMode){S.ordMode=false;closeSheet();ordDraftOpen(b.dataset.id);return}
   if(b.dataset.act==='sale-cust'){const id=b.dataset.id;closeSheet();show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger)invSheet()}},100);return}
@@ -2089,7 +2089,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261119-1728';
+const BUILD='20261119-1758';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
