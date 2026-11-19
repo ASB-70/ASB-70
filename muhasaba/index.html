@@ -268,11 +268,22 @@ const SB={url:'https://ecvzyptrpekgsouhgbdb.supabase.co',key:'sb_publishable_Upa
 const EXT=/(^|\.)github\.io$/.test(location.hostname)||location.hostname==='localhost'||location.protocol==='file:';
 function makeSbDb(stat){stat=stat||(()=>{});
   let tok=null,exp=0,refresh=LS.get('thiqa-rt')||'',tp=null;const subs=new Set(),enc=encodeURIComponent,meta=c=>({fromCache:!!c,hasPendingWrites:false});
-  async function auth(body,grant){let r;try{r=await fetch(SB.url+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){stat('off');throw Object.assign(new Error('network'),{code:'unavailable'})}const j=await r.json().catch(()=>({}));
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms)),netErr=()=>Object.assign(new Error('network'),{code:'unavailable'});
+  /* every request has a time limit, so a weak connection can never freeze the app; it is retried, then treated as offline */
+  async function tfetch(url,o,ms){const ac=typeof AbortController!=='undefined'?new AbortController():null,t=ac?setTimeout(()=>ac.abort(),ms):0;try{return await fetch(url,ac?{...o,signal:ac.signal}:o)}finally{if(t)clearTimeout(t)}}
+  async function auth(body,grant){let r;for(let k=0;;k++){try{r=await tfetch(SB.url+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify(body)},20000);if(r.status>=500&&k<2){await sleep(1500*(k+1));continue}break}catch(e){if(k<2){await sleep(1500*(k+1));continue}stat('off');throw netErr()}}const j=await r.json().catch(()=>({}));
     if(!r.ok||!j.access_token)throw Object.assign(new Error(j.error_description||j.msg||'auth'),{code:r.status>=500?'unavailable':'auth'});tok=j.access_token;exp=Date.now()+(j.expires_in||3600)*1000-60000;refresh=j.refresh_token||'';LS.set('thiqa-rt',refresh||null)}
   async function token(){if(tok&&Date.now()<exp)return tok;if(!refresh)throw Object.assign(new Error('login'),{code:'auth'});if(!tp)tp=auth({refresh_token:refresh},'refresh_token').finally(()=>{tp=null});await tp;return tok}
-  async function rq(q,opt){const t=await token();opt=opt||{};const wr=!!opt.method;let r;if(wr)stat('w+');try{r=await fetch(SB.url+'/rest/v1/'+(opt.table||SB.table)+q,{...opt,headers:{apikey:SB.key,Authorization:'Bearer '+t,'Content-Type':'application/json',...(opt.headers||{})}})}catch(e){if(wr)stat('w-');stat('off');throw Object.assign(new Error('network'),{code:'unavailable'})}
-    if(wr)stat('w-');stat('ok');
+  async function rq(q,opt){opt=opt||{};const wr=!!opt.method;let r,re401=false;if(wr)stat('w+');
+    try{for(let k=0;;k++){const t=await token();
+      try{r=await tfetch(SB.url+'/rest/v1/'+(opt.table||SB.table)+q,{...opt,headers:{apikey:SB.key,Authorization:'Bearer '+t,'Content-Type':'application/json',...(opt.headers||{})}},wr?30000:20000)}
+      catch(e){if(k<2){await sleep(1200*(k+1));continue}stat('off');throw netErr()}
+      if(r.status===401&&!re401){re401=true;tok=null;exp=0;continue}
+      if((r.status>=500||r.status===408||r.status===429)&&k<2){await sleep(1500*(k+1));continue}
+      break}}
+    finally{if(wr)stat('w-')}
+    if(r.status>=500||r.status===408||r.status===429){stat('off');throw netErr()}
+    stat('ok');
     if(r.status===401){tok=null;exp=0}
     if(!r.ok)throw Object.assign(new Error('db '+r.status),{code:r.status===401?'auth':r.status===404?'no_table':'unavailable',status:r.status});return r.status===204?null:r.json().catch(()=>null)}
   const snapDoc=(id,row,c)=>({id,exists:!!row,data:()=>row?row.data:undefined,metadata:meta(c)});
@@ -297,7 +308,7 @@ function makeSbDb(stat){stat=stat||(()=>{});
     finally{flushing=false}
     if(conf)toast('رُفعت التعديلات، لكن '+conf+' منها تعارضت مع تعديل من جهاز آخر فبقيت نسخة الخادم وحُفظت نسختك في سجل التعارضات.');
     else if(done)toast('رُفعت '+done+' تعديلات كانت محفوظة على جهازك.')}
-  setInterval(()=>{flush()},15000);
+  setInterval(()=>{flush()},15000);window.addEventListener('online',()=>setTimeout(()=>flush(),1500));document.addEventListener('visibilitychange',()=>{if(!document.hidden)flush()});
   const runAll=()=>{if(!document.hidden&&refresh)for(const x of subs)x.run()};
   let paused=false;
   function poke(path){if(paused)return;const col=path.slice(0,path.lastIndexOf('/'));for(const x of subs)if(x.path===path||x.col===col)x.run()}
@@ -342,7 +353,7 @@ const dmy=d=>d?d.split('-').reverse().join('/'):'بدون تاريخ';
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const localISO=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 const whenTxt=iso=>new Date(iso).toLocaleString('ar-SY-u-nu-latn',{weekday:'long',day:'numeric',month:'long',hour:'numeric',minute:'2-digit'});
-const isDue=c=>c.dueAt&&new Date(c.dueAt)<=new Date();
+const isDue=c=>!!c.dueAt&&String(c.dueAt).slice(0,10)<=today();
 const cust=id=>S.customers.find(c=>c.id===id);
 function waNum(p){let d=String(p||'').replace(/\D/g,'');if(!d)return'';if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='963'+d.slice(1);else if(d.length===9&&d[0]==='9')d='963'+d;return d}
 function fillMsg(c){return S.settings.template.replaceAll('{الاسم}',c.name).replaceAll('{المبلغ}',money(c.balance||0)).replaceAll('{الشركة}',S.settings.company)}
@@ -436,7 +447,7 @@ function renderList(){
   const want='<option value="">كل المحافظات</option>'+cs.map(c=>`<option>${esc(c)}</option>`).join('');
   if(sel.dataset.sig!==cs.join('|')){sel.innerHTML=want;sel.dataset.sig=cs.join('|');sel.value=S.f.city}
   const q=S.f.q.trim();let L=S.customers.filter(c=>{
-    if(c.walkin)return false;
+    if(c.walkin&&Math.abs(c.balance||0)<0.005)return false;
     if(S.f.type!=='all'&&typeOf(c.balance||0)!==S.f.type)return false;
     if(S.f.city&&c.city!==S.f.city)return false;
     if(q&&!((c.name||'')+' '+(c.city||'')+' '+(c.phone||'')).includes(q))return false;return true});
@@ -795,18 +806,20 @@ async function saveInvoice(){
   if(!items.length){toast('أضف مادة واحدة على الأقل');return}
   if(dupBlock(d,items))return;
   if(items.some(it=>!(it.qty>0))){toast('أدخل الكمية لكل مادة');return}
+  if(c.walkin&&!PAID.includes(d.pay)&&!(d.wname||'').trim()){toast('بيع آجل لزبون غير معروف: اكتب اسم الزبون حتى تعرف مين لازم يدفع');const e=$('#in-wname');if(e)e.focus();return}
   if(stockBlock(d,items))return;
   const total=invTotal({items,disc:d.disc});if(!(total>0)){toast('أدخل أسعار المواد');return}
   const CP=d.pay==='نقدي'?cashPlan(d,total):null;if(CP&&!CP.ok){toast('أدخل سعر الصرف');return}
   const ref=d.id?S.db.doc('invoices/'+d.id):S.db.collection('invoices').doc(),id=ref.id,no=String(d.no).trim();
   const nmShown=(c.walkin&&(d.wname||'').trim())||c.name;
   await ref.set({no,cid:c.id,cname:nmShown,phone:(d.phone||c.phone||'').trim(),date:d.date||today(),dest:(d.dest||'').trim(),shipper:d.dest===MYCITY?'':(d.shipper||'').trim(),shipFee:d.dest===MYCITY?'':(d.shipFee||'').trim(),pay:d.pay,cashCur:d.pay==='نقدي'?(d.cashCur||'usd'):'usd',cashRate:nv(d.cashRate)||0,cashUsd:nv(d.cashUsd)||0,cashSyp:nv(d.cashSyp)||0,note:(d.note||'').trim(),items,total,sub:invSub({items}),disc:discPct(d),discAmt:invDisc({items,disc:d.disc}),cartons:r2(invCart({items})),stk:true,wh:d.wh||'main',...(pf=>({profit:pf.profit,costTotal:pf.cost,noCost:pf.noCost}))(draftProfit({items,disc:d.disc})),createdAt:d.createdAt||new Date().toISOString()});
-  const lines=[{id:newId(),k:'inv',a:total,d:d.date||today(),ref:no,n:items.length+' مادة',inv:id}],oldCash=S.ledger.filter(t=>t.inv===id&&t.cash);
+  const lines=[{id:newId(),k:'inv',a:total,d:d.date||today(),ref:no,n:(c.walkin&&(d.wname||'').trim()?(d.wname||'').trim()+' · ':'')+items.length+' مادة',inv:id}],oldCash=S.ledger.filter(t=>t.inv===id&&t.cash);
   if(PAID.includes(d.pay))lines.push({id:newId(),k:'pay',a:total,d:d.date||today(),ref:no,n:d.pay,inv:id,...(d.pay==='نقدي'?{cash:d.date||today()}:{})});
   const at=S.ledger.findIndex(t=>t.inv===id),rest=S.ledger.filter(t=>t.inv!==id);
   if(at<0)rest.push(...lines);else rest.splice(Math.min(at,rest.length),0,...lines);
   await saveLedger(rest);
-  try{if(d.fromOrd&&S.orders.some(x=>x.id===d.fromOrd))await ordSave(S.orders.map(x=>x.id===d.fromOrd?{...x,invNo:no,invId:id}:x))}catch(e){}
+  if(d.fromOrd){let ok=false;for(let k=0;k<3&&!ok;k++){try{ok=await ordPatch(d.fromOrd,{invNo:no,invId:id,st:'d',doneAt:today()});if(!ok)break}catch(e){await new Promise(r=>setTimeout(r,1500))}}
+    if(!ok)setTimeout(()=>toast('انحفظت الفاتورة، بس ما قدرت أنقل المسودة لـ«المسلّمة». افتحها وكبس «تم التسليم».'),2500)}
   try{const sh=(d.shipper||'').trim();if(sh&&d.dest!==MYCITY&&!shipList().includes(sh)){const st={...S.settings,ships:[...(S.settings.ships||[]),sh]};await S.db.doc('settings/main').set(st);S.settings=st}}catch(e){}
   for(const o of oldCash)await cashRemove(o.cash,e=>e.ltx===o.id);
   if(d.pay==='نقدي')await cashAdd(lines[1].cash,CP.list.map(e=>({id:newId(),t:new Date().toISOString(),dir:'in',cur:e.cur,a:e.a,n:'فاتورة نقدية '+no+' · '+nmShown+(e.cur==='syp'?' (على سعر '+CP.rate.toLocaleString('en-US')+')':''),cid:c.id,cname:nmShown,ltx:lines[1].id,usd:e.usd,invoice:id})));
@@ -1280,13 +1293,19 @@ function renderReports(){const el=$('#v-reports'),R=S.rep;
     <div id="replist">${repInvList(inv)}</div></div>`}
 const invFilt=q=>{q=nrm(q||'');return(S.rep.inv||[]).filter(v=>!q||nrm(v.no).includes(q)||nrm(v.cname).includes(q)||nrm(v.dest||'').includes(q)||nrm(v.shipper||'').includes(q)||String(v.total).includes(q)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.no).localeCompare(String(a.no),'en',{numeric:true}))};
 S.orders=[];S.stab='reg';S.ost='w';S.osort='turn';
-const ordSave=async L=>{await S.db.doc('meta/orders').set({list:L});S.orders=L};
+async function ordFresh(){try{const s=await S.db.doc('meta/orders').get();return s.exists?(s.data().list||[]):[]}catch(e){return null}}
+/* merge-save: only the drafts this device added/changed/removed are applied on top of the latest list from the server, so another device's drafts are never wiped */
+const ordSave=async L=>{const prev=S.orders||[],remote=await ordFresh();
+  if(remote){const pm=new Map(prev.map(o=>[o.id,JSON.stringify(o)])),lm=new Set(L.map(o=>o.id)),rm=new Set([...pm.keys()].filter(id=>!lm.has(id)));
+    const out=remote.filter(o=>!rm.has(o.id));for(const o of L){if(pm.get(o.id)===JSON.stringify(o))continue;const i=out.findIndex(x=>x.id===o.id);if(i>=0)out[i]=o;else out.push(o)}L=out}
+  await S.db.doc('meta/orders').set({list:L});S.orders=L};
+async function ordPatch(id,patch){const remote=await ordFresh(),base=remote||S.orders||[];if(!base.some(x=>x.id===id))return false;const L=base.map(x=>x.id===id?{...x,...patch}:x);await S.db.doc('meta/orders').set({list:L});S.orders=L;return true}
 const hm=iso=>{const d=new Date(iso);return isNaN(d)?'':String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 const ddiff=(a,b)=>Math.round((new Date(a+'T00:00:00')-new Date(b+'T00:00:00'))/864e5);
 function ordHTML(){const all=S.orders||[],pend=all.filter(o=>o.st!=='d').sort((a,b)=>(a.at||'').localeCompare(b.at||'')),rank=new Map(pend.map((o,i)=>[o.id,i+1])),t=today();
   const late=pend.filter(o=>o.due&&o.due<t).length,td=pend.filter(o=>o.due===t).length;
   let L=S.ost==='d'?all.filter(o=>o.st==='d').sort((a,b)=>(b.doneAt||'').localeCompare(a.doneAt||'')).slice(0,60):(S.osort==='due'?pend.slice().sort((a,b)=>(a.due||'9').localeCompare(b.due||'9')||(a.at||'').localeCompare(b.at||'')):pend);
-  const chip=o=>{if(o.st==='d')return`<span class="chip c-credit">سُلّم ${dmy(o.doneAt||'')}</span>`;if(!o.due)return'';const n=ddiff(o.due,t);return n<0?`<span class="chip c-due">متأخر ${-n} يوم</span>`:n===0?'<span class="chip c-due">التسليم اليوم</span>':`<span class="chip c-zero">بعد ${n} يوم</span>`};
+  const chip=o=>{if(o.st==='d')return`<span class="chip c-credit">${o.invNo?'فاتورة رقم '+esc(o.invNo)+' · ':''}سُلّم ${dmy(o.doneAt||'')}</span>`;if(!o.due)return'';const n=ddiff(o.due,t);return n<0?`<span class="chip c-due">متأخر ${-n} يوم</span>`:n===0?'<span class="chip c-due">التسليم اليوم</span>':`<span class="chip c-zero">بعد ${n} يوم</span>`};
   return `<div class="trio"><div><span>بالانتظار</span><b class="num">${pend.length}</b></div><div><span>متأخرة</span><b class="num" style="color:var(--debt)">${late}</b></div><div><span>تسليمها اليوم</span><b class="num">${td}</b></div></div>
    <button class="btn primary" type="button" data-act="ord-new" style="width:100%">＋ طلب جديد في الدفتر</button>
    <div class="seg"><button type="button" data-act="ord-st" data-v="w" aria-pressed="${S.ost!=='d'}">بالانتظار (${pend.length})</button><button type="button" data-act="ord-st" data-v="d" aria-pressed="${S.ost==='d'}">مسلّمة</button></div>
@@ -1876,7 +1895,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261118-1400';
+const BUILD='20261119-0647';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -1917,10 +1936,10 @@ show('home');
     if(!s.metadata.fromCache){clearTimeout(timer);notice.hidden=true}
     refresh()},()=>{clearTimeout(timer);S.loaded=true;notice.textContent='انقطع الاتصال بالدفتر. أعد فتح الصفحة لاحقاً.';notice.hidden=false;refresh()});
   if(EXT)loadAbk();
-  db.doc('meta/products').get().then(s=>{if(s.exists)S.products=s.data().items||{};if(S.view==='stock')refresh()}).catch(()=>{});
+  db.doc('meta/products').onSnapshot(s=>{if(s.exists)S.products=s.data().items||{};if(S.view==='stock'&&$('#scrim').hidden)refresh()},()=>{});
   db.doc('meta/stock').onSnapshot(s=>{const v=s.exists?s.data():{};S.stock=v.items||{};S.wh=(v.wh&&v.wh.length)?v.wh:[MAINWH];S.stockMeta=v.lastCount?{lastCount:v.lastCount}:{};S.stockLoaded=true;if(S.view==='stock'&&$('#scrim').hidden)refresh()},()=>{S.stockLoaded=true});
   staffSub();
-  db.doc('meta/orders').get().then(s=>{if(s.exists)S.orders=s.data().list||[];if(S.view==='sales')renderSales()}).catch(()=>{});
+  db.doc('meta/orders').onSnapshot(s=>{S.orders=s.exists?(s.data().list||[]):[];if(S.view==='sales'&&$('#scrim').hidden)renderSales();if(S.view==='stock'&&$('#scrim').hidden)refresh()},()=>{});
   db.doc('meta/stocklog').get().then(s=>{if(s.exists)S.slog=s.data().list||[]}).catch(()=>{});
   db.doc('settings/main').get().then(s=>{if(s.exists){S.settings={...DEF,...s.data()};renderCover();if(S.view==='settings')renderSettings();if(S.view==='home')refresh()}lockSync(S.settings.pin)}).catch(()=>{if(LK.pin)lockShow();else lockHide()});
   setInterval(()=>{if($('#scrim').hidden&&S.askSent===null&&S.view!=='settings'&&S.view!=='customers')refresh()},60000);
