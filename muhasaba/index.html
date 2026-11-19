@@ -1979,7 +1979,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261119-0736';
+const BUILD='20261119-0749';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -2001,7 +2001,7 @@ if(EXT){window.addEventListener('popstate',onPop);
   checkUpdate(true);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate(false)})}
 $('#locklogo').src=LOGO;if(EXT&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(LK.pin)lockShow();
-show('home');
+show('cash');
 (async()=>{
   const use=n=>window.claude&&window.claude.use?window.claude.use(n).catch(()=>null):Promise.resolve(null);
   let db,dl;const notice=$('#notice');
@@ -2014,6 +2014,7 @@ show('home');
   if(!db){if(LK.pin)lockShow();else lockHide();}
   if(!db){S.loaded=true;notice.textContent='تعذّر فتح الدفتر في هذا العرض. افتح الصفحة من حسابك في Claude.';notice.hidden=false;refresh();return}
   $('#fab').hidden=!(S.view==='home'||S.view==='customers');
+  if(S.view==='cash'){if(!S.cday)S.cday=today();loadCash()}
   const timer=setTimeout(()=>{notice.textContent=S.loaded?'قد لا تكون البيانات محدّثة. تحقق من الاتصال.':'لم نصل إلى الدفتر بعد. تحقق من الاتصال.';notice.hidden=false},10000);
   db.collection('customers').limit(1000).onSnapshot(s=>{
     S.customers=s.docs.map(d=>({id:d.id,...d.data()}));S.loaded=true;
