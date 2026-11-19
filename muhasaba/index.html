@@ -397,7 +397,7 @@ function refresh(){
 function totals(){let owed=0,owe=0,n=0;for(const c of S.customers){const b=c.balance||0;if(b>0.005){owed+=b;n++}else if(b<-0.005)owe+=-b}return{owed:r2(owed),owe:r2(owe),n}}
 const eyeBtn=()=>`<button class="eyebtn" type="button" data-act="priv-toggle" aria-label="${S.priv?'إظهار الأرقام':'إخفاء الأرقام'}">${S.priv?'<svg viewBox="0 0 24 24"><path d="M2 12s3.600-6.500 10-6.500S22 12 22 12s-3.600 6.500-10 6.500S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>':'<svg viewBox="0 0 24 24"><path d="M2 12s3.600-6.500 10-6.500S22 12 22 12s-3.600 6.500-10 6.500S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'}</button>`;
 const PV={tries:0,until:0};
-function doReveal(){S.priv=false;applyPriv();renderCover();if(!$('#scrim').hidden)closeSheet();if(S.view&&typeof refresh==='function')refresh()}
+function doReveal(){S.priv=false;S.pshow=true;applyPriv();renderCover();if(!$('#scrim').hidden)closeSheet();if(S.view&&typeof refresh==='function')refresh()}
 async function privReveal(){const bio=BIO.on&&bioKind();
   if(!LK.pin&&!bio){doReveal();toast('لم تضبط رمز دخول. فعّله من الإعدادات لحماية الأرقام.');return}
   if(bio){let ok=false;try{ok=await bioAuth()}catch(e){}if(ok){doReveal();return}}
@@ -803,7 +803,7 @@ const pcOn=()=>pmode()!=='num';
 const pc=v=>{const t=String(v),m=pmode();if(m==='num'||S.pshow)return t;return m==='code'?t.replace(/\d/g,d=>pkey()[+d]).replace(/\$/g,''):t.replace(/[\d.,$]+/g,'******')};
 function peyeSync(){const b=$('#peye');if(b){b.textContent=S.pshow?'🙈':'👁';b.setAttribute('aria-label',S.pshow?'إخفاء الأرباح':'إظهار الأرباح');b.hidden=pmode()==='num'}}
 function peyeToggle(){S.pshow=!S.pshow;peyeSync();try{refresh()}catch(e){}if($('#iform')&&S.draft)renderInv();else if(S.curInv&&!$('#scrim').hidden&&$('#stmtbox'))invView(S.curInv.id)}
-function pkeySheet(){const k=pkey();openSheet(`<h2>🔑 رموز الأرباح</h2><div class="note">الأرباح بتظهر نجوم (******). كبسة على زر 👁 (تحت عاليمين) بتظهرها أرقام عادية، وكبسة تانية بتخفيها. أو اختار «رموز» لتظهر حروف.</div><form id="pkform">
+function pkeySheet(){const k=pkey();openSheet(`<h2>🔑 رموز الأرباح</h2><div class="note">الأرباح بتظهر نجوم (******). زر العين 👁 فوق (جنب «متصل») بيظهرها أرقام عادية مع باقي المبالغ، وكبسة تانية بتخفيها. أو اختار «رموز» لتظهر حروف.</div><form id="pkform">
    <div class="seg"><button type="button" data-act="pk-mode" data-v="star" aria-pressed="${pmode()==='star'}">نجوم</button><button type="button" data-act="pk-mode" data-v="code" aria-pressed="${pmode()==='code'}">رموز</button><button type="button" data-act="pk-mode" data-v="num" aria-pressed="${pmode()==='num'}">أرقام دائماً</button></div>
    <div class="field"><label for="pk-in">المفتاح: 10 حروف مختلفة (الأول للصفر والأخير للتسعة)</label><input id="pk-in" value="${esc(k.join(''))}" maxlength="10" autocomplete="off" dir="rtl"></div>
    <div class="ctab"><span class="h">الرقم</span><span class="h">الرمز</span><span class="h"></span>${k.map((c,i)=>`<span class="l">${i}</span><span class="n">${esc(c)}</span><span></span>`).join('')}</div>
@@ -1966,7 +1966,7 @@ document.addEventListener('click',e=>{
   if(a==='abk-dl'){const id=b.dataset.id;b.disabled=true;guard(async()=>{try{const d=await S.db.backups.get(id);if(!d)throw 0;const x=(S.abk.list||[]).find(z=>String(z.id)===String(id));await S.dl.save({filename:'نسخة تلقائية محاسبة الثقة '+String((x&&x.created_at)||today()).slice(0,10)+'.json',data:JSON.stringify(d)})}catch(er){if(!er||er.code!=='declined')toast('تعذّر تنزيل النسخة')}finally{b.disabled=false}});return}
   if(a==='abk-rs'){const id=b.dataset.id;if(S.armed!=='abk'+id){S.armed='abk'+id;renderSettings();return}b.disabled=true;S.armed=null;
     guard(async()=>{try{const m=$('#abkmsg');if(m)m.textContent='جارٍ جلب النسخة…';const d=await S.db.backups.get(id);if(!d||!d.data)throw 0;S.rest=d;S.rmsgSel='#abkmsg';await doRestore()}catch(er){toast('تعذّر الاسترجاع من هذه النسخة')}finally{S.rmsgSel=null;renderSettings()}});return}
-  if(a==='priv-toggle'){if(S.priv)privReveal();else{S.priv=true;applyPriv();renderCover()}return}
+  if(a==='priv-toggle'){if(S.priv)privReveal();else{S.priv=true;S.pshow=false;applyPriv();renderCover();if(typeof refresh==='function')refresh()}return}
   if(a==='priv-bio'){bioAuth().then(ok=>{if(ok)doReveal();else{const e=$('#priverr');if(e)e.textContent='لم تنجح البصمة'}});return}
   if(a==='pick-contact'){pickContact();return}
   if(a==='crop-ok'){cropDone();return}
@@ -2088,7 +2088,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261119-1624';
+const BUILD='20261119-1725';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -2138,7 +2138,7 @@ show('cash');
   db.doc('settings/main').get().then(s=>{if(s.exists){S.settings={...DEF,...s.data()};renderCover();if(S.view==='settings')renderSettings();if(S.view==='home')refresh()}lockSync(S.settings.pin)}).catch(()=>{if(LK.pin)lockShow();else lockHide()});
   setInterval(()=>{if($('#scrim').hidden&&S.askSent===null&&S.view!=='settings'&&S.view!=='customers')refresh()},60000);
 })();
-(function(){const b=document.createElement('button');b.id='peye';b.type='button';b.addEventListener('click',peyeToggle);document.body.appendChild(b);peyeSync();setInterval(()=>{if(!$('#lock').hidden&&S.pshow){S.pshow=false;peyeSync()}},1000)})();
+setInterval(()=>{if(!$('#lock').hidden&&S.pshow){S.pshow=false}},1000);
 
 /* SYP helper: every Syrian-pound field shows the amount in words (تفقيط) live, plus quick zero buttons */
 /* old <-> new Syrian pound converter (100 old = 1 new) */
