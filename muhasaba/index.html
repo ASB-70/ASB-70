@@ -130,7 +130,7 @@ nav .badge{position:absolute;top:2px;inset-inline-start:calc(50% + 6px);backgrou
 .qb{border:0;border-radius:12px;padding:16px 8px;font-family:var(--display);font-weight:600;font-size:17px}
 .qb.in{background:var(--credit);color:var(--surface)}.qb.out{background:var(--debt-bg);color:var(--debt);padding:11px 8px;font-size:14.5px}
 #cqn{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
-#peye{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:max(8px,env(safe-area-inset-left,0px));z-index:30;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);opacity:.88;font-size:19px;line-height:1;padding:0;cursor:pointer}
+#peye{position:fixed;bottom:calc(84px + env(safe-area-inset-bottom,0px));right:max(12px,env(safe-area-inset-right,0px));box-shadow:0 2px 10px rgba(0,0,0,.18);z-index:30;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);opacity:.88;font-size:19px;line-height:1;padding:0;cursor:pointer}
 @page{size:auto;margin:0}
 #printzone{display:none}
 @media print{body.printing>*:not(#printzone){display:none!important}body.printing{background:#fff!important}body.printing #printzone{display:block!important}#printzone img{width:100%;display:block}#printzone .pg{position:relative;width:100%;aspect-ratio:1/1.38;overflow:hidden;break-after:page;break-inside:avoid;direction:ltr;font:2.2vw sans-serif;color:#222}#printzone .pg:last-child{break-after:auto}#printzone .ph{height:3.2vw;line-height:3.6vw;padding-left:5vw}#printzone .pf{position:absolute;bottom:1.2vw;right:5vw}#printzone .pd{font:11px sans-serif;color:#444;padding:0 8mm 2mm;direction:ltr}}
@@ -803,7 +803,7 @@ const pcOn=()=>pmode()!=='num';
 const pc=v=>{const t=String(v),m=pmode();if(m==='num'||S.pshow)return t;return m==='code'?t.replace(/\d/g,d=>pkey()[+d]).replace(/\$/g,''):t.replace(/[\d.,$]+/g,'******')};
 function peyeSync(){const b=$('#peye');if(b){b.textContent=S.pshow?'🙈':'👁';b.setAttribute('aria-label',S.pshow?'إخفاء الأرباح':'إظهار الأرباح');b.hidden=pmode()==='num'}}
 function peyeToggle(){S.pshow=!S.pshow;peyeSync();try{refresh()}catch(e){}if($('#iform')&&S.draft)renderInv();else if(S.curInv&&!$('#scrim').hidden&&$('#stmtbox'))invView(S.curInv.id)}
-function pkeySheet(){const k=pkey();openSheet(`<h2>🔑 رموز الأرباح</h2><div class="note">الأرباح بتظهر نجوم (******). كبسة على زر 👁 (فوق عالشمال) بتظهرها أرقام عادية، وكبسة تانية بتخفيها. أو اختار «رموز» لتظهر حروف.</div><form id="pkform">
+function pkeySheet(){const k=pkey();openSheet(`<h2>🔑 رموز الأرباح</h2><div class="note">الأرباح بتظهر نجوم (******). كبسة على زر 👁 (تحت عاليمين) بتظهرها أرقام عادية، وكبسة تانية بتخفيها. أو اختار «رموز» لتظهر حروف.</div><form id="pkform">
    <div class="seg"><button type="button" data-act="pk-mode" data-v="star" aria-pressed="${pmode()==='star'}">نجوم</button><button type="button" data-act="pk-mode" data-v="code" aria-pressed="${pmode()==='code'}">رموز</button><button type="button" data-act="pk-mode" data-v="num" aria-pressed="${pmode()==='num'}">أرقام دائماً</button></div>
    <div class="field"><label for="pk-in">المفتاح: 10 حروف مختلفة (الأول للصفر والأخير للتسعة)</label><input id="pk-in" value="${esc(k.join(''))}" maxlength="10" autocomplete="off" dir="rtl"></div>
    <div class="ctab"><span class="h">الرقم</span><span class="h">الرمز</span><span class="h"></span>${k.map((c,i)=>`<span class="l">${i}</span><span class="n">${esc(c)}</span><span></span>`).join('')}</div>
@@ -870,7 +870,7 @@ S.priv=true;applyPriv();
 $('#sheet').addEventListener('input',e=>{if(e.target.id==='crop-z')cropZoom(+e.target.value)});
 $('#sheet').addEventListener('focusin',e=>{const t=e.target;if(t.dataset&&t.dataset.sug)sugFor(t)});
 $('#sheet').addEventListener('change',e=>{const t=e.target,d=S.draft;if(d&&t.dataset.p==='code'){const k=t.value.trim(),it=d.items[+t.dataset.i];if(it&&S.products[k]&&!it.name)setTimeout(()=>{if(S.draft===d&&d.items[+t.dataset.i]===it&&!it.name)fillItem(+t.dataset.i,k)},250)}});
-$('#sheet').addEventListener('input',e=>{const t=e.target,d=S.draft;if(t.id==='pq'){S.pq=t.value;renderPick();return}if(t.id==='cq'){S.cq=t.value;renderCount();return}if(t.dataset.cf&&S.cf){S.cf[t.dataset.cf]=t.value;if(t.dataset.cf==='cname')S.cf.cid=null;if(t.dataset.sug)sugFor(t);cashHint();return}if(t.dataset.lf&&S.lf){S.lf[t.dataset.lf]=t.value;if(t.dataset.lf==='tm'){const h=hoursFrom(S.lf.type,t.value);S.lf.h=h||'';const eh=$('#lf-h');if(eh)eh.value=h||'';const a=r2(h*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||'';return}if(t.dataset.lf==='h'){const a=r2(nv(t.value)*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||''}return}if(t.dataset.fxf&&S.fx){S.fx[t.dataset.fxf]=t.value;fxHint();return}if(t.id==='cl-u'||t.id==='cl-s'){closeHint();return}if(t.dataset.cc&&S.count){(S.count[t.dataset.cc]||(S.count[t.dataset.cc]={}))[t.dataset.cp]=t.value;return}if(t.dataset.sug)sugFor(t);if(!d||!t.closest('#iform'))return;
+$('#sheet').addEventListener('input',e=>{const t=e.target,d=S.draft;if(t.id==='pq'){S.pq=t.value;renderPick();return}if(t.id==='cq'){S.cq=t.value;renderCount();return}if(t.dataset.cf&&S.cf){S.cf[t.dataset.cf]=t.value;if(t.dataset.cf==='cname')S.cf.cid=null;if(t.dataset.sug)sugFor(t);cashHint();return}if(t.dataset.lf&&S.lf){S.lf[t.dataset.lf]=t.value;if(t.dataset.lf==='tm'){const h=hoursFrom(S.lf.type==='hot'?'ot':S.lf.type,t.value);if(S.lf.type==='hot'||S.lf.type==='hlate'){S.lf.h=h||'';const eh=$('#lf-h');if(eh)eh.value=h||'';return}S.lf.h=h||'';const eh=$('#lf-h');if(eh)eh.value=h||'';const a=r2(h*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||'';return}if(t.dataset.lf==='h'){if(S.lf.type==='hot'||S.lf.type==='hlate')return;const a=r2(nv(t.value)*hourRate(emp(S.eid),S.lf.cur));S.lf.a=a||'';const el=$('#lf-a');if(el)el.value=a||''}return}if(t.dataset.fxf&&S.fx){S.fx[t.dataset.fxf]=t.value;fxHint();return}if(t.id==='cl-u'||t.id==='cl-s'){closeHint();return}if(t.dataset.cc&&S.count){(S.count[t.dataset.cc]||(S.count[t.dataset.cc]={}))[t.dataset.cp]=t.value;return}if(t.dataset.sug)sugFor(t);if(!d||!t.closest('#iform'))return;
   if(t.dataset.f){d[t.dataset.f]=t.value;if(t.dataset.f==='cashSyp'){refreshCashInfo(d,'syp');return}if(t.dataset.f==='cashRate'||t.dataset.f==='cashUsd'){refreshCashInfo(d);return}if(t.dataset.f==='disc'){refreshLP(d);const a=$('#itot'),b=$('#iprof'),i=$('#idinfo');if(a)a.textContent=money(invTotal(d));if(b)b.textContent=pc(money(draftProfit(d).profit));if(i)i.innerHTML=discInfo(d);return}if(t.dataset.f==='pay'||t.dataset.f==='wh'||t.dataset.f==='dest')renderInv();return}
   if(t.dataset.i!==undefined){const i=+t.dataset.i,it=d.items[i];if(!it)return;
     if(t.dataset.p==='ctn'){if(!(nv(it.pack)>0)){toast('حدّد «التعبئة بالطرد» لهذه المادة أولاً');return}it.qty=t.value===''?'':r2(nv(t.value)*nv(it.pack));const qi=$('#it-'+i+'-qty');if(qi)qi.value=it.qty}
@@ -1236,6 +1236,8 @@ function weekCalc(e,ws){const we=addDays(ws,6),on=(!e.start||e.start<=we)&&(!e.e
   for(const c of['usd','syp']){r.ot[c]=r2(r.ot[c]);r.late[c]=r2(r.late[c]);r.cut[c]=r2(r.cut[c]);r.draw[c]=r2(r.draw[c]);r.exp[c]=r2(r.exp[c]);r.adv[c]=r2(r.adv[c]);r.paid[c]=r2(r.paid[c]);r.unp[c]=r2(Math.min(r.days,WD)*r.sal[c]/WD)}
   r.net={usd:r2(r.sal.usd+r.ot.usd-r.late.usd-r.unp.usd-r.cut.usd-r.draw.usd),syp:r2(r.sal.syp+r.ot.syp-r.late.syp-r.unp.syp-r.cut.syp-r.draw.syp)};
   r.rem={usd:r2(r.net.usd-r.paid.usd),syp:r2(r.net.syp-r.paid.syp)};r.done=r.rows.some(l=>l.type==='pay')&&r.rem.usd<0.005&&r.rem.syp<0.005;return r}
+const fh=h=>{const m=Math.round(Math.abs(h)*60),H=Math.floor(m/60),M=m%60;return (H?H+' ساعة':'')+(H&&M?' و':'')+(M?M+' دقيقة':'')||'0'};
+function hBal(e){let b=0;for(const l of e.log||[]){if(l.type==='hot')b+=nv(l.h);else if(l.type==='hlate')b-=nv(l.h);else if(l.type==='hset')b+=nv(l.h)}return Math.round(b*100)/100}
 function advBal(e){const b={usd:0,syp:0};for(const l of e.log||[]){if(l.type==='adv')b[l.cur]+=nv(l.a);else if(l.type==='advcut')b[l.cur]-=nv(l.a)}return{usd:r2(b.usd),syp:r2(b.syp)}}
 function expTot(e){const b={usd:0,syp:0};for(const l of e.log||[])if(l.type==='exp')b[l.cur]+=nv(l.a);return{usd:r2(b.usd),syp:r2(b.syp)}}
 function staffSub(){if(S.staffUnsub||!S.db)return;S.staffUnsub=S.db.collection('staff').limit(1000).onSnapshot(s=>{S.staff=s.docs.map(d=>({id:d.id,...d.data()}));S.staffLoaded=true;if(S.view==='staff'||S.view==='emp'||S.view==='home'||S.view==='reports')refresh()},()=>{S.staffLoaded=true;S.staffUnsub=null;if(S.view==='staff')refresh()})}
@@ -1246,7 +1248,7 @@ function renderStaff(){const el=$('#v-staff');if(!S.staffLoaded){el.innerHTML='<
      <span class="amt"><b>${q.usd||!q.syp?money(q.usd):sy(q.syp)}</b>${q.usd&&q.syp?`<small class="num">${sy(q.syp)}</small>`:''}</span></button>`}).join('')}</div>`
     :`<div class="empty"><b>لا يوجد موظفون بعد</b><span>أضف أول موظف ببياناته وراتبه الأسبوعي.</span></div>`)+
    `<span class="small muted">الدوام من السبت إلى الخميس (${WD} أيام)، من 9:30 صباحاً حتى 9 مساءً، والجمعة عطلة. ما بعد 9 مساءً إضافي. بيانات الموظفين تظهر لك وحدك حتى لو شاركت الصفحة.</span>`}
-const LGL={ot:'إضافي',late:'حسم تأخير',leave:'إجازة',pay:'دفع راتب',adv:'سلفة',advcut:'خصم سلفة',draw:'استجرار',exp:'مصروف شخصي'};
+const LGL={hot:'ساعات إضافية (رصيد)',hlate:'ساعات تأخير (رصيد)',hset:'تسوية رصيد الساعات',ot:'إضافي',late:'حسم تأخير',leave:'إجازة',pay:'دفع راتب',adv:'سلفة',advcut:'خصم سلفة',draw:'استجرار',exp:'مصروف شخصي'};
 function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.staffLoaded?'<div class="empty">هذا الموظف غير موجود.</div>':'<div class="empty">جارٍ التحميل…</div>';return}
   const ws=S.ews||wkStart(today()),we=addDays(ws,6),r=weekCalc(e,ws),isCur=ws===wkStart(today());
   const row=(l,o,sign,cls,t)=>`<span class="l ${t||''}">${l}</span><span class="n ${cls||''} ${t||''}">${sign}${money(o.usd)}</span><span class="n ${cls||''} ${t||''}">${sign}${sy(o.syp)}</span>`;
@@ -1258,14 +1260,19 @@ function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.sta
    <div class="note">${esc(ROLES[roleOf(e)])} لا يأخذ راتباً ثابتاً. يأخذ مصروفه بشكل مفتوح، وكل مبلغ تسجّله هون بيطلع من الصندوق إذا اخترت ذلك.</div>`:`<div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>
     ${row('الراتب الأسبوعي',r.sal,'')}${row('الإضافي',r.ot,'+','t-credit')}${row('حسم التأخير',r.late,'−','t-debt')}${row(`إجازة غير مدفوعة${r.days?' ('+f1(r.days)+' يوم)':''}`,r.unp,'−','t-debt')}${row('استجرار',r.draw,'−','t-debt')}${row('خصم السلف',r.cut,'−','t-debt')}
     ${row('الصافي',r.net,'')}${row('المدفوع',r.paid,'')}${row('المتبقي',r.rem,'','','t')}</div>
-   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><button class="btn sm" type="button" data-act="lg-new" data-type="ot">＋ إضافي</button><button class="btn sm" type="button" data-act="lg-new" data-type="late">＋ حسم تأخير</button><button class="btn sm" type="button" data-act="lg-new" data-type="leave">＋ إجازة</button></div>
+   ${(hb=>`<div class="card ${hb<-0.005?'duecard':''}"><div class="sechead"><b>⏱ رصيد الساعات</b><b class="num ${hb>0.005?'t-credit':hb<-0.005?'t-debt':''}">${hb>0.005?'+':hb<-0.005?'−':''}${fh(hb)}</b></div>
+     <span class="small ${hb?'':'muted'}">${hb>0.005?`لصالح ${esc(e.name)}: إلو عندك ${fh(hb)} (بتعطيه إياها إجازة أو بيقطعها من تأخير جاي).`:hb<-0.005?`على ${esc(e.name)}: لازم يعوّض ${fh(hb)} دوام.`:'متعادل: ساعات الإضافي والتأخير مقاصّة ببعض.'}</span>
+     <div class="grid2"><button class="btn sm" type="button" data-act="lg-new" data-type="hot">＋ ساعات إضافية</button><button class="btn sm" type="button" data-act="lg-new" data-type="hlate">− ساعات تأخير</button></div>
+     <span class="small muted">الساعات ما بتنحسب مصاري: الإضافي والتأخير بيتقاصّوا ساعة بساعة.</span>
+     ${Math.abs(hb)>0.005?`<button class="btn sm" type="button" data-act="h-settle">${S.armed==='hset'?(hb>0?'تأكيد: دفع '+fh(hb)+' كإضافي مصاري':'تأكيد: خصم '+fh(hb)+' كحسم مصاري'):'💵 تسوية الرصيد بالمصاري (اختياري)'}</button>`:''}</div>`)(hBal(e))}
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><button class="btn sm" type="button" data-act="lg-new" data-type="ot">＋ إضافي (مصاري)</button><button class="btn sm" type="button" data-act="lg-new" data-type="late">＋ حسم (مصاري)</button><button class="btn sm" type="button" data-act="lg-new" data-type="leave">＋ إجازة</button></div>
    <div class="grid2"><button class="btn sm" type="button" data-act="lg-new" data-type="adv">＋ سلفة</button><button class="btn sm" type="button" data-act="lg-new" data-type="advcut">− خصم سلفة</button></div>
    <button class="btn sm" type="button" data-act="lg-new" data-type="draw">＋ استجرار (يُخصم من الراتب مباشرة)</button>
    ${(ab=>ab.usd||ab.syp?`<div class="note">السلف المتبقية على ${esc(e.name)}: <b class="num">${ab.usd?money(ab.usd):''}</b> ${ab.syp?'<b class="num">'+sy(ab.syp)+'</b>':''}</div>`:'')(advBal(e))}
    ${r.done?'<div class="chip c-credit" style="text-align:center;padding:8px">راتب هذا الأسبوع مدفوع بالكامل</div>':`<button class="btn wa" type="button" data-act="emp-pay">دفع راتب الأسبوع</button>`}`}
    <div class="sec"><div class="sechead"><h2>حركات الأسبوع</h2><small>${r.rows.length}</small></div>
    ${r.rows.length?`<div class="list">${r.rows.map(l=>`<div class="row"><span class="who"><b>${l.type==='leave'?(l.kind==='sick'?'إجازة مرضية':'إجازة')+(l.paid?' مدفوعة':' غير مدفوعة'):LGL[l.type]}</b><small><span class="num">${dmy(l.d)}</span>${l.type==='leave'?`<span>${f1(nv(l.days))} يوم</span>`:''}${l.n?`<span>${esc(l.n)}</span>`:''}${l.cash?'<span class="chip c-zero">من الصندوق</span>':''}</small></span>
-     <span class="amt">${l.type==='pay'?`<b>${l.usd?money(l.usd):''}</b><small class="num">${l.syp?sy(l.syp):''}</small>`:l.type==='leave'?'':`<b class="${l.type==='ot'?'t-credit':l.type==='adv'||l.type==='exp'?'':'t-debt'}">${l.type==='ot'?'+':l.type==='adv'||l.type==='exp'?'':'−'}${cm(l.cur,nv(l.a))}</b>`}</span>
+     <span class="amt">${l.type==='hot'||l.type==='hlate'||l.type==='hset'?(v=>`<b class="${v>0?'t-credit':'t-debt'}">${v>0?'+':'−'}${fh(v)}</b><small>ساعات</small>`)(l.type==='hlate'?-nv(l.h):nv(l.h)):l.type==='pay'?`<b>${l.usd?money(l.usd):''}</b><small class="num">${l.syp?sy(l.syp):''}</small>`:l.type==='leave'?'':`<b class="${l.type==='ot'?'t-credit':l.type==='adv'||l.type==='exp'?'':'t-debt'}">${l.type==='ot'?'+':l.type==='adv'||l.type==='exp'?'':'−'}${cm(l.cur,nv(l.a))}</b>`}</span>
      <button class="btn sm danger" type="button" data-act="lg-del" data-id="${esc(l.id)}">${S.armed==='lg'+l.id?'تأكيد':'حذف'}</button></div>`).join('')}</div>`:'<div class="empty">لا توجد حركات في هذا الأسبوع.</div>'}</div>
    <div class="card"><div class="sechead"><b>بيانات الموظف</b><button class="btn sm" type="button" data-act="emp-edit">تعديل</button></div>
     ${info('المنصب',ROLES[roleOf(e)])}${info('تاريخ بدء العمل',e.start&&dmy(e.start),1)}${info('تاريخ نهاية العمل',e.end&&dmy(e.end),1)}${info('المواليد',e.birth&&dmy(e.birth),1)}${info('الرقم الوطني',e.nid,1)}${info('اسم الأب',e.father)}${info('اسم الأم',e.mother)}${info('الموبايل',e.phone,1)}
@@ -1309,6 +1316,11 @@ function lgRender(){const f=S.lf,sg=(k,v,l)=>`<button type="button" data-lfs="${
    ${f.type==='leave'?`<div class="seg">${sg('kind','sick','مرضية')}${sg('kind','other','لسبب آخر')}</div><div class="seg">${sg('paid','true','مدفوعة')}${sg('paid','false','غير مدفوعة')}</div>
      <div class="grid2"><div class="field"><label for="lf-d">من تاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div><div class="field"><label for="lf-days">عدد الأيام</label><input id="lf-days" data-lf="days" type="number" step="0.5" min="0.5" inputmode="decimal" required value="${esc(f.days)}"></div></div>
      <span class="small muted">${String(f.paid)==='true'?'الإجازة المدفوعة لا تنقص الراتب.':`غير المدفوعة يُخصم عن كل يوم جزء من ${WD} من الراتب الأسبوعي.`}</span>`
+    :f.type==='hot'||f.type==='hlate'?`<div class="note">${f.type==='hot'?'ساعات اشتغلها زيادة. بتنضاف لرصيده وبتقاصّ ساعات التأخير.':'ساعات تأخر فيها. بتنقص من رصيده وبتقاصّ الساعات الإضافية.'} ما في مصاري.</div>
+     <div class="grid2"><div class="field"><label for="lf-tm">${f.type==='hot'?'ساعة الخروج (بعد 9 مساءً)':'ساعة الحضور (بعد 9:30 صباحاً)'}</label><input id="lf-tm" data-lf="tm" type="time" value="${esc(f.tm||'')}"></div>
+     <div class="field"><label for="lf-h">عدد الساعات</label><input id="lf-h" data-lf="h" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.h||'')}"></div></div>
+     <div class="sug">${[[0.25,'ربع ساعة'],[0.5,'نص ساعة'],[1,'ساعة'],[2,'ساعتين'],[3,'3 ساعات']].map(([v,l])=>`<button type="button" class="chip c-zero" data-act="lf-h" data-v="${v}">${l}</button>`).join('')}</div>
+     <div class="field"><label for="lf-d">التاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div>`
     :f.type==='adv'||f.type==='advcut'||f.type==='draw'||f.type==='exp'?`<div class="seg">${sg('cur','usd','دولار $')}${sg('cur','syp','ليرة سورية')}</div>
      ${f.type==='draw'?`<span class="small muted">يُخصم كامل المبلغ من راتب هذا الأسبوع، ولا يدخل في رصيد السلف.</span>`:f.type==='adv'||f.type==='exp'?`<div class="seg">${sg('cashout','true','يخرج من الصندوق')}${sg('cashout','false','لا يمس الصندوق')}</div>`:`<span class="small muted">المتبقي عليه: <b class="num">${cm(f.cur,advBal(emp(S.eid))[f.cur])}</b>. الخصم ينقص من صافي راتب الأسبوع المعروض.</span>`}
      <div class="grid2"><div class="field"><label for="lf-a">المبلغ ${f.cur==='usd'?'($)':'(ل.س)'}</label><input id="lf-a" data-lf="a" type="number" step="any" min="0" inputmode="decimal" required value="${esc(f.a)}"></div><div class="field"><label for="lf-d">التاريخ</label><input id="lf-d" data-lf="d" type="date" required value="${esc(f.d)}"></div></div>`
@@ -1321,6 +1333,7 @@ function lgRender(){const f=S.lf,sg=(k,v,l)=>`<button type="button" data-lfs="${
    <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`;$('#scrim').hidden=false}
 async function saveLog(){const f=S.lf,e=emp(S.eid);if(!f||!e)return;const l={id:newId(),type:f.type,d:f.d||today(),n:(f.n||'').trim()};
   if(f.type==='leave'){l.kind=f.kind;l.paid=String(f.paid)==='true';l.days=nv(f.days);if(!(l.days>0)){toast('أدخل عدد الأيام');return}}
+  else if(f.type==='hot'||f.type==='hlate'){l.h=Math.round(nv(f.h)*100)/100;if(!(l.h>0)){toast('أدخل عدد الساعات');return}if(!l.n)l.n=fh(l.h)+(f.tm?(f.type==='hot'?' · خرج ':' · حضر ')+f.tm:'')}
   else{l.cur=f.cur;l.a=r2(nv(f.a));if(!(l.a>0)){toast('أدخل المبلغ');return}if(nv(f.h)>0){l.h=nv(f.h);if(!l.n)l.n=(Math.round(l.h*100)/100)+' ساعة'+(f.tm?(f.type==='ot'?' · خرج ':' · حضر ')+f.tm:'')}}
   if(f.type==='advcut'){const bal=advBal(e)[l.cur];if(l.a>bal+0.005){toast('المبلغ أكبر من السلف المتبقية ('+cm(l.cur,bal)+')');return}}
   if((f.type==='adv'||f.type==='exp')&&String(f.cashout)==='true')l.cash=l.d;
@@ -1928,10 +1941,15 @@ document.addEventListener('click',e=>{
   if(a==='emp-edit'){empSheet(emp(S.eid));return}
   if(a==='emp-old'){S.showOld=!S.showOld;renderStaff();return}
   if(a==='emp-week'){const n=addDays(S.ews||wkStart(today()),+b.dataset.d);if(n>wkStart(today()))return;S.ews=n;S.armed=null;refresh();return}
+  if(a==='lf-h'){if(S.lf){S.lf.h=b.dataset.v;const eh=$('#lf-h');if(eh)eh.value=b.dataset.v}return}
+  if(a==='h-settle'){const e=emp(S.eid);if(!e)return;const hb=hBal(e);if(Math.abs(hb)<0.005)return;if(S.armed!=='hset'){S.armed='hset';refresh();return}S.armed=null;
+    guard(async()=>{const cur=nv(e.usd)||!nv(e.syp)?'usd':'syp',amt=r2(Math.abs(hb)*hourRate(e,cur)),d=today(),sid=newId();
+      const L=[...(e.log||[]),{id:sid,type:'hset',d,h:-hb,n:'تسوية '+fh(hb)+' بالمصاري'},{id:newId(),type:hb>0?'ot':'late',d,cur,a:amt,h:Math.abs(hb),n:'تسوية رصيد ساعات '+fh(hb),hset:sid}];
+      await S.db.doc('staff/'+e.id).update({log:L});toast(hb>0?'انضاف '+cm(cur,amt)+' إضافي لراتب هالأسبوع وتصفّر رصيد الساعات':'انخصم '+cm(cur,amt)+' من راتب هالأسبوع وتصفّر رصيد الساعات')});return}
   if(a==='lg-new'){const ws=S.ews||wkStart(today()),t=today();S.lf={type:b.dataset.type,cur:nv((emp(S.eid)||{}).usd)||!nv((emp(S.eid)||{}).syp)?'usd':'syp',a:'',n:'',d:(t>=ws&&t<=addDays(ws,6))?t:ws,kind:'sick',paid:'true',days:'1',cashout:'true'};if(b.dataset.type==='advcut'){const ab=advBal(emp(S.eid)||{});S.lf.cur=ab.usd>0||!(ab.syp>0)?'usd':'syp';S.lf.a=ab[S.lf.cur]||''}lgRender();return}
   if(a==='emp-pay'){paySheet();return}
   if(a==='lg-del'){const id=b.dataset.id;if(S.armed!=='lg'+id){S.armed='lg'+id;renderEmp();return}const e=emp(S.eid),l=e&&(e.log||[]).find(x=>x.id===id);if(!l)return;
-    guard(async()=>{await S.db.doc('staff/'+e.id).update({log:e.log.filter(x=>x.id!==id)});if(l.cash)await cashRemove(l.cash,x=>x.ltx===id);S.armed=null;toast('حُذفت')});return}
+    guard(async()=>{await S.db.doc('staff/'+e.id).update({log:e.log.filter(x=>x.id!==id&&x.hset!==id&&!(l.hset&&x.id===l.hset))});if(l.cash)await cashRemove(l.cash,x=>x.ltx===id);S.armed=null;toast('حُذفت')});return}
   if(a==='emp-del'){if(S.armed!=='emp'){S.armed='emp';renderEmp();return}guard(async()=>{await S.db.doc('staff/'+S.eid).delete();toast('حُذف الموظف');show('staff')});return}
   if(a==='share-out'){if(!S.stmtCv)return;const c=cust(S.cid),num=c&&waNum(c.phone),kind=b.dataset.kind,nm=(S.outName||'كشف حساب')+(S.outNP?' NoPrices':'')+' '+today();b.disabled=true;
     (async()=>{try{
@@ -2033,7 +2051,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261119-1142';
+const BUILD='20261119-1336';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
