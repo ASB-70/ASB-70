@@ -134,6 +134,11 @@ nav .badge{position:absolute;top:2px;inset-inline-start:calc(50% + 6px);backgrou
 @page{size:auto;margin:0}
 #printzone{display:none}
 @media print{body.printing>*:not(#printzone){display:none!important}body.printing{background:#fff!important}body.printing #printzone{display:block!important}#printzone img{width:100%;display:block}#printzone .pg{position:relative;width:100%;aspect-ratio:1/1.38;overflow:hidden;break-after:page;break-inside:avoid;direction:ltr;font:2.2vw sans-serif;color:#222}#printzone .pg:last-child{break-after:auto}#printzone .ph{height:3.2vw;line-height:3.6vw;padding-left:5vw}#printzone .pf{position:absolute;bottom:1.2vw;right:5vw}#printzone .pd{font:11px sans-serif;color:#444;padding:0 8mm 2mm;direction:ltr}}
+
+.tafqit{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;font-size:13px;color:var(--ink)}
+.tafqit .tw{flex:1 1 100%;background:var(--credit-bg);color:var(--credit);border-radius:8px;padding:6px 10px;line-height:1.6;font-weight:600}
+.tafqit .tn{font-weight:700}
+.tafqit button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:6px 12px;font:600 14px/1 inherit;cursor:pointer;min-height:36px}
 #lock{position:fixed;inset:0;z-index:100;background:linear-gradient(160deg,var(--cover),var(--cover-2));color:var(--on-cover);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
 #lock img{background:#fff;border-radius:18px;padding:8px;object-fit:contain}
 #lock form{display:flex;flex-direction:column;gap:10px;width:min(260px,100%)}
@@ -2027,7 +2032,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261119-0819';
+const BUILD='20261119-1049';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -2078,6 +2083,23 @@ show('cash');
   setInterval(()=>{if($('#scrim').hidden&&S.askSent===null&&S.view!=='settings'&&S.view!=='customers')refresh()},60000);
 })();
 (function(){const b=document.createElement('button');b.id='peye';b.type='button';b.addEventListener('click',peyeToggle);document.body.appendChild(b);peyeSync();setInterval(()=>{if(!$('#lock').hidden&&S.pshow){S.pshow=false;peyeSync()}},1000)})();
+
+/* SYP helper: every Syrian-pound field shows the amount in words (تفقيط) live, plus quick zero buttons */
+function tafqit(n){n=Math.floor(Math.abs(Number(n)||0));if(!n)return'صفر';
+  const O=['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة','أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر'],
+    T=['','','عشرون','ثلاثون','أربعون','خمسون','ستون','سبعون','ثمانون','تسعون'],H=['','مئة','مئتان','ثلاثمئة','أربعمئة','خمسمئة','ستمئة','سبعمئة','ثمانمئة','تسعمئة'];
+  const u1000=x=>{const h=Math.floor(x/100),r=x%100,p=[];if(h)p.push(H[h]);if(r){if(r<20)p.push(O[r]);else p.push(r%10?O[r%10]+' و'+T[Math.floor(r/10)]:T[Math.floor(r/10)])}return p.join(' و')};
+  const SC=[[1e9,'مليار','ملياران','مليارات'],[1e6,'مليون','مليونان','ملايين'],[1e3,'ألف','ألفان','آلاف']],parts=[];
+  for(const [v,one,two,few] of SC){const q=Math.floor(n/v);if(!q)continue;n%=v;parts.push(q===1?one:q===2?two:q<=10?u1000(q)+' '+few:u1000(q)+' '+one)}
+  if(n)parts.push(u1000(n));return parts.join(' و')}
+function isSypInput(el){if(!el||el.tagName!=='INPUT'||el.type!=='number'||!el.id)return false;if(el.dataset.syp)return true;const l=document.querySelector('label[for="'+el.id+'"]');return !!l&&/ل\.س|ليرة/.test(l.textContent)&&!/سعر/.test(l.textContent)}
+function tafqitPaint(el){if(!isSypInput(el)){const o=el&&el.nextElementSibling;if(o&&o.classList&&o.classList.contains('tafqit'))o.remove();return}
+  let box=el.nextElementSibling;if(!box||!box.classList.contains('tafqit')){box=document.createElement('div');box.className='tafqit';box.innerHTML='<span class="tw"></span><button type="button" data-z="000" tabindex="-1">+ 000</button><button type="button" data-z="000000" tabindex="-1">+ 000,000</button><button type="button" data-z="back" tabindex="-1">⌫ 000</button>';el.after(box);
+    box.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-z]');if(!b)return;e.preventDefault();let v=String(el.value||'').replace(/\D/g,'');if(b.dataset.z==='back')v=v.length>3?v.slice(0,-3):'';else v=(v||'0')==='0'?'1'+b.dataset.z:v+b.dataset.z;el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.focus()})}
+  const v=Math.floor(nv(el.value));if(box.dataset.v===String(v))return;box.dataset.v=String(v);box.querySelector('.tw').innerHTML=v>0?`<bdi class="tn num" dir="ltr">${v.toLocaleString('en-US')}</bdi> ل.س — ${tafqit(v)} ليرة سورية`:'اكتب المبلغ بالليرة، أو استعمل أزرار الأصفار'}
+document.addEventListener('input',e=>{if(e.target&&e.target.type==='number')tafqitPaint(e.target)},true);
+document.addEventListener('focusin',e=>{if(e.target&&e.target.type==='number')tafqitPaint(e.target)});
+new MutationObserver(()=>{document.querySelectorAll('#sheet input[type=number]').forEach(el=>{if(isSypInput(el)||(el.nextElementSibling&&el.nextElementSibling.classList.contains('tafqit')))tafqitPaint(el)})}).observe(document.getElementById('sheet'),{childList:true,subtree:true});
 </script>
 
 </body></html>
