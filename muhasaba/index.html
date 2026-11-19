@@ -1130,7 +1130,7 @@ function renderCash(){
   el.innerHTML=`${lq?`<div class="sechead"><span class="small">سُجّلت: <b class="num ${lq.dir==='in'?'t-credit':'t-debt'}">${lq.dir==='in'?'+':'−'}${cm(lq.cur,lq.a)}</b> ${esc(lq.n||'')}</span><button class="btn sm danger" type="button" data-act="q-undo">تراجع</button></div>`:''}
    <div class="sechead"><button class="btn sm" type="button" data-act="cash-day" data-d="-1">→ السابق</button><b>${isToday?'اليوم · ':''}${dmy(S.cday)}</b>${isToday?'<span style="width:64px"></span>':'<button class="btn sm" type="button" data-act="cash-day" data-d="1">التالي ←</button>'}</div>
    ${isToday?'':'<button class="btn sm" type="button" data-act="cash-today">العودة إلى صندوق اليوم</button>'}
-   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"><button class="btn sm" type="button" data-act="cash-new" data-dir="in">قبض من زبون</button><button class="btn sm" type="button" data-act="cash-new" data-dir="out">＋ مصروف (حدّد على حساب مين)</button><button class="btn sm" type="button" data-act="cash-new" data-dir="wd">سحب من الصندوق (ليس مصروفاً)</button><button class="btn sm" type="button" data-act="cash-fx">تصريف</button><button class="btn sm" type="button" data-act="cash-rate">سعر الصرف</button><button class="btn sm wa" type="button" data-act="sham-list" style="grid-column:1/-1">💳 دفعات شام كاش (ما بتدخل الصندوق)</button></div>
+   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"><button class="btn sm" type="button" data-act="cash-new" data-dir="in">قبض من زبون</button><button class="btn sm" type="button" data-act="cash-new" data-dir="out">＋ مصروف (حدّد على حساب مين)</button><button class="btn sm" type="button" data-act="cash-new" data-dir="wd">سحب من الصندوق (ليس مصروفاً)</button><button class="btn sm" type="button" data-act="cash-fx">تصريف</button><button class="btn sm" type="button" data-act="cash-rate">سعر الصرف</button><button class="btn sm" type="button" data-act="fx-oldnew" style="grid-column:1/-1">🔁 محوّل الليرة القديمة ↔ الجديدة</button><button class="btn sm wa" type="button" data-act="sham-list" style="grid-column:1/-1">💳 دفعات شام كاش (ما بتدخل الصندوق)</button></div>
    <div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>
      <span class="l">رصيد أول اليوم</span><span class="n">${money(nv(v.open.usd))}</span><span class="n">${sy(nv(v.open.syp))}</span>
      <span class="l">المقبوضات</span><span class="n t-credit">+${money(sum('in','usd'))}</span><span class="n t-credit">+${sy(sum('in','syp'))}</span>
@@ -1955,6 +1955,7 @@ document.addEventListener('click',e=>{
   if(a==='col-xlsx'){collectXlsx();return}
   if(a==='col-ph'){if(S.busy||!S.colList)return;S.busy=true;const nx=!S.colPh;drawCollect(S.colList,{noAmt:S.outNP,noPh:nx}).then(cv=>{S.colPh=nx;S.stmtCv=cv;const im=$('#stmtbox img');if(im)im.src=cv.toDataURL('image/png');b.textContent=nx?'📞 إظهار أرقام الهواتف':'📵 إخفاء أرقام الهواتف';toast(nx?'صارت القائمة بدون أرقام هواتف':'رجعت أرقام الهواتف')}).catch(()=>toast('تعذّر التبديل')).finally(()=>{S.busy=false});return}
   if(a==='sham-list'){shamSheet();return}
+  if(a==='fx-oldnew'){fxOldNewSheet();return}
   if(a==='sham-per'){S.sham.per=b.dataset.v;shamRender();return}
   if(a==='dup-scan'){dupScan();return}
   if(a==='restore'){if(S.armed!=='rest'){S.armed='rest';b.textContent='اضغط ثانية للتأكيد: سيُكتب فوق البيانات الحالية';return}b.disabled=true;guard(doRestore);return}
@@ -2032,7 +2033,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261119-1049';
+const BUILD='20261119-1142';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -2085,6 +2086,15 @@ show('cash');
 (function(){const b=document.createElement('button');b.id='peye';b.type='button';b.addEventListener('click',peyeToggle);document.body.appendChild(b);peyeSync();setInterval(()=>{if(!$('#lock').hidden&&S.pshow){S.pshow=false;peyeSync()}},1000)})();
 
 /* SYP helper: every Syrian-pound field shows the amount in words (تفقيط) live, plus quick zero buttons */
+/* old <-> new Syrian pound converter (100 old = 1 new) */
+function fxOldNewSheet(){openSheet(`<h2>🔁 محوّل الليرة السورية</h2><div class="note">العملة الجديدة: كل <b>100 ليرة قديمة = 1 ليرة جديدة</b> (حذف صفرين).</div>
+  <div class="field"><label for="on-old">بالليرة القديمة (ل.س)</label><input id="on-old" type="number" step="any" min="0" inputmode="decimal" data-syp="1"></div>
+  <div class="field"><label for="on-new">بالليرة الجديدة</label><input id="on-new" type="number" step="any" min="0" inputmode="decimal"></div>
+  <div class="note" id="on-out" style="display:none"></div>
+  <button class="btn" type="button" data-act="close">إغلاق</button>`);
+  const o=$('#on-old'),n=$('#on-new'),out=$('#on-out'),paint=()=>{const v=nv(o.value);out.style.display=v>0?'':'none';out.innerHTML=v>0?`<bdi dir="ltr" class="num"><b>${Math.round(v).toLocaleString('en-US')}</b></bdi> قديمة = <bdi dir="ltr" class="num"><b>${(v/100).toLocaleString('en-US',{maximumFractionDigits:2})}</b></bdi> جديدة<br><span class="small">${tafqit(Math.round(v/100))} ليرة جديدة</span>`:''};
+  o.addEventListener('input',()=>{const v=nv(o.value);n.value=o.value===''?'':String(Math.round(v)/100);paint()});
+  n.addEventListener('input',()=>{const v=nv(n.value);o.value=n.value===''?'':String(Math.round(v*100));tafqitPaint(o);paint()});o.focus()}
 function tafqit(n){n=Math.floor(Math.abs(Number(n)||0));if(!n)return'صفر';
   const O=['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة','أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر'],
     T=['','','عشرون','ثلاثون','أربعون','خمسون','ستون','سبعون','ثمانون','تسعون'],H=['','مئة','مئتان','ثلاثمئة','أربعمئة','خمسمئة','ستمئة','سبعمئة','ثمانمئة','تسعمئة'];
@@ -2094,9 +2104,9 @@ function tafqit(n){n=Math.floor(Math.abs(Number(n)||0));if(!n)return'صفر';
   if(n)parts.push(u1000(n));return parts.join(' و')}
 function isSypInput(el){if(!el||el.tagName!=='INPUT'||el.type!=='number'||!el.id)return false;if(el.dataset.syp)return true;const l=document.querySelector('label[for="'+el.id+'"]');return !!l&&/ل\.س|ليرة/.test(l.textContent)&&!/سعر/.test(l.textContent)}
 function tafqitPaint(el){if(!isSypInput(el)){const o=el&&el.nextElementSibling;if(o&&o.classList&&o.classList.contains('tafqit'))o.remove();return}
-  let box=el.nextElementSibling;if(!box||!box.classList.contains('tafqit')){box=document.createElement('div');box.className='tafqit';box.innerHTML='<span class="tw"></span><button type="button" data-z="000" tabindex="-1">+ 000</button><button type="button" data-z="000000" tabindex="-1">+ 000,000</button><button type="button" data-z="back" tabindex="-1">⌫ 000</button>';el.after(box);
-    box.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-z]');if(!b)return;e.preventDefault();let v=String(el.value||'').replace(/\D/g,'');if(b.dataset.z==='back')v=v.length>3?v.slice(0,-3):'';else v=(v||'0')==='0'?'1'+b.dataset.z:v+b.dataset.z;el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.focus()})}
-  const v=Math.floor(nv(el.value));if(box.dataset.v===String(v))return;box.dataset.v=String(v);box.querySelector('.tw').innerHTML=v>0?`<bdi class="tn num" dir="ltr">${v.toLocaleString('en-US')}</bdi> ل.س — ${tafqit(v)} ليرة سورية`:'اكتب المبلغ بالليرة، أو استعمل أزرار الأصفار'}
+  let box=el.nextElementSibling;if(!box||!box.classList.contains('tafqit')){box=document.createElement('div');box.className='tafqit';box.innerHTML='<span class="tw"></span><button type="button" data-z="000" tabindex="-1">+ 000</button><button type="button" data-z="000000" tabindex="-1">+ 000,000</button><button type="button" data-z="back" tabindex="-1">⌫ 000</button><button type="button" data-z="x100" tabindex="-1">جديدة ← قديمة (×100)</button><span class="tc small muted" style="flex:1 1 100%"></span>';el.after(box);
+    box.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-z]');if(!b)return;e.preventDefault();let v=String(el.value||'').replace(/\D/g,'');if(b.dataset.z==='back')v=v.length>3?v.slice(0,-3):'';else if(b.dataset.z==='x100')v=v?String(Math.round(nv(el.value)*100)):'';else v=(v||'0')==='0'?'1'+b.dataset.z:v+b.dataset.z;el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.focus()})}
+  const v=Math.floor(nv(el.value));if(box.dataset.v===String(v))return;box.dataset.v=String(v);box.querySelector('.tw').innerHTML=v>0?`<bdi class="tn num" dir="ltr">${v.toLocaleString('en-US')}</bdi> ل.س — ${tafqit(v)} ليرة سورية`:'اكتب المبلغ بالليرة، أو استعمل أزرار الأصفار';const tc=box.querySelector('.tc');if(tc)tc.innerHTML=v>0?`🔁 بالليرة الجديدة: <bdi dir="ltr" class="num" style="font-weight:700;color:var(--ink)">${(Math.round(v)/100).toLocaleString('en-US',{maximumFractionDigits:2})}</bdi> ل.س جديدة (كل 100 قديمة = 1 جديدة). إذا كتبت مبلغ بالجديدة اكبس «جديدة ← قديمة».`:''}
 document.addEventListener('input',e=>{if(e.target&&e.target.type==='number')tafqitPaint(e.target)},true);
 document.addEventListener('focusin',e=>{if(e.target&&e.target.type==='number')tafqitPaint(e.target)});
 new MutationObserver(()=>{document.querySelectorAll('#sheet input[type=number]').forEach(el=>{if(isSypInput(el)||(el.nextElementSibling&&el.nextElementSibling.classList.contains('tafqit')))tafqitPaint(el)})}).observe(document.getElementById('sheet'),{childList:true,subtree:true});
