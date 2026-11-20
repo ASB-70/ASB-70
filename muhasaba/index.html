@@ -358,7 +358,8 @@ const dmy=d=>d?d.split('-').reverse().join('/'):'بدون تاريخ';
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const localISO=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 const whenTxt=iso=>new Date(iso).toLocaleString('ar-SY-u-nu-latn',{weekday:'long',day:'numeric',month:'long',hour:'numeric',minute:'2-digit'});
-const isDue=c=>!!c.dueAt&&String(c.dueAt).slice(0,10)<=today();
+/* a reminder is only due when the customer actually owes money: a zero (or credit) balance never gets one */
+const isDue=c=>!!c.dueAt&&String(c.dueAt).slice(0,10)<=today()&&(Number(c.balance)||0)>0.005;
 const cust=id=>S.customers.find(c=>c.id===id);
 function waNum(p){let d=String(p||'').replace(/\D/g,'');if(!d)return'';if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='963'+d.slice(1);else if(d.length===9&&d[0]==='9')d='963'+d;return d}
 function fillMsg(c){return S.settings.template.replaceAll('{الاسم}',c.name).replaceAll('{المبلغ}',money(c.balance||0)).replaceAll('{الشركة}',S.settings.company)}
@@ -2103,7 +2104,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261120-1154';
+const BUILD='20261120-1254';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
