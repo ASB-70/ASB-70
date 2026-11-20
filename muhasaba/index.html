@@ -1336,7 +1336,7 @@ function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.sta
    ${(ab=>ab.usd||ab.syp?`<div class="note">السلف المتبقية على ${esc(e.name)}: <b class="num">${ab.usd?money(ab.usd):''}</b> ${ab.syp?'<b class="num">'+sy(ab.syp)+'</b>':''}</div>`:'')(advBal(e))}
    ${r.done?'<div class="chip c-credit" style="text-align:center;padding:8px">راتب هذا الأسبوع مدفوع بالكامل</div>':`<button class="btn wa" type="button" data-act="emp-pay">دفع راتب الأسبوع</button>`}`}
    <div class="sec"><div class="sechead"><h2>حركات الأسبوع</h2><small>${r.rows.length}</small></div>
-   ${r.rows.length?`<div class="list">${r.rows.map(l=>`<div class="row"><span class="who"><b>${l.type==='leave'?(l.kind==='sick'?'إجازة مرضية':'إجازة')+(l.paid?' مدفوعة':' غير مدفوعة'):LGL[l.type]}</b><small><span class="num">${dmy(l.d)}</span>${l.type==='leave'?`<span>${f1(nv(l.days))} يوم</span>`:''}${l.n?`<span>${esc(l.n)}</span>`:''}${l.cash?'<span class="chip c-zero">من الصندوق</span>':''}</small></span>
+   ${r.rows.length?`<div class="list">${r.rows.map((l,i)=>[l,i]).sort((x,y)=>String(x[0].d||'').localeCompare(String(y[0].d||''))||x[1]-y[1]).map(x=>x[0]).map(l=>`<div class="row"><span class="who"><b>${l.type==='leave'?(l.kind==='sick'?'إجازة مرضية':'إجازة')+(l.paid?' مدفوعة':' غير مدفوعة'):LGL[l.type]}</b><small><span class="num">${dmy(l.d)}</span>${l.type==='leave'?`<span>${f1(nv(l.days))} يوم</span>`:''}${l.n?`<span>${esc(l.n)}</span>`:''}${l.cash?'<span class="chip c-zero">من الصندوق</span>':''}</small></span>
      <span class="amt">${l.type==='hot'||l.type==='hlate'||l.type==='hset'?(v=>`<b class="${v>0?'t-credit':'t-debt'}">${v>0?'+':'−'}${fh(v)}</b><small>ساعات</small>`)(l.type==='hlate'?-nv(l.h):nv(l.h)):l.type==='pay'?`<b>${l.usd?money(l.usd):''}</b><small class="num">${l.syp?sy(l.syp):''}</small>`:l.type==='leave'?'':`<b class="${l.type==='ot'?'t-credit':l.type==='adv'||l.type==='exp'?'':'t-debt'}">${l.type==='ot'?'+':l.type==='adv'||l.type==='exp'?'':'−'}${cm(l.cur,nv(l.a))}</b>`}</span>
      <button class="btn sm danger" type="button" data-act="lg-del" data-id="${esc(l.id)}">${S.armed==='lg'+l.id?'تأكيد':'حذف'}</button></div>`).join('')}</div>`:'<div class="empty">لا توجد حركات في هذا الأسبوع.</div>'}</div>
    <div class="card"><div class="sechead"><b>بيانات الموظف</b><button class="btn sm" type="button" data-act="emp-edit">تعديل</button></div>
@@ -2122,7 +2122,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden
 
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261120-1335';
+const BUILD='20261120-1343';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
