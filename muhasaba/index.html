@@ -243,6 +243,7 @@ const KIND={inv:'فاتورة',pay:'دفعة',ret:'مرتجع',disc:'حسم'};
 const CITIES=['حلب','دمشق','ريف دمشق','حمص','حماة','اللاذقية','طرطوس','إدلب','دير الزور','الرقة','الحسكة','درعا','السويداء','القنيطرة','منبج','بانياس','جبلة','قطيفة'];
 const DEF={company:'شركة الثقة لاستيراد الأدوات المنزلية',
   template:'السلام عليكم أستاذ {الاسم}،\nنذكّركم بأن الرصيد المستحق لصالح {الشركة} هو {المبلغ}.\nنرجو التكرم بالتسديد في أقرب وقت، وشكراً لتعاملكم معنا.'};
+const markDirty=()=>{try{S.rep.dirty=true}catch(e){}};
 const S={net:{on:null,busy:0,last:0,sync:false},staff:[],staffLoaded:false,staffUnsub:null,eid:null,ews:'',showOld:false,lf:null,cday:'',cash:null,cf:null,fx:null,stock:{},stockMeta:{},stockLoaded:false,slog:[],stockF:{q:'',f:'all',wh:'all'},wh:[{id:'main',name:'المستودع الرئيسي'}],pw:'',cw:'main',count:null,cq:'',pmode:'in',invStats:null,db:null,dl:null,customers:[],loaded:false,view:'home',cid:null,ledger:null,unsubL:null,settings:{...DEF},
   f:{q:'',type:'all',city:'',sort:'bal'},askSent:null,busy:false,armed:null,products:{},img:{},imgP:null,picking:false,pq:'',draft:null,curInv:null,outName:''};
 
@@ -319,11 +320,21 @@ function makeSbDb(stat){stat=stat||(()=>{});
     if(conf)toast('رُفعت التعديلات، لكن '+conf+' منها تعارضت مع تعديل من جهاز آخر فبقيت نسخة الخادم وحُفظت نسختك في سجل التعارضات.');
     else if(done)toast('رُفعت '+done+' تعديلات كانت محفوظة على جهازك.')}
   setInterval(()=>{flush()},15000);window.addEventListener('online',()=>setTimeout(()=>flush(),1500));document.addEventListener('visibilitychange',()=>{if(!document.hidden)flush()});
-  const runAll=()=>{if(!document.hidden&&refresh)for(const x of subs)x.run()};
+  /* light change check: ask the server only which records changed since the last look (a few bytes),
+     then re-read just those. A full re-read still happens every 5 minutes as a safety net. */
+  let probeAt='',lastFull=0,probing=false;const seenAt=new Map(),colOf=p=>p.slice(0,p.lastIndexOf('/'));
+  async function probe(){
+    if(!probeAt||Date.now()-lastFull>300000){const first=!probeAt,a=await rq('?select=updated_at&order=updated_at.desc&limit=1');probeAt=a&&a[0]?a[0].updated_at:new Date().toISOString();lastFull=Date.now();seenAt.clear();return first?new Set():null}
+    const since=new Date(new Date(probeAt).getTime()-15000).toISOString(),a=await rq('?select=path,updated_at&updated_at=gt.'+enc(since)+'&order=updated_at.asc&limit=1000')||[];
+    const ch=new Set();for(const r of a){if(seenAt.get(r.path)===r.updated_at)continue;seenAt.set(r.path,r.updated_at);ch.add(r.path);if(r.updated_at>probeAt)probeAt=r.updated_at}
+    if(seenAt.size>3000)seenAt.clear();return ch}
+  const runAll=async full=>{if(document.hidden||!refresh||probing)return;probing=true;let ch=null;try{if(full!==true)ch=await probe()}catch(e){probing=false;return}probing=false;
+    if(ch&&!ch.size)return;const cols=ch?new Set([...ch].map(colOf)):null;
+    for(const x of subs){if(!ch||(x.path&&ch.has(x.path))||(x.col&&cols.has(x.col)))x.run()}};
   let paused=false;
   function poke(path){if(paused)return;const col=path.slice(0,path.lastIndexOf('/'));for(const x of subs)if(x.path===path||x.col===col)x.run()}
   function sub(o){subs.add(o);o.run();return()=>subs.delete(o)}
-  setInterval(runAll,12000);document.addEventListener('visibilitychange',runAll);window.addEventListener('focus',runAll);window.addEventListener('online',()=>setTimeout(runAll,2500));
+  setInterval(runAll,12000);document.addEventListener('visibilitychange',()=>runAll());window.addEventListener('focus',()=>runAll());window.addEventListener('online',()=>setTimeout(()=>runAll(true),2500));
   function watcher(key,fetcher,sig,next,err){let busy=false,again=false,last;const o={...key,run:async()=>{if(busy){again=true;return}busy=true;try{do{again=false;const v=await fetcher(),j=sig(v);if(j!==last){last=j;next(v)}}while(again)}catch(e){if(e.code==='auth'&&err)err(e)}busy=false}};return sub(o)}
   async function fetchAll(col){await ready;return fetchAll0(col).then(r=>overlay(col,r))}
   async function fetchAll0(col){try{const out=[];for(let off=0;;off+=1000){const a=await rq('?col=eq.'+enc(col)+'&select=path,data&order=path&limit=1000&offset='+off)||[];out.push(...a);if(a.length<1000)break}KV.set('c:'+col,out);return{rows:out,cached:false}}
@@ -344,7 +355,7 @@ function makeSbDb(stat){stat=stat||(()=>{});
       doc:id=>docRef(col+'/'+(id||newId())),add:async data=>{const r=docRef(col+'/'+newId());await r.set(data);return r},
       onSnapshot:(next,err)=>watcher({col},get,v=>JSON.stringify(v.docs.map(d=>[d.id,d.data()])),next,err)}}
   const backups={list:()=>rq('?select=id,created_at,n,bytes&order=id.desc&limit=12',{table:'acc_backups'}).then(a=>a||[]),get:id=>rq('?id=eq.'+enc(id)+'&select=data',{table:'acc_backups'}).then(a=>a&&a[0]&&a[0].data)};
-  return{flush,pending:()=>pend.size,backups,doc:docRef,collection:c=>colRef(c),login:(email,password)=>auth({email,password},'password'),logout(){tok=null;refresh='';LS.set('thiqa-rt',null);KV.clear()},signedIn:()=>!!refresh,resync:()=>Promise.all([...subs].map(x=>x.run())),bulk(v){paused=!!v;if(!paused)for(const x of subs)x.run()}}}
+  return{flush,pending:()=>pend.size,backups,doc:docRef,collection:c=>colRef(c),login:(email,password)=>auth({email,password},'password'),logout(){tok=null;refresh='';LS.set('thiqa-rt',null);KV.clear()},signedIn:()=>!!refresh,resync:()=>{lastFull=0;return Promise.all([...subs].map(x=>x.run()))},bulk(v){paused=!!v;if(!paused)for(const x of subs)x.run()}}}
 const browserDl={save({filename,data}){const b=data instanceof Blob?data:new Blob([data]),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),8000);return Promise.resolve({status:'saved'})}};
 function loginShow(){return new Promise(res=>{$('#lock').hidden=false;$('#lockmsg').textContent='سجّل الدخول إلى حسابات الشركة';$('#lockform').hidden=true;$('#lockbio').hidden=true;$('#lockhelp').hidden=true;$('#loginform').hidden=false;$('#lockerr').textContent='';S.loginRes=res})}
 function syncHTML(short){if(!EXT)return'';const N=S.net,st=N.on===false?'off':(N.sync||N.busy>0||N.pend>0)?'sync':'ok',pn=N.pend?' ('+N.pend+')':'';
@@ -386,11 +397,10 @@ function show(v,cid){
   if(v==='settings'){renderSettings();loadAbk()}
   if(v==='emp'){if(cid!==S.eid)S.ews='';S.eid=cid}
   if(v==='staff'||v==='emp')staffSub();
-  if(v==='reports'&&S.db){loadReports(true);finLoad(true)}
-  if(v==='exp'&&S.db){loadReports(true);finLoad(true)}
+  if((v==='reports'||v==='exp')&&S.db){loadReports(repStale());finLoad(Date.now()-(S.F.lt||0)>60000)}
   if(v==='cash'&&S.db)finLoad();
   if(v==='stock'&&S.db)finLoad();
-  if(v==='sales'&&S.db)loadReports(true);
+  if(v==='sales'&&S.db)loadReports(repStale());
   if(v==='cash'&&S.db){if(!S.cday)S.cday=today();loadCash()}
   if(v==='sales'&&S.db)loadImgs();if(v==='stock'&&S.db){loadImgs().then(()=>{if(S.view==='stock')renderStock()});loadInvStats()}
   if(v==='detail'&&S.db&&!S.unsubL){
@@ -957,10 +967,11 @@ async function saveInvoice(){
    for(const k in oq)if(oq[k]&&tr(k)){addW(st,k,wo,oq[k]);chg=true}
    for(const k in nq)if(nq[k]&&tr(k)){addW(st,k,wn,-nq[k]);chg=true}
    if(chg)await saveStock(st);d.old=nq;d.oldWh=wn}
-  S.invStats=null;
+  S.invStats=null;markDirty();
   let ch=false;const P={...S.products};for(const it of items)if(it.code){const p={name:it.name,pack:it.pack,unit:it.unit,price:it.price};if(!P[it.code]){P[it.code]=p;ch=true}}
   if(ch){try{await saveProducts(P)}catch(e){S.products=P}}
-  if(d.pay==='شام كاش'){try{await maccVoidLink('inv:'+id,'تعديل الفاتورة');await maccAdd({acc:'sham',date:d.date||today(),dir:'in',cur:'usd',a:total,n:'فاتورة '+no+' · '+nmShown,link:'inv:'+id})}catch(e){}}else{try{await maccVoidLink('inv:'+id,'تغيّرت طريقة الدفع')}catch(e){}}
+  const wasSham=S.curInv&&S.curInv.id===id&&S.curInv.pay==='شام كاش';
+  if(d.pay==='شام كاش'){try{if(wasSham)await maccVoidLink('inv:'+id,'تعديل الفاتورة');await maccAdd({acc:'sham',date:d.date||today(),dir:'in',cur:'usd',a:total,n:'فاتورة '+no+' · '+nmShown,link:'inv:'+id})}catch(e){}}else if(wasSham){try{await maccVoidLink('inv:'+id,'تغيّرت طريقة الدفع')}catch(e){}}
   audit(S.curInv&&S.curInv.id===id?'inv-edit':'inv-add',(S.curInv&&S.curInv.id===id?'تعديل':'فاتورة')+' رقم '+no,{no,c:nmShown,total,pay:d.pay});S.limOK=null;
   S.draft=null;toast('حُفظت الفاتورة: أُضيفت إلى الذمة ونزلت من المخزون');invView(id);
 }
@@ -1193,7 +1204,7 @@ const cm=(cur,n)=>cur==='usd'?money(n):sy(n);
 function cashBal(v){let usd=nv((v.open||{}).usd),syp=nv((v.open||{}).syp);for(const t of v.tx||[]){const s=t.dir==='in'?t.a:-t.a;if(t.cur==='usd')usd+=s;else syp+=s}return{usd:r2(usd),syp:r2(syp)}}
 async function prevClose(day){try{const q=await S.db.collection('cash').where('date','<',day).orderBy('date','desc').limit(1).get();if(q.docs.length){const p=q.docs[0].data();return p.closed?{usd:nv(p.closed.usd),syp:nv(p.closed.syp)}:cashBal(p)}}catch(e){}return{usd:0,syp:0}}
 let cashBusy=false,cashDirty=false;
-function flushCash(){if(cashBusy){cashDirty=true;return S.flushP}cashBusy=true;
+function flushCash(){markDirty();if(cashBusy){cashDirty=true;return S.flushP}cashBusy=true;
   S.flushP=(async()=>{try{do{cashDirty=false;const v=S.pend;await S.db.doc('cash/'+v.date).set(v)}while(cashDirty)}catch(e){toast('تعذّر حفظ آخر الحركات. تحقق من الاتصال.');cashBusy=false;S.flushP=null;loadCash();return}cashBusy=false})();return S.flushP}
 function quickCash(dir,cur){const inp=$('#cqa'),a=r2(nv(inp.value));if(!S.cash){toast('الصندوق لم يُفتح بعد، انتظر لحظة');return}if(!lockGuard(S.cday))return;if(!isOwner()&&dir==='out'){toast('الصرف من الصندوق للإدارة فقط');return}if(!(a>0)){toast('اكتب المبلغ أولاً');inp.focus();return}
   const e={id:newId(),t:new Date().toISOString(),dir,cur,a,n:$('#cqn').value.trim()||(dir==='in'?'مبيع نقدي':'مصروف')};
@@ -1202,8 +1213,8 @@ function quickUndo(){if(!S.cash||!S.qlastId)return;S.cash={...S.cash,tx:S.cash.t
 async function cashDay(day,create){if(S.flushP)await S.flushP;const ref=S.db.doc('cash/'+day),s=await ref.get();if(s.exists){const v=s.data();return{ref,v:{...v,tx:(v.tx||[]).slice(),open:{...(v.open||{usd:0,syp:0})}}}}
   if(!create)return{ref,v:null};let rate=nv(S.settings.rate);try{const q=await S.db.collection('cash').where('date','<',day).orderBy('date','desc').limit(1).get();if(q.docs.length&&nv(q.docs[0].data().rate)>0)rate=nv(q.docs[0].data().rate)}catch(e){}
   return{ref,v:{date:day,rate,open:await prevClose(day),tx:[],closed:null}}}
-async function cashAdd(day,entries){const {ref,v}=await cashDay(day,true);v.tx=[...v.tx,...[].concat(entries)];v.closed=null;await ref.set(v);if(day===S.cday){S.cash=v;if(S.view==='cash')refresh()}}
-async function cashRemove(day,pred){const {ref,v}=await cashDay(day,false);if(!v)return;const n=v.tx.filter(t=>!pred(t));if(n.length===v.tx.length)return;v.tx=n;await ref.set(v);if(day===S.cday){S.cash=v;if(S.view==='cash')refresh()}}
+async function cashAdd(day,entries){markDirty();const {ref,v}=await cashDay(day,true);v.tx=[...v.tx,...[].concat(entries)];v.closed=null;await ref.set(v);if(day===S.cday){S.cash=v;if(S.view==='cash')refresh()}}
+async function cashRemove(day,pred){markDirty();const {ref,v}=await cashDay(day,false);if(!v)return;const n=v.tx.filter(t=>!pred(t));if(n.length===v.tx.length)return;v.tx=n;await ref.set(v);if(day===S.cday){S.cash=v;if(S.view==='cash')refresh()}}
 async function addLedgerTx(cid,tx){const ref=S.db.doc('ledgers/'+cid);let list;const f=await freshDoc('ledgers/'+cid);if(f.ok)list=f.v?(f.v.tx||[]):[];else if(S.cid===cid&&S.ledger)list=S.ledger;else list=[];
   const nl=[...list,tx];await ref.set({tx:nl});const C=custCache(nl);await S.db.doc('customers/'+cid).update(C);{const cc=cust(cid);if(cc)Object.assign(cc,C)}if(S.cid===cid)S.ledger=nl}
 function loadCash(){S.cash=null;S.qlastId=null;refresh();const day=S.cday;cashDay(day,true).then(r=>{if(S.cday===day){S.cash=r.v;if(S.view==='cash')refresh()}}).catch(()=>{if(S.cday===day){S.cash={date:day,rate:nv(S.settings.rate),open:{usd:0,syp:0},tx:[],closed:null};if(S.view==='cash')refresh()}})}
@@ -1452,9 +1463,10 @@ async function savePay(){const e=emp(S.eid);if(!e)return;const usd=r2(nv($('#pay
 
 /* ---------- reports: sales, expenses, safe daily spending, invoice register ---------- */
 S.rep={inv:null,cash:null,per:'month',q:'',err:false,loading:false};
-function loadReports(force){if(!S.db||S.rep.loading)return;if(!force&&S.rep.inv&&S.rep.cash)return;S.rep.loading=true;S.rep.err=false;staffSub();
+const repStale=()=>!S.rep.inv||!S.rep.cash||S.rep.dirty||Date.now()-(S.rep.at||0)>60000;
+function loadReports(force){if(!S.db||S.rep.loading)return;if(!force&&S.rep.inv&&S.rep.cash)return;S.rep.dirty=false;S.rep.loading=true;S.rep.err=false;staffSub();
   const all=c=>EXT?S.db.collection(c).get():S.db.collection(c).limit(1000).get();Promise.all([all('invoices'),all('cash')]).then(([a,b])=>{
-    S.rep.inv=a.docs.map(d=>({id:d.id,...d.data()}));S.rep.cash=b.docs.map(d=>({id:d.id,...d.data()}));S.rep.loading=false;if(S.view==='reports')renderReports();if(S.view==='sales')renderSales()
+    S.rep.inv=a.docs.map(d=>({id:d.id,...d.data()}));S.rep.cash=b.docs.map(d=>({id:d.id,...d.data()}));S.rep.loading=false;S.rep.at=Date.now();if(S.view==='reports')renderReports();if(S.view==='sales')renderSales();if(S.view==='exp'&&$('#scrim').hidden)refresh()
   }).catch(e=>{S.rep.loading=false;S.rep.err=e&&e.code||e&&e.message||true;if(S.view==='reports')renderReports();if(S.view==='sales')renderSales()})}
 function repRange(per){const t=today();if(per==='day')return[t,t];if(per==='week'){const w=wkStart(t);return[w,addDays(w,6)]}if(per==='month')return[t.slice(0,7)+'-01',t.slice(0,7)+'-31'];return['0000-00-00','9999-99-99']}
 function staffLogType(){const m={};for(const e of S.staff)for(const l of e.log||[])m[l.id]=l.type;return m}
@@ -2192,7 +2204,7 @@ async function finSave(patch){const f=await freshDoc('fin/main'),base=f.ok&&f.v?
 async function finSeq(k){const f=await freshDoc('fin/main'),base=f.ok&&f.v?f.v:S.F.main||{},sq={...(base.seq||{})};sq[k]=(nv(sq[k])||0)+1;const v={...base,seq:sq};await S.db.doc('fin/main').set(v);S.F.main=v;return sq[k]}
 function finLoad(force){if(!S.db)return Promise.resolve();if(S.F.lp&&!force)return S.F.lp;
   const all=c=>S.db.collection(c).get().then(s=>s.docs.map(d=>({id:d.id,...d.data()}))).catch(()=>null);
-  S.F.lp=Promise.all([finLoadMain(),all('exp'),all('macc'),all('suppliers'),all('purch')]).then(([,e,m,su,pu])=>{if(e)S.F.exp=e;if(m)S.F.macc=m;if(su)S.F.sup=su;if(pu)S.F.purch=pu;finPaint()});return S.F.lp}
+  S.F.lt=Date.now();S.F.lp=Promise.all([finLoadMain(),all('exp'),all('macc'),all('suppliers'),all('purch')]).then(([,e,m,su,pu])=>{if(e)S.F.exp=e;if(m)S.F.macc=m;if(su)S.F.sup=su;if(pu)S.F.purch=pu;finPaint()});return S.F.lp}
 function finPaint(){const b=$('#expbadge');if(b){const n=fixedDue().length;b.hidden=!n;b.textContent=n}if(!$('#scrim').hidden)return;if(['exp','reports','cash','stock'].includes(S.view))refresh()}
 
 /* ---------- audit trail: nothing financial changes without a trace ---------- */
@@ -2816,7 +2828,7 @@ document.addEventListener('change',e=>{const t=e.target;if(t&&t.id==='pd-sid'&&S
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261120-2205';
+const BUILD='20261120-2230';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}

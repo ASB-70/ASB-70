@@ -19,3 +19,9 @@ grant select, insert, update, delete on public.acc_docs to authenticated;
 drop policy if exists acc_owner_only on public.acc_docs;
 create policy acc_owner_only on public.acc_docs for all to authenticated
   using (public.acc_is_owner()) with check (public.acc_is_owner());
+
+-- كل تعديل يختم وقت التعديل، حتى يسأل البرنامج «شو تغيّر؟» بطلب صغير بدل تنزيل كل البيانات كل 12 ثانية
+create or replace function public.acc_touch() returns trigger language plpgsql set search_path = '' as $$ begin new.updated_at := now(); return new; end $$;
+drop trigger if exists acc_touch on public.acc_docs;
+create trigger acc_touch before update on public.acc_docs for each row execute function public.acc_touch();
+create index if not exists acc_docs_upd on public.acc_docs (updated_at);
