@@ -110,6 +110,7 @@ nav .badge{position:absolute;top:2px;inset-inline-start:calc(50% + 6px);backgrou
 .scrim{position:fixed;inset:0;background:rgba(5,10,25,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--bg);width:100%;max-width:560px;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;
   padding:16px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+.sheet>*,.sheet form>*{flex-shrink:0}
 .sheet form{display:flex;flex-direction:column;gap:12px}
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-size:13px;color:var(--muted)}
@@ -2806,7 +2807,7 @@ document.addEventListener('change',e=>{const t=e.target;if(t&&t.id==='pd-sid'&&S
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261120-2100';
+const BUILD='20261120-2120';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
