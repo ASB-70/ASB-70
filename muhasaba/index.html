@@ -503,7 +503,7 @@ function renderHome(){
   const byCity={};for(const c of S.customers)if((c.balance||0)>0.005)byCity[c.city||'غير محدد']=(byCity[c.city||'غير محدد']||0)+c.balance;
   const cities=Object.entries(byCity).sort((a,b)=>b[1]-a[1]);const max=cities.length?cities[0][1]:1;
   const lb=[S.settings.lastBackup,S.abkLast].filter(Boolean).sort().pop(),bd=lb?Math.floor((new Date(today())-new Date(lb))/864e5):null;
-  el.innerHTML=(EXT?'':`<div class="note">صار للبرنامج نسخة أونلاين على اللابتوب والجوال. إذا نقلت بياناتك إليها فلا تسجّل هنا، لأن ما تسجّله هنا لا يظهر هناك. <a href="https://asb-70.github.io/ASB-70/muhasaba/" target="_blank" rel="noopener" style="color:inherit;font-weight:600">فتح النسخة الأونلاين</a></div>`)+((bd===null||bd>7)?`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${bd===null?'لم تُنزَّل أي نسخة احتياطية بعد.':'آخر نسخة احتياطية منذ '+bd+' يوم.'}</span><button class="btn sm" type="button" data-view="settings">نسخة الآن</button></div>`:'')+(due.length?`<div class="sec"><div class="sechead"><h2>مستحق التذكير الآن</h2><small>${due.length} زبون</small></div>${due.slice(0,3).map(dueCard).join('')}${due.length>3?`<button class="btn sm" type="button" data-view="due">عرض كل التذكيرات (${due.length})</button>`:''}</div>`:'')
+  el.innerHTML=staleBanner()+(EXT?'':`<div class="note">صار للبرنامج نسخة أونلاين على اللابتوب والجوال. إذا نقلت بياناتك إليها فلا تسجّل هنا، لأن ما تسجّله هنا لا يظهر هناك. <a href="https://asb-70.github.io/ASB-70/muhasaba/" target="_blank" rel="noopener" style="color:inherit;font-weight:600">فتح النسخة الأونلاين</a></div>`)+((bd===null||bd>7)?`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${bd===null?'لم تُنزَّل أي نسخة احتياطية بعد.':'آخر نسخة احتياطية منذ '+bd+' يوم.'}</span><button class="btn sm" type="button" data-view="settings">نسخة الآن</button></div>`:'')+(due.length?`<div class="sec"><div class="sechead"><h2>مستحق التذكير الآن</h2><small>${due.length} زبون</small></div>${due.slice(0,3).map(dueCard).join('')}${due.length>3?`<button class="btn sm" type="button" data-view="due">عرض كل التذكيرات (${due.length})</button>`:''}</div>`:'')
    +(S.staffLoaded&&S.staff.some(empActive)?(()=>{const ws=wkStart(today()),A=S.staff.filter(x=>empActive(x)&&!ownerRole(x));let u=0,l=0,done=0;for(const e of A){const r=weekCalc(e,ws);u+=Math.max(r.rem.usd,0);l+=Math.max(r.rem.syp,0);if(r.done)done++}
      return `<div class="sec"><div class="sechead"><h2>فريق العمل</h2><small>${A.length} موظف · قبض ${done}</small></div><button class="card" type="button" data-view="staff" style="flex-direction:row;align-items:center;text-align:right;width:100%"><span style="display:flex;flex:none">${A.slice(0,5).map((e,i)=>`<span style="margin-inline-start:${i?-12:0}px;border:2px solid var(--surface);border-radius:50%;display:flex">${ava(e,40)}</span>`).join('')}</span><span style="flex:1;min-width:0"><span class="small muted">رواتب هذا الأسبوع المتبقية</span><br><b class="num">${money(r2(u))}</b>${l>0?` <span class="small muted">و</span> <b class="num">${sy(r2(l))}</b>`:''}</span></button></div>`})():'')
    +(()=>{const L=credList();if(!L.length)return'';const tot=r2(L.reduce((a,c)=>a-(c.balance||0),0));return `<div class="sec"><div class="sechead"><h2>💚 حقوق الزبائن عندنا</h2><small>${L.length} زبون · <b class="num t-credit pv">${money(tot)}</b></small></div><div class="list">${L.slice(0,5).map(c=>rowHTML(c)).join('')}</div>${L.length>5?`<button class="btn sm" type="button" data-act="cred-open">عرض الكل (${L.length})</button>`:''}</div>`})()
@@ -572,7 +572,7 @@ function dueCard(c){
 function renderDue(){
   const el=$('#v-due');const due=S.customers.filter(isDue).sort((a,b)=>a.dueAt.localeCompare(b.dueAt));
   const next=S.customers.filter(c=>c.dueAt&&!isDue(c)).sort((a,b)=>a.dueAt.localeCompare(b.dueAt));
-  el.innerHTML=`<div class="sec"><div class="sechead"><h2>مستحق الآن</h2><small>${due.length}</small></div>${due.map(dueCard).join('')||'<div class="empty">لا يوجد تذكير مستحق حالياً</div>'}</div>
+  el.innerHTML=staleBanner()+`<div class="sec"><div class="sechead"><h2>مستحق الآن</h2><small>${due.length}</small></div>${due.map(dueCard).join('')||'<div class="empty">لا يوجد تذكير مستحق حالياً</div>'}</div>
    <div class="sec"><div class="sechead"><h2>المواعيد القادمة</h2><small>${next.length}</small></div>${next.length?`<div class="list">${next.map(c=>rowHTML(c,`<span>${whenTxt(c.dueAt)}</span>`)).join('')}</div>`:'<div class="empty">حدّد موعداً لأي زبون من صفحته، وسيظهر هنا.</div>'}</div>`;
 }
 function renderDetail(){
@@ -1227,7 +1227,7 @@ function renderCash(){
   const lq=S.qlastId&&v.tx.find(t=>t.id===S.qlastId);
   const ids=new Set(v.tx.map(t=>t.id)),cx=t=>(t.rv&&v.tx.some(z=>z.rev===t.id))||(t.rev&&ids.has(t.rev)),b=cashBal(v),sum=(dir,cur)=>r2(v.tx.filter(t=>!cx(t)&&t.dir===dir&&t.cur===cur&&!(dir==='out'&&t.wd)).reduce((a,t)=>a+t.a,0)),sumX=cur=>sum('out',cur),sumW=cur=>r2(v.tx.filter(t=>!cx(t)&&t.wd&&t.cur===cur).reduce((a,t)=>a+t.a,0)),isToday=S.cday===today(),cl=v.closed,rows=v.tx.slice().reverse();
   const du=cl?r2(cl.usd-cl.expUsd):0,ds=cl?r2(cl.syp-cl.expSyp):0,ok=cl&&Math.abs(du)<0.005&&Math.abs(ds)<0.005;
-  el.innerHTML=`${accStrip()}${lq?`<div class="sechead"><span class="small">سُجّلت: <b class="num ${lq.dir==='in'?'t-credit':'t-debt'}">${lq.dir==='in'?'+':'−'}${cm(lq.cur,lq.a)}</b> ${esc(lq.n||'')}</span><button class="btn sm danger" type="button" data-act="q-undo">تراجع</button></div>`:''}
+  el.innerHTML=`${staleBanner()}${accStrip()}${lq?`<div class="sechead"><span class="small">سُجّلت: <b class="num ${lq.dir==='in'?'t-credit':'t-debt'}">${lq.dir==='in'?'+':'−'}${cm(lq.cur,lq.a)}</b> ${esc(lq.n||'')}</span><button class="btn sm danger" type="button" data-act="q-undo">تراجع</button></div>`:''}
    <div class="sechead"><button class="btn sm" type="button" data-act="cash-day" data-d="-1">→ السابق</button><b>${isToday?'اليوم · ':''}${dmy(S.cday)}</b>${isToday?'<span style="width:64px"></span>':'<button class="btn sm" type="button" data-act="cash-day" data-d="1">التالي ←</button>'}</div>
    ${isToday?'':'<button class="btn sm" type="button" data-act="cash-today">العودة إلى صندوق اليوم</button>'}
    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"><button class="btn sm" type="button" data-act="cash-new" data-dir="in">قبض من زبون</button><button class="btn sm" type="button" data-act="cash-new" data-dir="out">＋ مصروف (حدّد على حساب مين)</button><button class="btn sm" type="button" data-act="cash-new" data-dir="wd">سحب من الصندوق (ليس مصروفاً)</button><button class="btn sm" type="button" data-act="cash-fx">تصريف</button><button class="btn sm" type="button" data-act="cash-rate">سعر الصرف</button><button class="btn sm" type="button" data-act="fx-oldnew" style="grid-column:1/-1">🔁 محوّل الليرة القديمة ↔ الجديدة</button><button class="btn sm wa" type="button" data-act="sham-list" style="grid-column:1/-1">💳 دفعات شام كاش (ما بتدخل الصندوق)</button></div>
@@ -1520,7 +1520,7 @@ function renderReports(){const el=$('#v-reports'),R=S.rep;
      <div class="row"><span class="who"><b>اليوم</b><small>ربح ${money(r2(td.profit))} · مصاريف ${money(r2(td.expTot))}</small></span><span class="amt"><b class="${r2(avgP-td.expTot)<0?'t-debt':'t-credit'}">${money(r2(avgP-td.expTot))}</b><small>المتبقي من الحد</small></span></div></div>
     <span class="small muted">الحساب: متوسط الربح اليومي من فواتير آخر 30 يوماً (السبت إلى الخميس) حسب تكلفة المواد المسجلة بالمخزون. يتحسن كلما زادت الفواتير المسجلة.</span>`
     :`<div class="empty">لا توجد فواتير بربح معروف في آخر 30 يوم. سجّل تكلفة المواد في المخزون وأنشئ فواتير ليظهر الحساب.</div>`}</div>
-   ${plCard()}${bsCard()}${agingCard()}${assetsCard()}
+   ${plCard()}${bsCard()}${agingCard()}${rankCard()}${assetsCard()}
    <div class="sec"><div class="sechead"><h2>سجل الفواتير</h2><small id="repcnt">${inv.length}</small></div>
     <div class="field"><label for="rep-q">بحث برقم الفاتورة أو اسم الزبون أو المبلغ</label><input id="rep-q" type="search" value="${esc(R.q)}" inputmode="search" autocomplete="off"></div>
     <div id="replist">${repInvList(inv)}</div></div>`}
@@ -2421,11 +2421,43 @@ function ageCalc(tx){const T=today(),deb=[];let cr=0;for(const t of tx||[]){if(t
   deb.sort((a,b)=>a.d.localeCompare(b.d));const b=[0,0,0,0];let oldest=0;
   for(const x of deb){const use=Math.min(cr,x.a);cr=r2(cr-use);const rem=r2(x.a-use);if(rem<=0.005)continue;const days=Math.max(0,ddiff(T,x.d));oldest=Math.max(oldest,days);b[days<=30?0:days<=60?1:days<=90?2:3]+=rem}
   return{b:b.map(r2),oldest}}
-function custCache(tx){const bal=r2((tx||[]).reduce((s,t)=>s+eff(t),0));return{balance:bal,age:bal>0.005?ageCalc(tx).oldest:0}}
+/* ===== week alert: owes money and paid nothing for more than 7 days ===== */
+const STALE_D=7;
+const staleDays=c=>{if(!c||c.walkin||!(nv(c.balance)>0.005))return 0;if(c.lastPay)return Math.max(0,ddiff(today(),c.lastPay));return nv(c.age)};
+const staleList=()=>S.customers.filter(c=>staleDays(c)>STALE_D).sort((a,b)=>staleDays(b)-staleDays(a)||nv(b.balance)-nv(a.balance));
+async function staleScan(){if(S.staleScanned||!S.db||!S.loaded)return;S.staleScanned=true;try{const sn=await S.db.collection('ledgers').get();let ch=0;
+  for(const d of sn.docs){const c=cust(d.id);if(!c)continue;const cc=custCache(d.data().tx||[]);if((c.lastPay||'')!==cc.lastPay||nv(c.age)!==cc.age||Math.abs(nv(c.balance)-cc.balance)>0.005){Object.assign(c,cc);ch++;try{await S.db.doc('customers/'+c.id).update(cc)}catch(e){}}}
+  if(ch&&$('#scrim').hidden)refresh()}catch(e){S.staleScanned=false}}
+function staleBanner(){staleScan();const L=staleList();if(!L.length)return'';const t=r2(L.reduce((a,c)=>a+nv(c.balance),0));
+  return`<button class="card duecard" type="button" data-act="f-stale" style="width:100%;text-align:right;flex-direction:row;align-items:center;gap:10px"><span style="font-size:22px">⚠️</span><span style="flex:1;min-width:0"><b>${L.length} زبون ما دفعوا من أكتر من أسبوع</b><br><span class="small">عليهم <b class="num">${money(t)}</b> · أقدمهم ${esc(L[0].name)} (${staleDays(L[0])} يوم)</span></span><span class="small">عرض ←</span></button>`}
+function staleSheet(){const L=staleList();openSheet(`<h2>⚠️ ما دفعوا من أكتر من أسبوع</h2><span class="small muted">زباين عليهم دين وما سجّلوا أي دفعة من أكتر من ${STALE_D} أيام (أو ما دفعوا أبداً من أول فاتورة مفتوحة).</span>
+  ${L.length?`<div class="list">${L.map(c=>`<div class="row" style="flex-wrap:wrap"><button type="button" data-open="${esc(c.id)}" style="all:unset;cursor:pointer;flex:1;min-width:0"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'')}</span><span class="chip ${staleDays(c)>30?'c-debt':'c-due'}">${c.lastPay?'آخر دفعة من '+staleDays(c)+' يوم':'ما دفع من '+staleDays(c)+' يوم'}</span></small></span></button><span class="amt"><b class="t-debt">${money(nv(c.balance))}</b></span>${waNum(c.phone)?`<button class="btn sm wa" type="button" data-act="rem-send" data-id="${esc(c.id)}" style="flex-basis:100%">📤 إرسال تذكير + كشف</button>`:''}</div>`).join('')}</div>`:'<div class="empty">✓ كل الزباين دافعين خلال آخر أسبوع.</div>'}
+  <button class="btn" type="button" data-act="close">إغلاق</button>`)}
+/* ===== customer ranking: profit + payment speed ===== */
+async function rankLoad(){S.F.rank={loading:true};refresh();try{
+  const [isn,lsn]=await Promise.all([S.db.collection('invoices').get(),S.db.collection('ledgers').get()]),P={},T=today();
+  for(const d of isn.docs){const v=d.data();if(v.void||!v.cid)continue;const r=P[v.cid]=P[v.cid]||{profit:0,sales:0,n:0,noP:0};r.sales+=nv(v.total);r.n++;if(v.profit!=null)r.profit+=nv(v.profit);else r.noP++}
+  const rows=[];for(const d of lsn.docs){const c=cust(d.id);if(!c||c.walkin)continue;const tx=(d.data().tx||[]).filter(t=>!t.void);
+    const inv=tx.filter(t=>t.k==='inv').map(t=>({d:t.d||T,a:nv(t.a)})).sort((a,b)=>a.d.localeCompare(b.d)),cr=tx.filter(t=>t.k!=='inv').map(t=>({d:t.d||T,a:nv(t.a)})).sort((a,b)=>a.d.localeCompare(b.d));
+    if(!inv.length)continue;let ci=0,left=cr.length?cr[0].a:0,wd=0,wa=0,open=0;
+    for(const x of inv){let need=x.a,doneD=null;while(need>0.005&&ci<cr.length){const use=Math.min(need,left);need-=use;left-=use;if(need<=0.005)doneD=cr[ci].d<x.d?x.d:cr[ci].d;if(left<=0.005){ci++;left=ci<cr.length?cr[ci].a:0}}
+      const days=doneD?Math.max(0,ddiff(doneD,x.d)):Math.max(0,ddiff(T,x.d));if(!doneD)open++;wd+=days*x.a;wa+=x.a}
+    const p=P[d.id]||{profit:0,sales:0,n:0,noP:0},avg=wa>0?Math.round(wd/wa):0;rows.push({c,profit:r2(p.profit),sales:r2(p.sales),n:p.n||inv.length,avg,open,paid:inv.length-open,hasPay:cr.length>0,score:p.profit/(1+avg/15)})}
+  rows.sort((a,b)=>b.score-a.score);const sales=rows.map(r=>r.sales).sort((a,b)=>b-a),q=sales[Math.floor(sales.length/4)]||0;
+  let gold=0;rows.forEach((r,i)=>{r.tags=[];if(!r.hasPay){r.tags.push([r.avg>STALE_D?'🐢 ما دفع ولا مرة':'جديد · لسا ما دفع','c-'+(r.avg>STALE_D?'debt':'zero')]);return}if(r.paid&&gold<5&&r.avg<=15&&r.profit>0){gold++;r.tags.push(['⭐ زبون ذهبي','c-credit'])}if(r.avg<=7)r.tags.push(['⚡ بيدفع بسرعة','c-credit']);else if(r.avg>30)r.tags.push([r.sales>=q&&q>0?'⚠️ بيشتري كتير بس بيتأخر':'🐢 بطيء بالدفع','c-debt']);else if(r.avg>15)r.tags.push(['متوسط بالدفع','c-due'])});
+  S.F.rank={rows}}catch(e){console.error(e);S.F.rank={err:true}}refresh()}
+function rankCard(){const R=S.F.rank;const head=`<div class="sechead"><b>🏆 ترتيب الزبائن (الربح + سرعة الدفع)</b><button class="btn sm" type="button" data-act="f-rank">${R&&R.rows?'تحديث':'احسب'}</button></div>`;
+  if(!R)return`<div class="card">${head}<span class="small muted">مين بيربّحك أكتر وبيدفع أسرع. سرعة الدفع = متوسط الأيام بين الفاتورة وتسديدها (الدفعات بتسدّ أقدم فاتورة أول).</span></div>`;
+  if(R.loading)return`<div class="card">${head}<span class="small muted">جارٍ الحساب…</span></div>`;if(R.err)return`<div class="card">${head}<span class="note">تعذّر الحساب. تحقق من الاتصال.</span></div>`;
+  const L=R.rows.slice(0,S.F.rankAll?R.rows.length:15);
+  return`<div class="card">${head}<span class="small muted">الترتيب حسب الربح مع خصم للتأخير بالدفع. كبسة على الزبون بتفتح حسابه.</span>
+   ${L.length?`<div class="list">${L.map((r,i)=>`<button class="row" type="button" data-open="${esc(r.c.id)}"><span class="chip c-zero num" style="flex:none;min-width:30px;text-align:center">${i+1}</span><span class="who"><b>${esc(r.c.name)}</b><small><span>${r.n} فاتورة</span><span>بيدفع خلال <b class="num">${r.avg}</b> يوم</span>${r.tags.map(t=>`<span class="chip ${t[1]}">${t[0]}</span>`).join('')}</small></span><span class="amt"><b class="num t-credit">${pc(money(r.profit))}</b><small>ربح · مبيع <span class="num">${money(r.sales)}</span></small></span></button>`).join('')}</div>`:'<div class="empty">ما في فواتير بعد.</div>'}
+   ${R.rows.length>15?`<button class="btn sm" type="button" data-act="f-rank-all">${S.F.rankAll?'عرض أول 15 بس':'عرض الكل ('+R.rows.length+')'}</button>`:''}</div>`}
+function custCache(tx){const bal=r2((tx||[]).reduce((s,t)=>s+eff(t),0));let lp='';for(const t of tx||[])if(!t.void&&t.k!=='inv'&&(t.d||'')>lp)lp=t.d||'';return{balance:bal,age:bal>0.005?ageCalc(tx).oldest:0,lastPay:lp}}
 const ageChip=c=>{const b=nv(c.balance);if(!(b>0.005))return'';const a=nv(c.age),lim=nv(c.limit);let h='';if(a>90)h+=`<span class="chip c-debt">متأخر +90 يوم</span>`;else if(a>60)h+=`<span class="chip c-due">+60 يوم</span>`;if(lim>0&&b>lim+0.005)h+=`<span class="chip c-debt">تجاوز السقف</span>`;return h};
 async function agingLoad(){S.F.aging={loading:true};refresh();try{const sn=await S.db.collection('ledgers').get(),rows=[],tot=[0,0,0,0];
     for(const d of sn.docs){const c=cust(d.id);if(!c||c.walkin)continue;const tx=d.data().tx||[],cc=custCache(tx);if(!(cc.balance>0.005))continue;const a=ageCalc(tx);a.b.forEach((v,i)=>tot[i]+=v);rows.push({c,bal:cc.balance,...a});
-      if(nv(c.age)!==cc.age||Math.abs(nv(c.balance)-cc.balance)>0.005){try{await S.db.doc('customers/'+c.id).update(cc);Object.assign(c,cc)}catch(e){}}}
+      if(nv(c.age)!==cc.age||Math.abs(nv(c.balance)-cc.balance)>0.005||(c.lastPay||'')!==cc.lastPay){try{await S.db.doc('customers/'+c.id).update(cc);Object.assign(c,cc)}catch(e){}}}
     rows.sort((a,b)=>b.b[3]-a.b[3]||b.oldest-a.oldest);S.F.aging={rows,tot:tot.map(r2)}}catch(e){S.F.aging={err:true}}refresh()}
 function agingCard(){const A=S.F.aging;if(!A)return`<div class="card"><div class="sechead"><b>⏳ أعمار الديون</b><button class="btn sm" type="button" data-act="f-aging">احسب</button></div><span class="small muted">بتعرف مين صرلو الدين عليه أكتر من شهر أو شهرين أو تلاتة. الدفعات بتسدد أقدم فاتورة أولاً.</span></div>`;
   if(A.loading)return'<div class="card"><b>⏳ أعمار الديون</b><span class="small muted">جارٍ الحساب…</span></div>';if(A.err)return'<div class="card"><b>⏳ أعمار الديون</b><span class="note">تعذّر الحساب. تحقق من الاتصال.</span><button class="btn sm" type="button" data-act="f-aging">إعادة</button></div>';
@@ -2770,6 +2802,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-fixed-del'){if(S.armed!=='fxd'){S.armed='fxd';b.textContent='اكبس للتأكيد';return}fguard(async()=>{await finSave({fixed:fixedList().filter(x=>x.id!==D.id)});S.armed=null;fixedSheet();finPaint()});return}
   if(a==='f-fixed-pay'){fixedPay(D.id);return}
   if(a==='f-aging'){agingLoad();return}
+  if(a==='f-rank'){rankLoad();return}
+  if(a==='f-rank-all'){S.F.rankAll=!S.F.rankAll;refresh();return}
+  if(a==='f-stale'){staleSheet();return}
   if(a==='f-bs'){bsLoad();return}
   if(a==='f-asset-new'){assetSheet(null);return}
   if(a==='f-asset'){assetSheet(assetsL().find(x=>x.id===D.id));return}
@@ -3148,7 +3183,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261121-1256';
+const BUILD='20261121-1932';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
