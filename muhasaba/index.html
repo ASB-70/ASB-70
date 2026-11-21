@@ -252,6 +252,15 @@ function drawLogo(x,px,py,box){if(!(logoImg.complete&&logoImg.naturalWidth))retu
   const m=10,sc=Math.min((box-2*m)/logoImg.naturalWidth,(box-2*m)/logoImg.naturalHeight),w=logoImg.naturalWidth*sc,h=logoImg.naturalHeight*sc;x.drawImage(logoImg,px+(box-w)/2,py+(box-h)/2,w,h);return true}
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
 async function pinHash(p){const t='thiqa-pin:'+p;try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){let h=5381;for(const ch of t)h=((h<<5)+h+ch.charCodeAt(0))>>>0;return 'x'+h.toString(16)}}
+async function pinHash2(p,salt){salt=salt||[...crypto.getRandomValues(new Uint8Array(16))].map(x=>x.toString(16).padStart(2,'0')).join('');
+  const k=await crypto.subtle.importKey('raw',new TextEncoder().encode('thiqa-pin2:'+p),'PBKDF2',false,['deriveBits']);
+  const b=await crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode(salt),iterations:210000,hash:'SHA-256'},k,256);
+  return 'p2$'+salt+'$'+[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function pinCheck(p,stored){stored=stored||LK.pin;if(!stored)return false;
+  if(stored.startsWith('p2$')){const salt=stored.split('$')[1];try{return (await pinHash2(p,salt))===stored}catch(e){return false}}
+  const ok=(await pinHash(p))===stored;
+  if(ok&&S.db&&stored===LK.pin){try{const h=await pinHash2(p),st={...S.settings,pin:h};await S.db.doc('settings/main').set(st);S.settings=st;LK.pin=h;LS.set('thiqa-pin',h)}catch(e){}}
+  return ok}
 const LK={pin:LS.get('thiqa-pin')||'',open:false,tries:0,until:0,hid:0};
 function lockShow(){$('#lock').hidden=false;$('#loginform').hidden=true;$('#lockmsg').textContent='أدخل رمز الدخول';$('#lockform').hidden=false;$('#lockhelp').hidden=false;$('#lockerr').textContent='';$('#lockbio').hidden=!(BIO.on&&bioKind());if(BIO.on)setTimeout(tryBio,350);const i=$('#lockpin');i.value='';setTimeout(()=>i.focus(),50)}
 function lockHide(){if(S.loginRes)return;$('#lock').hidden=true;LK.open=true}
@@ -269,7 +278,7 @@ async function bioEnroll(){const k=bioKind();if(k==='native')return bioAuth();if
     if(!c)return false;LS.set('thiqa-bio-id',btoa(String.fromCharCode(...new Uint8Array(c.rawId))));return true}catch(e){return false}}
 async function tryBio(){if(BIO.busy||!BIO.on||!bioKind()||$('#lock').hidden||S.loginRes)return;BIO.busy=true;let ok=false;try{ok=await bioAuth()}finally{BIO.busy=false}if(ok&&!$('#lock').hidden&&!S.loginRes){LK.tries=0;lockHide()}}
 function lockSync(pin){LK.pin=pin||'';LS.set('thiqa-pin',LK.pin||null);if(!LK.pin)lockHide();else if(!LK.open)lockShow()}
-document.addEventListener('visibilitychange',()=>{if(document.hidden)LK.hid=Date.now();else if(LK.pin&&LK.open&&LK.hid&&Date.now()-LK.hid>120000){LK.open=false;lockShow()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)LK.hid=Date.now();else if(LK.pin&&LK.open&&LK.hid&&Date.now()-LK.hid>60000){LK.open=false;lockShow()}});
 /* ---------- Supabase backend: used when the page runs outside Claude (GitHub Pages) ---------- */
 const KV=(()=>{let p=null;const open=()=>p||(p=new Promise(res=>{try{const r=indexedDB.open('thiqa-cache',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)}catch(e){res(null)}}));
   return{get:k=>open().then(d=>d?new Promise(res=>{try{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(e){res(undefined)}}):undefined),
@@ -355,7 +364,7 @@ function makeSbDb(stat){stat=stat||(()=>{});
       doc:id=>docRef(col+'/'+(id||newId())),add:async data=>{const r=docRef(col+'/'+newId());await r.set(data);return r},
       onSnapshot:(next,err)=>watcher({col},get,v=>JSON.stringify(v.docs.map(d=>[d.id,d.data()])),next,err)}}
   const backups={list:()=>rq('?select=id,created_at,n,bytes&order=id.desc&limit=12',{table:'acc_backups'}).then(a=>a||[]),get:id=>rq('?id=eq.'+enc(id)+'&select=data',{table:'acc_backups'}).then(a=>a&&a[0]&&a[0].data)};
-  return{flush,pending:()=>pend.size,backups,table:(t,q,o)=>rq(q,{...(o||{}),table:t}),doc:docRef,collection:c=>colRef(c),login:(email,password)=>auth({email,password},'password'),logout(){tok=null;refresh='';LS.set('thiqa-rt',null);KV.clear()},signedIn:()=>!!refresh,resync:()=>{lastFull=0;return Promise.all([...subs].map(x=>x.run()))},bulk(v){paused=!!v;if(!paused)for(const x of subs)x.run()}}}
+  return{flush,pending:()=>pend.size,backups,table:(t,q,o)=>rq(q,{...(o||{}),table:t}),doc:docRef,collection:c=>colRef(c),login:(email,password)=>auth({email,password},'password'),logout(){tok=null;refresh='';LS.set('thiqa-rt',null);KV.clear()},async logoutAll(){const t=await token();const r=await tfetch(SB.url+'/auth/v1/logout?scope=global',{method:'POST',headers:{apikey:SB.key,Authorization:'Bearer '+t}},20000);if(!r.ok&&r.status!==204)throw Object.assign(new Error('logout'),{code:'unavailable'});tok=null;refresh='';LS.set('thiqa-rt',null);KV.clear()},signedIn:()=>!!refresh,resync:()=>{lastFull=0;return Promise.all([...subs].map(x=>x.run()))},bulk(v){paused=!!v;if(!paused)for(const x of subs)x.run()}}}
 const browserDl={save({filename,data}){const b=data instanceof Blob?data:new Blob([data]),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),8000);return Promise.resolve({status:'saved'})}};
 function loginShow(){return new Promise(res=>{$('#lock').hidden=false;$('#lockmsg').textContent='سجّل الدخول إلى حسابات الشركة';$('#lockform').hidden=true;$('#lockbio').hidden=true;$('#lockhelp').hidden=true;$('#loginform').hidden=false;$('#lockerr').textContent='';S.loginRes=res})}
 function syncHTML(short){if(!EXT)return'';const N=S.net,st=N.on===false?'off':(N.sync||N.busy>0||N.pend>0)?'sync':'ok',pn=N.pend?' ('+N.pend+')':'';
@@ -626,7 +635,7 @@ function renderSettings(){
      <div class="field"><label for="rfile">اختر ملف النسخة (إكسل أو json)</label><input id="rfile" type="file" accept=".json,application/json,.xlsx" style="padding:8px;font-size:13px"></div><div id="rbox"></div></div>
    <form id="pinform" class="card"><b>رمز الدخول</b><span class="muted small">${LK.pin?'الرمز مفعّل. يُطلب عند فتح البرنامج وبعد دقيقتين من تركه.':'ضع رمزاً من 4 إلى 8 أرقام يُطلب كل مرة يُفتح فيها البرنامج. يحميك ممن يمسك موبايلك وهو مفتوح.'}</span>
      ${LK.pin?`<div class="field"><label for="pin-cur">الرمز الحالي</label><input id="pin-cur" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" required></div>`:''}
-     <div class="field"><label for="pin-new">${LK.pin?'الرمز الجديد (اتركه فارغاً لإلغاء الرمز)':'الرمز الجديد'}</label><input id="pin-new" type="password" inputmode="numeric" autocomplete="off" maxlength="8" dir="ltr" ${LK.pin?'':'required'}></div>
+     <div class="field"><label for="pin-new">${LK.pin?'الرمز الجديد (اتركه فارغاً لإلغاء الرمز)':'الرمز الجديد'}</label><input id="pin-new" type="password" inputmode="numeric" autocomplete="off" maxlength="10" minlength="6" dir="ltr" ${LK.pin?'':'required'}><span class="small muted">من 6 إلى 10 أرقام، مو متسلسلة.</span></div>
      <div class="grid2"><button class="btn primary" type="submit">حفظ الرمز</button>${LK.pin?'<button class="btn" type="button" data-act="lock-now">قفل الآن</button>':'<span></span>'}</div></form>
    <div class="card"><b>الدخول بالبصمة</b>${(()=>{const k=bioKind(),oldApk=window.Android&&typeof window.Android.bioAuth!=='function';
      if(oldApk)return '<span class="muted small">تطبيق الأندرويد عندك نسخة قديمة لا تدعم البصمة. نزّل النسخة الجديدة وثبّتها فوق القديمة.</span><a class="btn" href="../apk/muhasaba.apk">تنزيل تطبيق الأندرويد الجديد</a>';
@@ -636,7 +645,7 @@ function renderSettings(){
        :'<span class="muted small">'+(k==='native'?'ادخل ببصمة الإصبع أو الوجه المسجّلة في جوالك بدل كتابة الرمز.':'ادخل ببصمة أو وجه أو رمز الجهاز (Windows Hello أو قفل الجوال) بدل كتابة الرمز.')+' تُفعَّل لكل جهاز على حدة.</span><button class="btn primary" type="button" data-act="bio-on">تفعيل الدخول بالبصمة</button>'})()}</div>
    ${EXT?'<div class="card"><b>تنزيل البرنامج</b><span class="muted small">نسخة أندرويد ونسخة ويندوز 11. كلاهما يفتح نفس بياناتك.</span><a class="btn" href="../apk/muhasaba.apk">تطبيق أندرويد (APK)</a><a class="btn" href="app/Muhasaba-Althiqa.exe">برنامج ويندوز (EXE)</a></div>':''}
    ${EXT?`<div class="card"><b>إصدار البرنامج</b><span class="muted small">الإصدار الحالي: <span class="num">${BUILD}</span>. التحديثات تصل تلقائياً عند فتح البرنامج.</span><button class="btn" type="button" data-act="app-update">تحديث البرنامج الآن</button></div>`:''}
-   ${EXT?'<div class="card"><b>الحساب</b><span class="muted small">أنت داخل بحسابك على قاعدة بيانات الشركة.</span><button class="btn danger" type="button" data-act="logout">تسجيل الخروج من هذا الجهاز</button></div>':''}
+   ${EXT?'<div class="card"><b>الحساب</b><span class="muted small">أنت داخل بحسابك على قاعدة بيانات الشركة.</span><button class="btn danger" type="button" data-act="logout">تسجيل الخروج من هذا الجهاز</button><button class="btn danger" type="button" data-act="logout-all">🚪 تسجيل خروج من كل الأجهزة</button><span class="small muted">إذا ضاع موبايل أو انسرق لابتوب: اكبسها من أي جهاز، فبيطلع كل جهاز من الحساب وبيلزم كلمة السر للدخول من جديد.</span></div>':''}
    <div class="card"><b>كيف يعمل التذكير</b><span class="muted small">حدّد لكل زبون يوماً وساعة. عند حلول الموعد يظهر الزبون في «التذكيرات» مع زر يفتح واتساب والرسالة جاهزة باسمه ومبلغه، وتضغط إرسال. واتساب لا يسمح لأي تطبيق بالإرسال من رقمك دون ضغطتك.</span></div>`;
 }
 
@@ -1954,12 +1963,12 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
     closeSheet();toast(ex&&ex.toCash?'حُفظت الدفعة ودخلت الصندوق':ex&&ex.sham?'حُفظت دفعة شام كاش (بتلاقيها بقائمة دفعات شام كاش)':'حُفظت الحركة');if(!old&&k==='pay')rcptOpen(S.cid,t.id)});
   if(f.id==='loginform'){const er=$('#lockerr');er.textContent='جارٍ التحقق…';const em0=$('#lg-email').value.trim();S.db.login(em0,$('#lg-pass').value).then(()=>{LS.set('thiqa-email',em0.toLowerCase());$('#lg-pass').value='';$('#loginform').hidden=true;er.textContent='';$('#lockmsg').textContent='جارٍ الفتح…';const r=S.loginRes;S.loginRes=null;if(r)r()}).catch(e2=>{er.textContent=e2.code==='unavailable'?'تعذّر الاتصال. تحقق من الإنترنت.':'الإيميل أو كلمة السر غير صحيحة'});return}
   if(f.id==='privform'){(async()=>{const er=$('#priverr');if(Date.now()<PV.until){er.textContent='محاولات كثيرة. انتظر '+Math.ceil((PV.until-Date.now())/1000)+' ثانية.';return}
-    if(await pinHash($('#privpin').value)===LK.pin){PV.tries=0;doReveal()}else{PV.tries++;$('#privpin').value='';er.textContent='الرمز غير صحيح';if(PV.tries>=5){PV.tries=0;PV.until=Date.now()+30000;er.textContent='محاولات كثيرة. انتظر 30 ثانية.'}}})();return}
+    if(await pinCheck($('#privpin').value)){PV.tries=0;doReveal()}else{PV.tries++;$('#privpin').value='';er.textContent='الرمز غير صحيح';if(PV.tries>=5){PV.tries=0;PV.until=Date.now()+30000;er.textContent='محاولات كثيرة. انتظر 30 ثانية.'}}})();return}
   if(f.id==='lockform'){(async()=>{const er=$('#lockerr');if(Date.now()<LK.until){er.textContent='محاولات كثيرة. انتظر '+Math.ceil((LK.until-Date.now())/1000)+' ثانية.';return}
-    if(await pinHash($('#lockpin').value)===LK.pin){LK.tries=0;lockHide()}else{LK.tries++;$('#lockpin').value='';er.textContent='الرمز غير صحيح';if(LK.tries>=5){LK.tries=0;LK.until=Date.now()+30000;er.textContent='محاولات كثيرة. انتظر 30 ثانية.'}}})();return}
-  if(f.id==='pinform')guard(async()=>{const nw=$('#pin-new').value.trim();if(LK.pin&&await pinHash($('#pin-cur').value)!==LK.pin){toast('الرمز الحالي غير صحيح');return}
-    if(nw&&!/^\d{4,8}$/.test(nw)){toast('الرمز من 4 إلى 8 أرقام فقط');return}if(!nw&&!LK.pin)return;
-    const st={...S.settings};if(nw)st.pin=await pinHash(nw);else delete st.pin;await S.db.doc('settings/main').set(st);S.settings=st;LK.open=true;lockSync(st.pin);if(!nw){BIO.on=false;LS.set('thiqa-bio',null)}renderSettings();toast(nw?'فُعّل رمز الدخول':'أُلغي رمز الدخول')});
+    if(await pinCheck($('#lockpin').value)){LK.tries=0;lockHide()}else{LK.tries++;$('#lockpin').value='';er.textContent='الرمز غير صحيح';if(LK.tries>=5){LK.tries=0;LK.until=Date.now()+30000;er.textContent='محاولات كثيرة. انتظر 30 ثانية.'}}})();return}
+  if(f.id==='pinform')guard(async()=>{const nw=$('#pin-new').value.trim();if(LK.pin&&!(await pinCheck($('#pin-cur').value))){toast('الرمز الحالي غير صحيح');return}
+    if(nw&&!/^\d{6,10}$/.test(nw)){toast('الرمز لازم يكون من 6 إلى 10 أرقام');return}if(nw&&/^(\d)\1+$|^(012345|123456|234567|345678|456789|987654|654321)/.test(nw)){toast('الرمز سهل كتير، اختار أرقام غير متسلسلة');return}if(!nw&&!LK.pin)return;
+    const st={...S.settings};if(nw)st.pin=await pinHash2(nw);else delete st.pin;await S.db.doc('settings/main').set(st);S.settings=st;LK.open=true;lockSync(st.pin);if(!nw){BIO.on=false;LS.set('thiqa-bio',null)}renderSettings();toast(nw?'فُعّل رمز الدخول':'أُلغي رمز الدخول')});
   if(f.id==='cashform')guard(saveCash);
   if(f.id==='lform')guard(saveLog);
   if(f.id==='payform')guard(savePay);
@@ -2108,6 +2117,8 @@ document.addEventListener('click',e=>{
     try{if(b.dataset.kind==='png')send(S.stmtCv.toDataURL('image/png').split(',')[1],'png','image/png');else{const r=new FileReader();r.onload=()=>send(String(r.result).split(',')[1],'pdf','application/pdf');r.readAsDataURL(stmtPDF(S.stmtCv))}}catch(er){toast('تعذّر الإرسال المباشر')}return}
   if(a==='app-update'){location.replace(location.pathname+'?v='+Date.now());return}
   if(a==='logout'){S.db.logout();LS.set('thiqa-email',null);location.reload();return}
+  if(a==='logout-all'){if(S.armed!=='lall'){S.armed='lall';b.textContent='⚠️ أكيد؟ اكبس مرة تانية: رح يطلع كل جهاز (وهاد كمان)';return}S.armed=null;b.disabled=true;
+    S.db.logoutAll().then(()=>{LS.set('thiqa-email',null);try{indexedDB.databases&&indexedDB.databases().then(L=>L.forEach(d=>d.name&&indexedDB.deleteDatabase(d.name)))}catch(e){}toast('✔ طلعت كل الأجهزة من الحساب');setTimeout(()=>location.reload(),1500)}).catch(()=>{b.disabled=false;toast('ما زبط، لازم يكون في إنترنت. جرّب مرة تانية')});return}
   if(a==='backup'){if(S.dl)guard(doBackup);return}
   if(a==='backup-xlsx'){if(S.dl)guard(doBackupXlsx);return}
   if(a==='csel-mode'){S.csel=S.csel?null:new Set();renderList();return}
@@ -2873,7 +2884,7 @@ document.addEventListener('submit',e=>{const f=e.target,id=f.id;if(!['whyform','
   if(id==='purform'){purSync();fguard(savePur)}
   if(id==='assetform'){const aid=f.dataset.id,x={id:aid||'as'+Date.now().toString(36),name:$('#as-n').value.trim(),cost:nv($('#as-c').value),date:$('#as-d').value||today(),life:nv($('#as-l').value),salv:nv($('#as-s').value)};if(!x.name||!(x.cost>0)||!(x.life>0)){toast('اكتب الاسم والسعر والعمر');return}const pay=!aid&&$('#as-cash')&&$('#as-cash').checked;
     fguard(async()=>{const L=FM().assets||[];await finSave({assets:aid?L.map(y=>y.id===aid?{...y,...x}:y):[...L,x]});if(pay)await cashAdd(today(),{id:newId(),t:new Date().toISOString(),dir:'out',cur:'usd',a:x.cost,n:'شراء أصل: '+x.name,asset:x.id});audit('asset',aid?'تعديل أصل':'أصل جديد',{name:x.name,a:x.cost});closeSheet();refresh();toast('انحفظ الأصل')})}
-  if(id==='unlockform'){(async()=>{if(await pinHash($('#ul-pin').value)===LK.pin)doUnlock();else toast('الرمز غير صحيح')})()}
+  if(id==='unlockform'){(async()=>{if(await pinCheck($('#ul-pin').value))doUnlock();else toast('الرمز غير صحيح')})()}
   if(id==='userform'){const em=$('#us-e').value.trim().toLowerCase(),nm=$('#us-n').value.trim();if(!/^[^@\s]+@[^@\s]+$/.test(em)){toast('اكتب إيميل صحيح');return}if(em===(LS.get('thiqa-email')||'').toLowerCase()){toast('هذا إيميلك أنت');return}
     fguard(async()=>{await S.db.doc('roles/'+em).set({role:'sales',name:nm,at:new Date().toISOString()});audit('role','إضافة مستخدم بيّاع',{email:em,name:nm});usersSheet();toast('انضاف '+em+' كبيّاع')})}
 },true);
@@ -3183,7 +3194,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261121-1932';
+const BUILD='20261121-1947';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
