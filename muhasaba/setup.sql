@@ -28,3 +28,13 @@ create index if not exists acc_docs_upd on public.acc_docs (updated_at);
 
 -- ملخص آخر النهار: كل يوم 9:41 مساءً بتوقيت دمشق (18:41 UTC) على تطبيق ntfy بالجوال، فقط بالأيام اللي فيها حركة
 -- (الدالة public.acc_evening_summary موجودة بقاعدة البيانات؛ للتجربة: select public.acc_evening_summary(true);)
+
+-- أسعار موقع الكاتالوج من المحاسبة (الموقع بيقرأها، والمالك بس بيكتبها). فاضية = الموقع بيعرض أسعار لوحة الإدارة
+create table if not exists public.pub_prices (code text primary key, price numeric not null check (price >= 0), updated_at timestamptz not null default now());
+alter table public.pub_prices enable row level security;
+grant select on public.pub_prices to anon, authenticated;
+grant insert, update, delete on public.pub_prices to authenticated;
+drop policy if exists pub_prices_read on public.pub_prices;
+create policy pub_prices_read on public.pub_prices for select to anon, authenticated using (true);
+drop policy if exists pub_prices_owner_write on public.pub_prices;
+create policy pub_prices_owner_write on public.pub_prices for all to authenticated using (public.acc_is_owner()) with check (public.acc_is_owner());
