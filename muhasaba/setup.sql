@@ -25,3 +25,6 @@ create or replace function public.acc_touch() returns trigger language plpgsql s
 drop trigger if exists acc_touch on public.acc_docs;
 create trigger acc_touch before update on public.acc_docs for each row execute function public.acc_touch();
 create index if not exists acc_docs_upd on public.acc_docs (updated_at);
+
+-- ملخص آخر النهار: كل يوم 9:41 مساءً بتوقيت دمشق (18:41 UTC) على تطبيق ntfy بالجوال، فقط بالأيام اللي فيها حركة
+-- (الدالة public.acc_evening_summary موجودة بقاعدة البيانات؛ للتجربة: select public.acc_evening_summary(true);)
