@@ -1171,6 +1171,7 @@ async function drawBulletin(o){try{await Promise.race([Promise.all([document.fon
   try{await Promise.race([loadImgs(),new Promise(r=>setTimeout(r,6000))])}catch(e){}
   const ST=o.kind==='staff',codes=Object.keys(S.products).filter(k=>{const p=S.products[k];if(p.off)return false;if(!(effP(p,'price')||effP(p,'pt')||effP(p,'p2')))return false;if(o.hideOut&&blAvail(k)<=0)return false;return true})
     .sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
+  if(o.sort==='asc'||o.sort==='desc'){const bp=k=>{const p=S.products[k];return effP(p,'price')||effP(p,'pt')||0},sg=o.sort==='asc'?1:-1;codes.sort((a,b)=>(bp(a)-bp(b))*sg||a.localeCompare(b,'en',{numeric:true}))}
   const W=1080,H=1527,P=36,RH=o.imgs?92:58,first=ST?190:300,head=86,foot=64,DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif',BF='"IBM Plex Sans Arabic",Tahoma,sans-serif';
   const pics={};if(o.imgs)await Promise.all(codes.map(k=>S.img[k]?new Promise(r=>{const im=new Image();im.onload=()=>{pics[k]=im;r()};im.onerror=r;im.src=S.img[k]}):0));
   const pages=[];let i=0,pn=0;const per=y0=>Math.floor((H-foot-y0-56)/RH),total=(()=>{let n=0,j=0;while(j<codes.length||n===0){j+=per(n?head:first);n++}return n})();
@@ -1208,20 +1209,21 @@ async function drawBulletin(o){try{await Promise.race([Promise.all([document.fon
     ar(ST?'⚠️ للاستعمال الداخلي، لا ترسلها للزبائن. «أقل سعر» = لا تبيع تحته.':'الأسعار قابلة للتغيير · '+S.settings.company,W-P,H-22,'400 19px '+BF,'#5A6684');nu(pn+' / '+total,P,H-22,'500 19px '+DF,'#5A6684','left');
     pages.push(cv);if(!codes.length)break}
   return{pages,n:codes.length}}
-function bulletinSheet(){const B=S.blt=S.blt||{kind:'cust',hideOut:true,imgs:true,margin:nv(S.settings.blMargin)||10,phone:S.settings.blPhone||'0945 215 551',addr:S.settings.blAddr||'حلب – جامع الكبير – سوق السويقة'};
+function bulletinSheet(){const B=S.blt=S.blt||{kind:'cust',hideOut:true,imgs:true,margin:nv(S.settings.blMargin)||10,phone:S.settings.blPhone||'0945 215 551',addr:S.settings.blAddr||'حلب – جامع الكبير – سوق السويقة',sort:S.settings.blSort||'code'};
   const sg=(k,v,l)=>`<button type="button" data-act="f-blt" data-k="${k}" data-v="${v}" aria-pressed="${String(B[k])===String(v)}">${l}</button>`;
   openSheet(`<h2>📄 نشرة أسعار PDF</h2>
    <div class="seg">${sg('kind','cust','👥 للزبائن')}${sg('kind','staff','🧑‍💼 للموظفين')}</div>
-   <span class="small muted">${B.kind==='staff'?'فيها الأسعار الثلاثة، والكمية المتاحة بالمخزون، وأقل سعر مسموح البيع فيه. ما فيها التكلفة.':'فيها سعر نصف الجملة بس، مع شعار الشركة ورقم الواتساب ورمز شام كاش.'}</span>
+   <span class="small muted">${B.kind==='staff'?'فيها سعر نصف الجملة والمفرق، والكمية المتاحة بالمخزون، وأقل سعر مسموح البيع فيه. ما فيها التكلفة.':'فيها سعر نصف الجملة بس، مع شعار الشركة ورقم الواتساب ورمز شام كاش.'}</span>
    <div class="seg">${sg('hideOut','true','إخفاء المواد الخالصة')}${sg('hideOut','false','كل المواد')}</div>
    <div class="seg">${sg('imgs','true','مع الصور')}${sg('imgs','false','بدون صور (ملف أخف)')}</div>
+   <div class="field"><label>الترتيب</label><div class="seg">${sg('sort','code','حسب الصنف (الكود)')}${sg('sort','asc','الأرخص ← الأغلى')}${sg('sort','desc','الأغلى ← الأرخص')}</div></div>
    ${B.kind==='staff'?`<div class="field"><label for="bl-m">أقل سعر = التكلفة + هامش ربح %</label><input id="bl-m" type="number" min="0" step="1" inputmode="numeric" value="${esc(B.margin)}"><span class="small muted">مثال: 10% يعني ما حدا بيبيع بأقل من التكلفة وزيادة 10%.</span></div>`
      :`<div class="field"><label for="bl-ph">رقم الواتساب على النشرة</label><input id="bl-ph" dir="ltr" value="${esc(B.phone)}"></div><div class="field"><label for="bl-ad">العنوان</label><input id="bl-ad" value="${esc(B.addr)}"></div>`}
    <button class="btn primary" type="button" data-act="f-blt-go">📄 تجهيز النشرة</button><div id="bltbox"></div>
    <button class="btn" type="button" data-act="close">إغلاق</button>`)}
 async function bulletinGo(){const B=S.blt,box=$('#bltbox');if(!B||!box)return;const m=$('#bl-m'),ph=$('#bl-ph'),ad=$('#bl-ad');if(m)B.margin=nv(m.value);if(ph)B.phone=ph.value;if(ad)B.addr=ad.value;
   box.innerHTML='<div class="empty">جارٍ تجهيز النشرة…</div>';
-  try{const st={...S.settings,blMargin:B.margin,blPhone:B.phone,blAddr:B.addr};if(st.blMargin!==S.settings.blMargin||st.blPhone!==S.settings.blPhone||st.blAddr!==S.settings.blAddr){S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}}catch(e){}
+  try{const st={...S.settings,blMargin:B.margin,blPhone:B.phone,blAddr:B.addr,blSort:B.sort||'code'};if(st.blMargin!==S.settings.blMargin||st.blPhone!==S.settings.blPhone||st.blAddr!==S.settings.blAddr||st.blSort!==S.settings.blSort){S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}}catch(e){}
   try{const R=await drawBulletin(B);const pdf=pagesPDF(R.pages);S.bltPdf=pdf;S.bltName=(B.kind==='staff'?'Sales Staff Prices ':'Price List ')+today();
     box.innerHTML=`<div class="note">✔ النشرة جاهزة: ${R.n} مادة على ${R.pages.length} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا).</div><img src="${R.pages[0].toDataURL('image/jpeg',0.7)}" alt="أول صفحة" style="width:100%;border:1px solid var(--line);border-radius:8px">
      <div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div>`}
@@ -3283,7 +3285,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1530';
+const BUILD='20261123-1545';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
