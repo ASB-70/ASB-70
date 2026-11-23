@@ -740,7 +740,7 @@ async function drawStatement(c,tx,lastN){tx=(tx||[]).filter(t=>!t.void);
 const hiK=H=>H*3<=15000?3:H*2<=15000?2:1; // output sharpness: 3x when the canvas size allows
 function stmtPDF(cv){ // A4 pages, each holding a slice of the statement image cut on a row boundary
   const W=cv.width,PH=Math.round(W*841.89/595.28),s0=cv._rs,RH=cv._rh,re=cv._re,cuts=[];let y=0;
-  while(cv.height-y>PH){let c=y+PH;if(c<re)c=s0+Math.floor((c-s0)/RH)*RH;else if(y<re)c=re;if(c<=y)c=y+PH;cuts.push([y,c]);y=c}
+  while(cv.height-y>PH){let c=y+PH;if(c<re){if(cv._rb&&cv._rb.length){let bb=s0;for(const v of cv._rb){if(v<=c)bb=v;else break}c=bb}else c=s0+Math.floor((c-s0)/RH)*RH}else if(y<re)c=re;if(c<=y)c=y+PH;cuts.push([y,c]);y=c}
   cuts.push([y,cv.height]);
   const enc=new TextEncoder(),parts=[],offs=[];let len=0;
   const push=d=>{const u=typeof d==='string'?enc.encode(d):d;parts.push(u);len+=u.length};
@@ -1018,7 +1018,15 @@ const SHAM={name:'عبدالسلام عبدالملك بادنجكي',code:'04cf
 async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
   try{await Promise.race([Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"'),document.fonts.load('600 28px "IBM Plex Sans Arabic"')]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   const SO=!NP&&nv(inv.sypRate)>0?44:0,W=1080,P=48,RH=66,headH=210,infoH=216,thH=64,footH=(NP?(inv.note?200:150):(inv.note?330:290))+SO,items=inv.items||[];
-  const H=headH+infoH+thH+Math.max(items.length,1)*RH+footH;
+  const BFa='"IBM Plex Sans Arabic",Tahoma,sans-serif',mx=document.createElement('canvas').getContext('2d'),NMW=NP?496:256;
+  const lay=items.map(it=>{const t=String(it.name||'').replace(/\s+/g,' ').trim(),fo=sz=>'400 '+sz+'px '+BFa,wd=(s,f)=>{mx.font=f;return mx.measureText(s).width};
+    const wrap=f=>{const L=[''];for(const z of t.split(' ')){const c=L[L.length-1]?L[L.length-1]+' '+z:z;if(wd(c,f)<=NMW||!L[L.length-1])L[L.length-1]=c;else L.push(z)}return L};
+    for(const sz of [24,22]){if(wd(t,fo(sz))<=NMW)return{h:RH,sz,L:[t]}}
+    for(const sz of [22,20]){const L=wrap(fo(sz));if(L.length<=2&&L.every(l=>wd(l,fo(sz))<=NMW))return{h:RH,sz,L}}
+    for(const sz of [21,19,17]){const L=wrap(fo(sz));if(L.length<=3&&L.every(l=>wd(l,fo(sz))<=NMW))return{h:L.length>2?96:RH,sz,L}}
+    const L=wrap(fo(17));return{h:96,sz:17,L:[...L.slice(0,2),L.slice(2).join(' ')],cut:1}});
+  const rowsH=lay.reduce((t,l)=>t+l.h,0);
+  const H=headH+infoH+thH+(items.length?rowsH:RH)+footH;
   const cv=document.createElement('canvas');const K=hiK(H);cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);
   const DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif',BF='"IBM Plex Sans Arabic",Tahoma,sans-serif';
   const ar=(s,px,py,font,col)=>{x.direction='rtl';x.textAlign='right';x.font=font;x.fillStyle=col;x.fillText(s,px,py)};
@@ -1044,15 +1052,16 @@ async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
   y+=infoH;x.fillStyle='#E3E8F1';x.fillRect(0,y,W,thH);
   try{await Promise.race([loadImgs(),new Promise(r=>setTimeout(r,3500))])}catch(e){}
   const pics=await Promise.all(items.map(it=>{const u=S.img[it.code];if(!u)return null;return new Promise(r=>{const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);setTimeout(()=>r(null),2500);im.src=u})}));
-  const cols=[['الكود',110],['',64],['المادة',NP?466:226],['التعبئة',84],['الكمية',96],['الوحدة',84],['السعر',NP?0:110],['الإجمالي',NP?0:130],['الطرود',80]];
+  const cols=[['الكود',100],['',64],['المادة',NP?510:270],['التعبئة',76],['الكمية',92],['الوحدة',76],['السعر',NP?0:106],['الإجمالي',NP?0:130],['الطرود',70]];
   const xs=[];let cx=W-P;for(const [,w] of cols){xs.push(cx);cx-=w}
   cols.forEach(([l],i)=>l&&!(NP&&(i===6||i===7))&&ar(l,xs[i]-8,y+41,'600 22px '+BF,'#101B33'));
-  y+=thH;const tf='400 24px '+BF,nf='500 24px '+DF,ty=42;cv._rs=y*K;cv._rh=RH*K;
-  items.forEach((it,i)=>{if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH)}
-    const pc=pics[i];if(pc){const sz=Math.min(pc.naturalWidth,pc.naturalHeight);x.drawImage(pc,(pc.naturalWidth-sz)/2,(pc.naturalHeight-sz)/2,sz,sz,xs[1]-60,y+5,56,56)}
-    nu(fit(it.code||'',96,nf),xs[0]-8,y+ty,nf,'#5A6684');ar(fit(it.name||'',NP?452:212,tf),xs[2]-8,y+ty,tf,'#101B33');
+  y+=thH;const tf='400 24px '+BF,nf='500 24px '+DF,ty=42;
+  const nm2=(l,px,ry,rh)=>{const f='400 '+l.sz+'px '+BF,lh=Math.round(l.sz*1.22),n=l.L.length,y0=ry+rh/2-(n-1)*lh/2+l.sz*0.36;l.L.forEach((s,j)=>ar(j===n-1&&l.cut?fit(s,NMW,f):s,px,y0+j*lh,f,'#101B33'))};cv._rs=y*K;cv._rh=RH*K;const rb=[];
+  items.forEach((it,i)=>{const rh=lay[i].h,ty=rh/2+9;if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,rh)}
+    const pc=pics[i];if(pc){const sz=Math.min(pc.naturalWidth,pc.naturalHeight);x.drawImage(pc,(pc.naturalWidth-sz)/2,(pc.naturalHeight-sz)/2,sz,sz,xs[1]-60,y+(rh-56)/2,56,56)}
+    nu(fit(it.code||'',86,nf),xs[0]-8,y+ty,nf,'#5A6684');nm2(lay[i],xs[2]-8,y,rh);
     nu(it.pack?f1(it.pack):'',xs[3]-8,y+ty,nf,'#101B33');nu(nv(it.qty).toLocaleString('en-US'),xs[4]-8,y+ty,'600 24px '+DF,'#101B33');ar(fit(it.unit||'',68,tf),xs[5]-8,y+ty,tf,'#101B33');
-    if(!NP){nu(pr(it.price),xs[6]-8,y+ty,nf,'#101B33');nu(money(lineTot(it)),xs[7]-8,y+ty,'600 24px '+DF,'#101B33')}nu(lineCart(it)?f1(lineCart(it)):'',xs[8]-8,y+ty,nf,'#5A6684');y+=RH});
+    if(!NP){nu(pr(it.price),xs[6]-8,y+ty,nf,'#101B33');nu(money(lineTot(it)),xs[7]-8,y+ty,'600 24px '+DF,'#101B33')}nu(lineCart(it)?f1(lineCart(it)):'',xs[8]-8,y+ty,nf,'#5A6684');y+=rh;rb.push(y*K)});cv._rb=rb;
   if(!items.length)y+=RH;cv._re=y*K;
   ar('عدد المواد: '+items.length+'   ·   إجمالي الطرود: '+f1(invCart(inv)),W-P,y+56,'400 26px '+BF,'#5A6684');
   if(!NP&&nv(inv.disc)>0)nu('قبل الحسم '+money(invSub(inv))+'  ·  حسم '+f1(discPct(inv))+'% −'+money(invDisc(inv)),P,y+56,'500 24px '+DF,'#B3261E','left');
@@ -1763,7 +1772,7 @@ async function prMark(){const C=S.outCtx;if(!C)return;const now=new Date().toISO
 function printCv(cv){if(window.Android){if(typeof window.Android.printImage==='function'){try{window.Android.printImage(fileName(S.outName||'document','x').replace(/\.x$/,''),'image/jpeg',cv.toDataURL('image/jpeg',0.92).split(',')[1])}catch(e){toast('تعذّرت الطباعة')}}else toast('حدّث تطبيق الأندرويد للطباعة، أو احفظ PDF واطبعه');return}
   const z=document.createElement('div');z.id='printzone';const dts=new Date().toLocaleDateString('en-GB')+' '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   const W=cv.width,PH=Math.round(W*1.30),s0=cv._rs,RH=cv._rh,re=cv._re||cv.height,cuts=[];let y=0;
-  while(cv.height-y>PH){let c=y+PH;if(RH>0&&c<re&&c>s0)c=s0+Math.floor((c-s0)/RH)*RH;if(c<=y)c=y+PH;cuts.push([y,c]);y=c}
+  while(cv.height-y>PH){let c=y+PH;if(cv._rb&&cv._rb.length&&c<re&&c>s0){let bb=s0;for(const v of cv._rb){if(v<=c)bb=v;else break}c=bb}else if(RH>0&&c<re&&c>s0)c=s0+Math.floor((c-s0)/RH)*RH;if(c<=y)c=y+PH;cuts.push([y,c]);y=c}
   cuts.push([y,cv.height]);
   cuts.forEach(([a,b],i)=>{const h=b-a,pc=document.createElement('canvas');pc.width=W;pc.height=h;const g=pc.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,h);g.drawImage(cv,0,a,W,h,0,0,W,h);
     const pg=document.createElement('div');pg.className='pg';const ph=document.createElement('div');ph.className='ph';ph.textContent=dts;const im=new Image();im.src=pc.toDataURL('image/png');const pf=document.createElement('div');pf.className='pf';pf.textContent=(i+1)+' / '+cuts.length;pg.append(ph,im,pf);z.appendChild(pg)});
@@ -3359,7 +3368,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1802';
+const BUILD='20261123-1808';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
