@@ -1374,10 +1374,10 @@ function bulkCheck(o){const c=cust(o.cid);if(!c)return{ok:false,why:'الزبو�
   if(dupCodes({items:its}).length)return{ok:false,why:'نفس المادة مكررة بالمسودة',total};
   if((dr.pay||'آجل')==='نقدي')return{ok:false,why:'دفع نقدي: بدها سعر صرف، اعتمدها لحالها',total};
   if(c.walkin&&!PAID.includes(dr.pay||'آجل')&&!(o.cname&&o.cname!==c.name))return{ok:false,why:'زبون مفرق آجل بلا اسم',total};
-  const wh=dr.wh||'main',m=qtyMap(its);for(const k in m){if(!(S.products[k]||S.stock[k]))continue;let rs=0;for(const o2 of S.orders||[]){if(o2.id===o.id||o2.st==='d'||o2.invNo||!o2.draft||(o2.draft.wh||'main')!==wh)continue;for(const y of o2.draft.items||[])if(codeOf(y)===k)rs+=nv(y.qty)}
-    const have=wq(k,wh)-rs;if(m[k]>have+1e-9){const x=its.find(i=>i.code===k)||{};return{ok:false,why:'المخزون ما بيكفي: '+(x.name||k)+' (متوفر '+f1(Math.max(0,have))+')',total}}}
+  let warn='';const wh=dr.wh||'main',m=qtyMap(its);for(const k in m){if(!(S.products[k]||S.stock[k]))continue;let rs=0;for(const o2 of S.orders||[]){if(o2.id===o.id||o2.st==='d'||o2.invNo||!o2.draft||(o2.draft.wh||'main')!==wh)continue;for(const y of o2.draft.items||[])if(codeOf(y)===k)rs+=nv(y.qty)}
+    const have=wq(k,wh)-rs;if(m[k]>have+1e-9&&!warn){const x=its.find(i=>i.code===k)||{};warn='المخزون بالبرنامج ما بيكفي: '+(x.name||k)+' (متوفر '+f1(Math.max(0,have))+')'}}
   if(!c.walkin&&!PAID.includes(dr.pay||'آجل')&&nv(c.limit)>0&&r2(nv(c.balance)+total)>nv(c.limit)+0.005)return{ok:false,why:'بتتجاوز سقف دين الزبون ('+money(nv(c.limit))+')',total};
-  return{ok:true,why:'',total}}
+  return{ok:true,why:'',warn,total}}
 function bulkSheet(){const L=prepPending();S.bulk={sel:new Set(L.filter(o=>bulkCheck(o).ok).map(o=>o.id)),armed:false};bulkRender()}
 function bulkRender(){const B=S.bulk,L=prepPending(),T=today();if(!B)return;const chk={};for(const o of L)chk[o.id]=bulkCheck(o);
   const selOk=L.filter(o=>B.sel.has(o.id)&&chk[o.id].ok),sum=r2(selOk.reduce((a,o)=>a+chk[o.id].total,0));
@@ -1385,8 +1385,8 @@ function bulkRender(){const B=S.bulk,L=prepPending(),T=today();if(!B)return;cons
   openSheet(`<h2>✅ اعتماد عدة مسودات</h2>
    <span class="small muted">كل مسودة بتصير فاتورة برقمها، بتدخل ذمة زبونها وبتنزل من المخزون وبتنتقل لـ«مسلّمة»، متل الاعتماد العادي. المسودات يلي فيها مشكلة ما بتنعتمد.</span>
    ${L.length?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><button class="btn sm" type="button" data-act="f-bulk-sel" data-v="all">كل الجاهزة</button><button class="btn sm" type="button" data-act="f-bulk-sel" data-v="today">اليوم والمتأخر</button><button class="btn sm" type="button" data-act="f-bulk-sel" data-v="none">ولا شي</button></div>
-   <div class="list">${L.map(o=>{const k=chk[o.id],on=B.sel.has(o.id)&&k.ok,n=((o.draft&&o.draft.items)||[]).filter(x=>(x.name||'').trim()||(x.code||'').trim()).length;return `<button class="row" type="button" data-act="f-bulk-t" data-id="${esc(o.id)}" aria-pressed="${on}" ${k.ok?'':'aria-disabled="true" style="opacity:.75"'}><span class="selbox${on?' on':''}" aria-hidden="true">${on?'✓':k.ok?'':'⚠️'}</span><span class="who"><b>${esc(o.cname||'')}</b><small><span class="num">#${esc(o.no||'—')}</span><span>${n} مادة</span><span>${esc((o.draft&&o.draft.pay)||'آجل')}</span>${dueTx(o)}</small>${k.ok?'<small style="color:var(--credit)">✅ جاهزة</small>':`<small style="color:var(--debt)">⚠️ ${esc(k.why)}</small>`}</span><span class="amt"><b>${money(k.total)}</b></span></button>`}).join('')}</div>
-   ${B.armed&&selOk.length?`<div class="note" style="border:2px solid var(--due,#b7791f);display:flex;flex-direction:column;gap:8px"><b>رح تنعمل ${selOk.length} ${selOk.length===1?'فاتورة':'فواتير'} بقيمة إجمالية ${money(sum)}</b><span class="small">بتدخل بذمم الزبائن وبتنزل البضاعة من المخزون. متأكد؟</span><div class="grid2"><button class="btn primary" type="button" data-act="f-bulk-run">✅ اعتمد</button><button class="btn" type="button" data-act="f-bulk-cancel">إلغاء</button></div></div>`
+   <div class="list">${L.map(o=>{const k=chk[o.id],on=B.sel.has(o.id)&&k.ok,n=((o.draft&&o.draft.items)||[]).filter(x=>(x.name||'').trim()||(x.code||'').trim()).length;return `<button class="row" type="button" data-act="f-bulk-t" data-id="${esc(o.id)}" aria-pressed="${on}" ${k.ok?'':'aria-disabled="true" style="opacity:.75"'}><span class="selbox${on?' on':''}" aria-hidden="true">${on?'✓':k.ok?'':'⚠️'}</span><span class="who"><b>${esc(o.cname||'')}</b><small><span class="num">#${esc(o.no||'—')}</span><span>${n} مادة</span><span>${esc((o.draft&&o.draft.pay)||'آجل')}</span>${dueTx(o)}</small>${k.ok?(k.warn?`<small style="color:var(--due,#b7791f)">✅ جاهزة · ⚠️ تنبيه: ${esc(k.warn)}</small>`:'<small style="color:var(--credit)">✅ جاهزة</small>'):`<small style="color:var(--debt)">⚠️ ${esc(k.why)}</small>`}</span><span class="amt"><b>${money(k.total)}</b></span></button>`}).join('')}</div>
+   ${B.armed&&selOk.length?`<div class="note" style="border:2px solid var(--due,#b7791f);display:flex;flex-direction:column;gap:8px"><b>رح تنعمل ${selOk.length} ${selOk.length===1?'فاتورة':'فواتير'} بقيمة إجمالية ${money(sum)}</b><span class="small">بتدخل بذمم الزبائن وبتنزل البضاعة من المخزون.${selOk.some(o=>chk[o.id].warn)?' في مواد مخزونها بالبرنامج ما بيكفي، رح تنزل لتحت الصفر، فصحّح كمياتها بالمخزون بعدين.':''} متأكد؟</span><div class="grid2"><button class="btn primary" type="button" data-act="f-bulk-run">✅ اعتمد</button><button class="btn" type="button" data-act="f-bulk-cancel">إلغاء</button></div></div>`
      :`<button class="btn primary" type="button" data-act="f-bulk-go" ${selOk.length?'':'disabled'}>✅ اعتماد ${selOk.length} ${selOk.length===1?'مسودة':'مسودات'}${selOk.length?' · '+money(sum):''}</button>`}`:'<div class="empty">ما في مسودات بالانتظار.</div>'}
    <button class="btn" type="button" data-act="close">إغلاق</button>`)}
 function bulkOverlay(html){let ov=document.getElementById('bulkov');if(!ov){ov=document.createElement('div');ov.id='bulkov';ov.setAttribute('role','dialog');ov.style.cssText='position:fixed;inset:0;z-index:9998;background:#000c;display:flex;align-items:center;justify-content:center;padding:20px';document.body.appendChild(ov)}
@@ -1394,13 +1394,13 @@ function bulkOverlay(html){let ov=document.getElementById('bulkov');if(!ov){ov=d
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function bulkRun(){const B=S.bulk;if(!B||S.batch)return;const L=prepPending().filter(o=>B.sel.has(o.id)&&bulkCheck(o).ok);if(!L.length)return;const done=[],bad=[];S.batch=true;
   try{for(let i=0;i<L.length;i++){const o=L[i],c=cust(o.cid);bulkOverlay(`<b>⏳ جارٍ الاعتماد ${i+1} من ${L.length}</b><span class="small">#${esc(o.no||'—')} · ${esc(o.cname||'')}</span><span class="small muted">لا تسكّر البرنامج لحتى يخلص.</span>`);
-    S.batchOk=null;S.dupAsk=null;S.dupOK=false;S.stockOK=false;S.limOK=null;S.simOK=null;S.lastToast='';
+    S.batchOk=null;S.dupAsk=null;S.dupOK=false;S.stockOK=true;S.limOK=null;S.simOK=null;S.lastToast='';
     try{const fresh=(S.orders||[]).find(x=>x.id===o.id);if(!fresh||fresh.invNo||fresh.st==='d'){bad.push({o,why:'انعتمدت من قبل'});continue}
       await ensureOrdNo(fresh);show('detail',o.cid);let n=0;while(!(S.cid===o.cid&&S.ledger)&&n++<100)await sleep(100);if(!S.ledger){bad.push({o,why:'ما قدرت أفتح حساب الزبون (الاتصال؟)'});continue}
       invSheet();if(!S.draft){bad.push({o,why:'تعذّر فتح الفاتورة'});continue}const dr=fresh.draft||{};
       Object.assign(S.draft,{dest:dr.dest!==undefined?dr.dest:S.draft.dest,phone:dr.phone||S.draft.phone,shipper:dr.shipper||'',shipFee:dr.shipFee||S.draft.shipFee,pay:dr.pay||'آجل',wh:dr.wh||'main',oldWh:dr.wh||'main',disc:dr.disc||'',fromOrd:fresh.id});
       if(numOf(fresh.no))S.draft.no=String(fresh.no);S.draft.items=(dr.items||[]).map(x=>({...x}));if(fresh.note)S.draft.note=String(fresh.note).slice(0,200);
-      await saveInvoice();
+      S.stockOK=true;await saveInvoice();
       if(S.batchOk){done.push({o,...S.batchOk})}else{const why=S.dupAsk?(S.dupAsk.t==='stock'?'المخزون ما بيكفي':'نفس المادة مكررة'):(S.lastToast||'ما انحفظت');bad.push({o,why:why.replace(/إذا موافق.*|إذا متأكد.*/,'').trim()})}}
     catch(e){console.error(e);bad.push({o,why:'خطأ بالاتصال'})}
     finally{S.dupAsk=null;S.limOK=null;S.simOK=null;S.stockOK=false;S.dupOK=false}}}
@@ -3515,7 +3515,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-2045';
+const BUILD='20261123-2051';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
