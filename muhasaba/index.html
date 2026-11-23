@@ -877,10 +877,28 @@ function syncCash(d,src){const cc=d.cashCur||'usd';if(cc==='usd')return;const to
   else{const rate=nv(d.cashRate);d.cashSyp=rate>0&&rem>0?String(Math.round(rem*rate)):'';const e=$('#in-cashSyp');if(e&&document.activeElement!==e)e.value=d.cashSyp}}
 const refreshCashInfo=(d,src)=>{syncCash(d,src);const e=$('#cashinfo');if(e)e.innerHTML=cashInfo(d)};
 const discInfo=d=>discPct(d)>0?`قبل الحسم <b class="num">${money(invSub(d))}</b> · الحسم ${f1(discPct(d))}% = <b class="num" style="color:var(--debt)">−${money(invDisc(d))}</b>`:'';
-function renderInv(focusLast){
+/* ---------- unsaved invoice protection: autosave on this device + confirm before leaving ---------- */
+const WIP_P='thiqa-wip:';
+const wipKey=d=>WIP_P+(d.ord?'o:'+(d.ordId||'new'):'i:'+(d.id||'new'))+':'+(S.cid||'');
+const wipSnap=d=>{try{const{old,oldWh,no,...r}=d;return JSON.stringify(r)}catch(e){return''}};
+const draftDirty=()=>{const d=S.draft;return !!(d&&S.wipD===d&&S.wip0!=null&&wipSnap(d)!==S.wip0)};
+const wipInfo=d=>{const it=(d.items||[]).filter(i=>(i.name||'').trim()||(i.code||'').trim());let t=0;try{t=invTotal({...d,items:it})}catch(e){}return{n:it.length,t}};
+function wipSaveNow(){const d=S.draft;if(!d||!draftDirty())return;const c=cust(S.cid);try{LS.set(wipKey(d),JSON.stringify({at:Date.now(),cid:S.cid,cname:c?c.name:'',d}))}catch(e){}}
+let wipT=0;const wipSave=()=>{clearTimeout(wipT);wipT=setTimeout(wipSaveNow,500)};
+const wipClear=d=>{if(d)LS.set(wipKey(d),null)};
+function wipCheck(){const d=S.draft;if(!d||S.wipD===d)return;S.wipD=d;S.wip0=wipSnap(d);S.wipOffer=null;
+  let r=null;try{r=JSON.parse(LS.get(wipKey(d))||'null')}catch(e){}if(!r||!r.d)return;
+  if(Date.now()-r.at>14*864e5){LS.set(wipKey(d),null);return}if(wipSnap(r.d)===S.wip0){LS.set(wipKey(d),null);return}S.wipOffer=r}
+function wipBanner(){const r=S.wipOffer;if(!r)return'';const i=wipInfo(r.d),dt=new Date(r.at),same=dt.toDateString()===new Date().toDateString();
+  return `<div class="note" id="wipbar" style="display:flex;flex-direction:column;gap:8px;border:2px solid var(--due,#b7791f)"><b>📝 في فاتورة ما انحفظت لـ ${esc(r.cname||'هالزبون')}</b><span class="small">من ${same?'اليوم الساعة '+hm(dt.toISOString()):dmy(ldate(dt.toISOString()))+' '+hm(dt.toISOString())}${i.n?` · فيها <b class="num">${i.n}</b> مادة بقيمة <b class="num">${pr(i.t)}</b>`:''}</span><div class="grid2"><button class="btn primary" type="button" data-act="f-wip-yes">↩️ كمّل عليها</button><button class="btn" type="button" data-act="f-wip-no">🗑 احذفها وابدأ جديد</button></div></div>`}
+function wipAskLeave(){const sh=$('#sheet');if(!sh||$('#wipleave'))return;const box=document.createElement('div');box.id='wipleave';box.className='note';box.setAttribute('role','alertdialog');
+  box.style.cssText='position:sticky;top:0;z-index:5;display:flex;flex-direction:column;gap:8px;border:2px solid var(--debt,#c0392b);box-shadow:0 6px 20px #0006';
+  box.innerHTML='<b>✋ عندك تعديلات بالفاتورة ما انحفظت</b><span class="small">إذا طلعت هلق بتضل محفوظة مؤقتاً على هالجهاز، وبترجعلها لما تفتح فاتورة لنفس الزبون.</span><div class="grid2"><button class="btn primary" type="button" data-act="f-wip-back">↩️ ارجع للفاتورة</button><button class="btn danger" type="button" data-act="f-wip-leave">اطلع بدون حفظ</button></div>';
+  sh.prepend(box);sh.scrollTop=0}
+function renderInv(focusLast){wipCheck();
   const d=S.draft,c=cust(S.cid),sh=$('#sheet'),st=sh.scrollTop;
   const hf=(f,l,attr)=>`<div class="field"><label for="in-${f}">${l}</label><input id="in-${f}" data-f="${f}" value="${esc(d[f])}" ${attr||''}></div>`;
-  $('#sheet').innerHTML=`<h2>${d.ord?'مسودة طلب':d.id?'تعديل الفاتورة':'فاتورة جديدة'} · ${esc(c.name)}</h2>${d.ord?'<div class="note">المسودة لا تدخل الذمة ولا المخزون ولا الصندوق. تُحفظ في دفتر الطلبات، وتغيّرها أو تلغيها متى شئت، وعندما يحين وقتها تعتمدها كفاتورة.</div>':''}<form id="iform">
+  $('#sheet').innerHTML=wipBanner()+`<h2>${d.ord?'مسودة طلب':d.id?'تعديل الفاتورة':'فاتورة جديدة'} · ${esc(c.name)}</h2>${d.ord?'<div class="note">المسودة لا تدخل الذمة ولا المخزون ولا الصندوق. تُحفظ في دفتر الطلبات، وتغيّرها أو تلغيها متى شئت، وعندما يحين وقتها تعتمدها كفاتورة.</div>':''}<form id="iform">
     ${d.ord?`<div class="grid2">${hf('odate','تاريخ الطلب','type="date"')}${hf('otime','وقت كتابة الطلب','type="time"')}</div>${hf('odue','متى يجب تسليم الزبون','type="date"')}`:`<div class="grid2">${hf('no','رقم الفاتورة','required inputmode="numeric" dir="ltr"')}${hf('date','التاريخ','type="date" required')}</div>`}
     ${cust(S.cid)&&cust(S.cid).walkin?hf('wname','اسم الزبون (اختياري)','autocomplete="off"'):''}
     <div class="grid2">${hf('phone','رقم الزبون','inputmode="tel" dir="ltr"')}<div class="field"><label for="in-dest">المحافظة</label><select id="in-dest" data-f="dest">${[...new Set(['',...GOVS,d.dest||''])].map(o=>`<option value="${esc(o)}" ${o===(d.dest||'')?'selected':''}>${esc(o||'اختر المحافظة')}</option>`).join('')}</select></div></div>
@@ -986,7 +1004,7 @@ async function saveInvoice(){
   if(d.pay==='شام كاش'){try{if(wasSham)await maccVoidLink('inv:'+id,'تعديل الفاتورة');await maccAdd({acc:'sham',date:d.date||today(),dir:'in',cur:'usd',a:total,n:'فاتورة '+no+' · '+nmShown,link:'inv:'+id})}catch(e){}}else if(wasSham){try{await maccVoidLink('inv:'+id,'تغيّرت طريقة الدفع')}catch(e){}}
   if(d.seller)LS.set('thiqa-seller',d.seller);
   audit(S.curInv&&S.curInv.id===id?'inv-edit':'inv-add',(S.curInv&&S.curInv.id===id?'تعديل':'فاتورة')+' رقم '+no,{no,c:nmShown,total,pay:d.pay});S.limOK=null;
-  S.draft=null;toast('حُفظت الفاتورة: أُضيفت إلى الذمة ونزلت من المخزون');invView(id);
+  wipClear(d);S.draft=null;toast('حُفظت الفاتورة: أُضيفت إلى الذمة ونزلت من المخزون');invView(id);
 }
 async function invView(id){
   const c=cust(S.cid);if(!c)return;S.armed=null;
@@ -1711,7 +1729,7 @@ async function saveOrdDraft(){const d=S.draft,c=cust(S.cid);if(!d||!d.ord||!c)re
   const at=new Date((d.odate||today())+'T'+(d.otime||'00:00')).toISOString(),id=d.ordId||newId(),old=S.orders.find(x=>x.id===id);
   const ono=old&&numOf(old.no)?String(old.no):String(await gMax()+1);
   const o={id,no:ono,cid:c.id,cname:c.name,at,due:d.odue||'',note:(d.note||'').trim(),st:old?old.st:'w',...(old&&old.doneAt?{doneAt:old.doneAt}:{}),...(old&&old.invNo?{invNo:old.invNo,invId:old.invId}:{}),draft:{items,dest:(d.dest||'').trim(),phone:(d.phone||'').trim(),shipper:(d.shipper||'').trim(),shipFee:(d.shipFee||'').trim(),pay:d.pay,wh:d.wh||'main',disc:discPct(d)||0}};
-  await ordSave(old?S.orders.map(x=>x.id===id?o:x):[...S.orders,o]);closeSheet();S.stab='ord';S.ost='w';renderSales();toast('حُفظت المسودة في دفتر الطلبات')}
+  await ordSave(old?S.orders.map(x=>x.id===id?o:x):[...S.orders,o]);wipClear(S.draft);closeSheet();S.stab='ord';S.ost='w';renderSales();toast('حُفظت المسودة في دفتر الطلبات')}
 function ordForm(o,cid){const c=o?null:cust(cid),nm=o?o.cname:c.name,at=o?o.at:new Date().toISOString(),d0=at.length>10?new Date(at):new Date(),ld=o?(o.at||'').slice(0,10)||today():today();
   const lt=o?hm(o.at):hm(new Date().toISOString()),due=o?o.due||'':new Date(Date.now()+2*864e5).toISOString().slice(0,10);
   S.ordc={id:o?o.id:'',cid:o?o.cid:cid,cname:nm};
@@ -2290,7 +2308,7 @@ document.addEventListener('click',e=>{
     if(t.invoice||(t.ltx&&String(t.n||'').startsWith('فاتورة نقدية'))){toast('هذه حركة فاتورة نقدية، عدّل الفاتورة نفسها');return}
     if(t.rv||t.rev){toast('حركة ملغاة، ما بتتعدل');return}if(t.xfer||t.sup||t.retof){toast('هالحركة مربوطة، عدّلها من مكانها الأصلي');return}const linked=!!(t.ltx&&t.cid);S.cf={editId:t.id,linked,cat:t.cat||'',dir:t.wd?'wd':t.dir,party:t.party||'co',charge:'0',pid:t.pid||'',cur:t.cur,a:String(t.a),n:t.n||'',cname:t.pname||t.cname||'',cid:t.pcid||t.cid||null,rate:t.cur==='syp'&&nv(t.usd)>0?String(Math.round(t.a/t.usd)):(nv((S.cash||{}).rate)||nv(S.settings.rate)||'')};cashRender();return}
   if(a==='cash-del'){if(S.armed!=='cash'){S.armed='cash';b.textContent='اضغط ثانية لتأكيد الحذف';return}const id=b.dataset.id,e=(S.cash.tx||[]).find(x=>x.id===id);guard(async()=>{if(!lockGuard(S.cday))return;if(e)audit('cash-void','حذف حركة صندوق مربوطة بموظف',{n:e.n,a:e.a,cur:e.cur,day:S.cday});if(e&&e.staff&&e.ltx){const fr=await freshDoc('staff/'+e.staff);const log=fr.ok&&fr.v?(fr.v.log||[]):((emp(e.staff)||{}).log||[]);if(log.some(x=>x.id===e.ltx))await S.db.doc('staff/'+e.staff).update({log:log.filter(x=>x.id!==e.ltx)})}await cashRemove(S.cday,x=>x.id===id||(e&&e.pair&&x.pair===e.pair));closeSheet();toast(e&&e.staff?'حُذفت من الصندوق ومن صفحة '+(e.pname||'الشخص'):'حُذفت الحركة')});return}
-  if(a==='close')closeSheet();
+  if(a==='close'){if(draftDirty()){wipSaveNow();wipAskLeave();return}closeSheet()}
   else if(a==='new-customer')customerSheet(null);
   else if(a==='edit-customer')customerSheet(cust(b.dataset.id));
   else if(a==='new-inv')invSheet(null);
@@ -2339,6 +2357,8 @@ $('#cityf').addEventListener('change',e=>{S.f.city=e.target.value;renderList()})
 $('#sortf').addEventListener('change',e=>{S.f.sort=e.target.value;renderList()});
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='rfile'&&t.files[0])readRestore(t.files[0]);if(t.id==='xfile'&&t.files[0])readImport(t.files[0]);if(t.id==='cxfile'&&t.files[0])readCustImport(t.files[0]);if(t.id==='m-photo'&&t.files[0])readPhoto(t.files[0],128).then(u=>{S.pphoto=u;const p=$('#m-prev');if(p)p.src=u}).catch(()=>toast('تعذّرت قراءة الصورة، جرّب صورة أخرى'))});
 $('#sheet').addEventListener('change',e=>{if(e.target.id==='e-photo'&&e.target.files[0]){cropOpen(e.target.files[0]);return}if(e.target.id==='cw'&&S.count){S.cw=e.target.value;S.count={};renderCount()}});
+['input','change'].forEach(ev=>document.addEventListener(ev,()=>{if(S.draft)wipSave()},true));document.addEventListener('click',()=>{if(S.draft)setTimeout(wipSave,0)});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')wipSaveNow()});window.addEventListener('pagehide',wipSaveNow);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden&&!S.draft&&!S.count&&!S.imp)closeSheet()});
 
 /* ==FIN-START== */
@@ -2946,6 +2966,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-fixed-pay'){fixedPay(D.id);return}
   if(a==='f-aging'){agingLoad();return}
   if(a==='f-poff'){const c=D.code;if(!S.products[c])return;fguard(async()=>{const P={...S.products},q={...P[c]};if(q.off)delete q.off;else q.off=1;P[c]=q;await saveProducts(P);toast(q.off?'🙈 انخفت المادة':'👁 رجعت المادة');refresh();prodSheet(c)});return}
+  if(a==='f-wip-yes'){const r=S.wipOffer,d=S.draft;if(!r||!d)return;const nd={...r.d};if(!d.id&&!d.ord&&d.no)nd.no=d.no;nd.old=d.old;nd.oldWh=d.oldWh;S.draft=nd;S.wipD=nd;S.wip0=S.wip0;S.wipOffer=null;renderInv();toast('↩️ رجعت الفاتورة متل ما تركتها');return}
+  if(a==='f-wip-no'){if(S.draft)wipClear(S.draft);S.wipOffer=null;const b2=$('#wipbar');if(b2)b2.remove();toast('انحذفت النسخة المؤقتة');return}
+  if(a==='f-wip-back'){const x=$('#wipleave');if(x)x.remove();return}
+  if(a==='f-wip-leave'){wipClear(S.draft);closeSheet();toast('طلعت بدون حفظ');return}
   if(a==='f-blt-zoom'){bltZoom(+D.i);return}
   if(a==='f-blt-open'){bulletinSheet();return}
   if(a==='f-blt'){const B=S.blt;if(!B)return;const m=$('#bl-m'),ph=$('#bl-ph'),ad=$('#bl-ad');if(m)B.margin=nv(m.value);if(ph)B.phone=ph.value;if(ad)B.addr=ad.value;B[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;if(D.k==='kind')B.hideOut=D.v==='cust';bulletinSheet();return}
@@ -3335,7 +3359,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1630';
+const BUILD='20261123-1802';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -3343,7 +3367,7 @@ function navSync(){if(!EXT)return;const need=backNeed();if(!need&&BK.d>0){const 
 function doBack(){
   if(!$('#scrim').hidden){
     if(S.picking&&S.draft){S.picking=false;renderInv();return}
-    if(S.draft||S.count||(S.imp&&S.imp.items)){if(Date.now()-BK.at<2500){BK.at=0;closeSheet()}else{BK.at=Date.now();toast('اضغط رجوع مرة ثانية لإلغاء هذه الشاشة')}return}
+    if(S.draft||S.count||(S.imp&&S.imp.items)){if(Date.now()-BK.at<2500){BK.at=0;const dd=draftDirty();if(dd)wipSaveNow();closeSheet();if(dd)toast('💾 الفاتورة انحفظت مؤقتاً، بترجعلها لما تفتح فاتورة لنفس الزبون')}else{BK.at=Date.now();toast('اضغط رجوع مرة ثانية لإلغاء هذه الشاشة')}return}
     closeSheet();return}
   show({detail:'customers',emp:'staff'}[S.view]||'home')}
 function onPop(e){BK.d=(e.state&&e.state.d)||0;if(BK.ignore>0){BK.ignore--;return}BK.pop=true;try{doBack()}finally{BK.pop=false}navSync()}
