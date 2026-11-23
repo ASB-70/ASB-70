@@ -1312,7 +1312,7 @@ function prepRender(){const P=S.prep,L=prepPending(),T=today();if(!P)return;
   const sg=(k,v,l)=>`<button type="button" data-act="f-prep-k" data-k="${k}" data-v="${v}" aria-pressed="${String(P[k])===String(v)}">${l}</button>`;
   const dueTx=o=>{if(!o.due)return'';const n=ddiff(o.due,T);return n<0?`<span class="chip c-due">متأخر ${-n} يوم</span>`:n===0?'<span class="chip c-due">التسليم اليوم</span>':`<span class="chip c-zero">بعد ${n} يوم</span>`};
   openSheet(`<h2>📦 إرسال المسودات للتجهيز</h2>
-   <span class="small muted">بيطلع ملف واحد: أول شي «قائمة التجميع» لكل المواد مجموعة، وبعدها كل طلب بصفحته، بلا أسعار، مع مربع ☐ جنب كل مادة.</span>
+   <span class="small muted">بيطلع ملف واحد فيه كل طلب بصفحته، بلا أسعار، مع مربع ☐ جنب كل مادة ليعلّم عليها الموظف.</span>
    ${L.length?`<div class="grid3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><button class="btn sm" type="button" data-act="f-prep-sel" data-v="all">الكل (${L.length})</button><button class="btn sm" type="button" data-act="f-prep-sel" data-v="today">اليوم والمتأخر</button><button class="btn sm" type="button" data-act="f-prep-sel" data-v="none">ولا شي</button></div>
    <div class="list">${L.map(o=>{const on=P.sel.has(o.id),it=((o.draft&&o.draft.items)||[]).filter(x=>(x.name||'').trim()||(x.code||'').trim()),zq=zeroQtyItems(it).length;return `<button class="row" type="button" data-act="f-prep-t" data-id="${esc(o.id)}" aria-pressed="${on}"><span class="selbox${on?' on':''}" aria-hidden="true">${on?'✓':''}</span><span class="who"><b>${esc(o.cname||'')}</b><small><span class="num">#${esc(o.no||'—')}</span><span>${it.length} مادة</span>${o.draft&&o.draft.dest?`<span>${esc(o.draft.dest)}</span>`:''}${dueTx(o)}${zq?`<span class="chip c-due">⚠️ ${zq} بلا كمية</span>`:''}</small></span></button>`}).join('')}</div>
    <div class="field"><label>الحماية</label><div class="seg">${sg('lock','true','🔒 حماية الملف')}${sg('lock','false','🔓 بدون حماية')}</div><div class="seg">${sg('wm','true','💧 علامة مائية')}${sg('wm','false','بدون علامة')}</div></div>
@@ -1339,14 +1339,14 @@ async function drawPrep(orders,o){try{await Promise.race([Promise.all([document.
   const A=Object.values(agg).sort((a,b)=>String(a.code||'~').localeCompare(String(b.code||'~'),'en',{numeric:true})||a.name.localeCompare(b.name,'ar'));
   const PC=cols([['☐',56],['الكود',120],['المادة',420],['المجموع',130],['الوحدة',90],['الطرود',94],['بالمخزون',90]]),RH1=70;
   const pickHead=(cont)=>{newPage('📋 قائمة التجميع'+(cont?' (تابع)':''),`عدد الطلبات ${orders.length} · ${A.length} مادة · ${dmy(T)} · للتجهيز، بلا أسعار`,'قائمة التجميع');thead(PC)};
-  pickHead(false);A.forEach((a,i)=>{if(room()<RH1)pickHead(true);if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH1)}const ty=y+30;
+  if(o.pick)pickHead(false);if(o.pick)A.forEach((a,i)=>{if(room()<RH1)pickHead(true);if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH1)}const ty=y+30;
     box(PC[0][2]-PC[0][1]/2-12,y+RH1/2-12,24);nu(fit(a.code||'—',PC[1][1]-12,'600 21px '+DF),PC[1][2]-6,ty+4,'600 21px '+DF,'#5A6684');
     ar(fit(a.name,PC[2][1]-12,'500 22px '+BF),PC[2][2]-6,ty,'500 22px '+BF,'#101B33');ar(fit('من: '+a.from.join(' · '),PC[2][1]-12,'400 16px '+BF),PC[2][2]-6,ty+28,'400 16px '+BF,'#5A6684');
     const zq=!(a.q>0);nu(zq?'⚠️ 0':f1(a.q),PC[3][2]-10,ty+4,'700 26px '+DF,zq?'#B3261E':'#13265C');ar(fit(a.unit,PC[4][1]-8,'400 20px '+BF),PC[4][2]-6,ty+4,'400 20px '+BF,'#101B33');
     nu(a.pack>0?f1(a.q/a.pack):'',PC[5][2]-10,ty+4,'500 21px '+DF,'#5A6684');
     if(a.code&&(S.products[a.code]||S.stock[a.code])){const have=wq(a.code,'all');nu(f1(have),PC[6][2]-10,ty+4,'700 21px '+DF,have>=a.q?'#0B7447':'#B3261E')}
     x.strokeStyle='#E3E8F1';x.lineWidth=1;x.beginPath();x.moveTo(P,y+RH1);x.lineTo(W-P,y+RH1);x.stroke();y+=RH1});
-  if(room()>50){y+=26;ar('الأخضر = المخزون بيكفي · الأحمر = المخزون ما بيكفي، تأكد قبل التجهيز',W-P,y,'400 18px '+BF,'#5A6684')}
+  if(o.pick&&room()>50){y+=26;ar('الأخضر = المخزون بيكفي · الأحمر = المخزون ما بيكفي، تأكد قبل التجهيز',W-P,y,'400 18px '+BF,'#5A6684')}
   // ---- 2) one section per order
   const OC=cols([['☐',56],['الكود',120],['المادة',430],['التعبئة',90],['الكمية',110],['الوحدة',90],['الطرود',104]]),RH2=62;
   for(const od of orders){const its=ord.get(od.id)||[],dr=od.draft||{},c=cust(od.cid)||{};
@@ -1367,7 +1367,7 @@ async function prepGo(){const P=S.prep,box=$('#prepbox');if(!P||!box)return;cons
   box.innerHTML='<div class="empty">جارٍ تجهيز الملف…</div>';
   try{const st={...S.settings,blLock:P.lock!==false,blWm:P.wm!==false};if(st.blLock!==S.settings.blLock||st.blWm!==S.settings.blWm)S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}catch(e){}
   try{const R=await drawPrep(L,P);const pdf=pagesPDF(R.pages,P.lock!==false);const zq=L.filter(o=>zeroQtyItems((o.draft&&o.draft.items)||[]).length);
-    await pvShow(box,R.pages,pdf,{name:'Preparation '+today()+' ('+L.length+')',label:`ملف التجهيز جاهز: عدد الطلبات ${L.length} · ${R.items} مادة`,lock:P.lock!==false,tags:R.tags,warn:zq.length?`<div class="note" style="background:var(--debt-bg);color:var(--debt);border:2px solid var(--debt)"><b>⚠️ في ${zq.length} طلب فيه مواد بلا كمية:</b> ${zq.map(o=>'#'+esc(o.no||'—')+' '+esc(o.cname||'')).join('، ')}. عدّلهن قبل ما تبعت.</div>`:''})}
+    await pvShow(box,R.pages,pdf,{name:'Preparation '+today()+' ('+L.length+')',label:`ملف التجهيز جاهز: عدد الطلبات ${L.length}`,lock:P.lock!==false,tags:R.tags,warn:zq.length?`<div class="note" style="background:var(--debt-bg);color:var(--debt);border:2px solid var(--debt)"><b>⚠️ في ${zq.length} طلب فيه مواد بلا كمية:</b> ${zq.map(o=>'#'+esc(o.no||'—')+' '+esc(o.cname||'')).join('، ')}. عدّلهن قبل ما تبعت.</div>`:''})}
   catch(e){console.error(e);box.innerHTML='<div class="note">تعذّر تجهيز الملف.</div>'}}
 function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getElementById('bltzoom');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='bltzoom';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','معاينة صفحة');
@@ -3452,7 +3452,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1835';
+const BUILD='20261123-1842';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
