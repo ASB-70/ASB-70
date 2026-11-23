@@ -1155,16 +1155,34 @@ async function itemXlsx(){const F=S.itf;if(!F||!F.L)return;try{await loadXLSX()}
   const blob=new Blob([X.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   try{await S.dl.save({filename:fileName('Item '+F.code+' '+today(),'xlsx'),data:blob});toast('نُزّل ملف حركة المادة')}catch(er){if(er&&er.code!=='declined')toast('تعذّر التنزيل')}}
 /* ===== price bulletins (PDF): customers (half-wholesale price) and sales staff (all prices, stock, minimum price) ===== */
-function pagesPDF(pages){const enc=new TextEncoder(),parts=[],offs=[];let len=0;
+/* PDF Standard Security (RC4-128, R3): opens without a password, blocks print/edit/copy; random owner password nobody knows */
+function md5u8(u){const K=[],S=[7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];for(let i=0;i<64;i++)K[i]=Math.floor(Math.abs(Math.sin(i+1))*4294967296)>>>0;
+  const n=u.length,L=((n+8)>>>6)+1,M=new Uint32Array(L*16);for(let i=0;i<n;i++)M[i>>2]|=u[i]<<((i%4)*8);M[n>>2]|=0x80<<((n%4)*8);M[L*16-2]=(n*8)>>>0;M[L*16-1]=Math.floor(n/536870912)>>>0;
+  let a0=0x67452301,b0=0xefcdab89,c0=0x98badcfe,d0=0x10325476;for(let o=0;o<M.length;o+=16){let A=a0,B=b0,C=c0,D=d0;for(let i=0;i<64;i++){let F,g;if(i<16){F=(B&C)|(~B&D);g=i}else if(i<32){F=(D&B)|(~D&C);g=(5*i+1)%16}else if(i<48){F=B^C^D;g=(3*i+5)%16}else{F=C^(B|~D);g=(7*i)%16}
+    F=(F+A+K[i]+M[o+g])>>>0;A=D;D=C;C=B;B=(B+((F<<S[i])|(F>>>(32-S[i]))))>>>0}a0=(a0+A)>>>0;b0=(b0+B)>>>0;c0=(c0+C)>>>0;d0=(d0+D)>>>0}
+  const r=new Uint8Array(16);[a0,b0,c0,d0].forEach((v,j)=>{for(let k=0;k<4;k++)r[j*4+k]=(v>>>(8*k))&255});return r}
+function rc4u8(key,data){const s=new Uint8Array(256);for(let i=0;i<256;i++)s[i]=i;for(let i=0,j=0;i<256;i++){j=(j+s[i]+key[i%key.length])&255;const t=s[i];s[i]=s[j];s[j]=t}
+  const o=new Uint8Array(data.length);for(let k=0,i=0,j=0;k<data.length;k++){i=(i+1)&255;j=(j+s[i])&255;const t=s[i];s[i]=s[j];s[j]=t;o[k]=data[k]^s[(s[i]+s[j])&255]}return o}
+const PDFPAD=new Uint8Array([0x28,0xBF,0x4E,0x5E,0x4E,0x75,0x8A,0x41,0x64,0x00,0x4E,0x56,0xFF,0xFA,0x01,0x08,0x2E,0x2E,0x00,0xB6,0xD0,0x68,0x3E,0x80,0x2F,0x0C,0xA9,0xFE,0x64,0x53,0x69,0x7A]);
+const cat8=(...a)=>{const n=a.reduce((t,x)=>t+x.length,0),o=new Uint8Array(n);let p=0;for(const x of a){o.set(x,p);p+=x.length}return o};
+function pdfSec(P){const rnd=n=>{const u=new Uint8Array(n);crypto.getRandomValues(u);return u},id=rnd(16),own=rnd(32);
+  let h=md5u8(own);for(let i=0;i<50;i++)h=md5u8(h);let O=rc4u8(h,PDFPAD);for(let i=1;i<=19;i++)O=rc4u8(h.map(b=>b^i),O);
+  const pb=new Uint8Array([P&255,(P>>8)&255,(P>>16)&255,(P>>>24)&255]);let k=md5u8(cat8(PDFPAD,O,pb,id));for(let i=0;i<50;i++)k=md5u8(k);
+  let U=rc4u8(k,md5u8(cat8(PDFPAD,id)));for(let i=1;i<=19;i++)U=rc4u8(k.map(b=>b^i),U);U=cat8(U,new Uint8Array(16));
+  const hex=u=>[...u].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return{id:hex(id),O:hex(O),U:hex(U),P,enc:(n,data)=>rc4u8(md5u8(cat8(k,new Uint8Array([n&255,(n>>8)&255,(n>>16)&255,0,0]))),data)}}
+function pagesPDF(pages,protect){const enc=new TextEncoder(),parts=[],offs=[];let len=0;
   const push=d=>{const u=typeof d==='string'?enc.encode(d):d;parts.push(u);len+=u.length};const obj=(n,body)=>{offs[n]=len;push(n+' 0 obj\n');body();push('\nendobj\n')};
-  push('%PDF-1.4\n');const N=pages.length;obj(1,()=>push('<</Type/Catalog/Pages 2 0 R>>'));obj(2,()=>push('<</Type/Pages/Count '+N+'/Kids['+pages.map((_,i)=>(3+i*3)+' 0 R').join(' ')+']>>'));
+  push('%PDF-1.4\n');const N=pages.length,SEC=protect?pdfSec(-3904):null;obj(1,()=>push('<</Type/Catalog/Pages 2 0 R>>'));obj(2,()=>push('<</Type/Pages/Count '+N+'/Kids['+pages.map((_,i)=>(3+i*3)+' 0 R').join(' ')+']>>'));
   pages.forEach((cv,i)=>{const W=cv.width,h=cv.height,bin=atob(cv.toDataURL('image/jpeg',0.86).split(',')[1]),jpg=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)jpg[k]=bin.charCodeAt(k);
     const p=3+i*3,hh=Math.min(841.89,h*595.28/W),cs='q 595.28 0 0 '+hh.toFixed(2)+' 0 '+(841.89-hh).toFixed(2)+' cm /Im0 Do Q';
     obj(p,()=>push('<</Type/Page/Parent 2 0 R/MediaBox[0 0 595.28 841.89]/Resources<</XObject<</Im0 '+(p+2)+' 0 R>>>>/Contents '+(p+1)+' 0 R>>'));
-    obj(p+1,()=>push('<</Length '+cs.length+'>>\nstream\n'+cs+'\nendstream'));
-    obj(p+2,()=>{push('<</Type/XObject/Subtype/Image/Width '+W+'/Height '+h+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+jpg.length+'>>\nstream\n');push(jpg);push('\nendstream')})});
-  const xo=len,cnt=3+N*3;push('xref\n0 '+cnt+'\n0000000000 65535 f \n');for(let n=1;n<cnt;n++)push(String(offs[n]).padStart(10,'0')+' 00000 n \n');
-  push('trailer\n<</Size '+cnt+'/Root 1 0 R>>\nstartxref\n'+xo+'\n%%EOF');return new Blob(parts,{type:'application/pdf'})}
+    const csb=SEC?SEC.enc(p+1,enc.encode(cs)):enc.encode(cs),jb=SEC?SEC.enc(p+2,jpg):jpg;
+    obj(p+1,()=>{push('<</Length '+csb.length+'>>\nstream\n');push(csb);push('\nendstream')});
+    obj(p+2,()=>{push('<</Type/XObject/Subtype/Image/Width '+W+'/Height '+h+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+jb.length+'>>\nstream\n');push(jb);push('\nendstream')})});
+  let cnt=3+N*3;if(SEC){obj(cnt,()=>push('<</Filter/Standard/V 2/R 3/Length 128/O<'+SEC.O+'>/U<'+SEC.U+'>/P '+SEC.P+'>>'));cnt++}
+  const xo=len;push('xref\n0 '+cnt+'\n0000000000 65535 f \n');for(let n=1;n<cnt;n++)push(String(offs[n]).padStart(10,'0')+' 00000 n \n');
+  push('trailer\n<</Size '+cnt+'/Root 1 0 R'+(SEC?'/Encrypt '+(cnt-1)+' 0 R/ID[<'+SEC.id+'><'+SEC.id+'>]':'')+'>>\nstartxref\n'+xo+'\n%%EOF');return new Blob(parts,{type:'application/pdf'})}
 const blAvail=k=>r2(wq(k,'all')-resvAll(k,'all'));
 const blMin=(k,m)=>{const c=nv((S.stock[k]||{}).cost);return c>0?Math.ceil(c*(1+m/100)*20)/20:0};
 const GRP_SYN={'صواني':'صينيه','مصافي':'مصفاه','مصفايه':'مصفاه','سكاكين':'سكين','سكينه':'سكين','تعاليق':'تعلوقه','معالق':'معلقه','ملاقط':'ملقط','فرشايه':'فرشاه','بكشير':'بشكير','طفم':'طقم','اطقم':'طقم','زبادي':'زبديه','شوك':'شوكه','كفوف':'كف','مباهر':'مبهره','مطربانات':'مطربان','اباريق':'ابريق','فناجين':'فنجان','الواح':'لوح','رفوف':'رف'};
@@ -1220,17 +1238,20 @@ async function drawBulletin(o){try{await Promise.race([Promise.all([document.fon
         const mn=blMin(k,o.margin);nu(mn>0?pr(mn):'—',xs[7]-8,ty,'700 22px '+DF,'#B3261E')}
       else{ar(nv(p.pack)>0?f1(nv(p.pack))+' '+(p.unit||'قطعة'):(p.unit||''),xs[4]-6,ty,'400 21px '+BF,'#5A6684');nu(pr(effP(p,'price')||effP(p,'pt')||effP(p,'p2')),xs[5]-10,ty,'700 26px '+DF,'#13265C')}
       x.strokeStyle='#E3E8F1';x.lineWidth=1;x.beginPath();x.moveTo(P,y+RH);x.lineTo(W-P,y+RH);x.stroke();y+=RH}
+    if(o.wm!==false){x.save();x.globalAlpha=0.06;x.fillStyle='#13265C';x.font='700 40px '+DF;x.direction='rtl';x.textAlign='center';const wt=ST?'شركة الثقة · للموظفين فقط':'شركة الثقة';
+      x.translate(W/2,H/2);x.rotate(-Math.PI/6);for(let gy=-H;gy<=H;gy+=230)for(let gx=-W;gx<=W;gx+=520)x.fillText(wt,gx+((gy/230)%2?260:0),gy);x.restore()}
     pn++;x.fillStyle='#13265C';x.fillRect(0,H-foot+14,W,2);
     ar(ST?'⚠️ للاستعمال الداخلي، لا ترسلها للزبائن. «أقل سعر» = لا تبيع تحته.':'الأسعار قابلة للتغيير · '+S.settings.company,W-P,H-22,'400 19px '+BF,'#5A6684');nu(pn+' / '+total,P,H-22,'500 19px '+DF,'#5A6684','left');
     pages.push(cv)}
   return{pages,n:codes.length}}
-function bulletinSheet(){const B=S.blt=S.blt||{kind:'cust',hideOut:true,imgs:true,margin:nv(S.settings.blMargin)||10,phone:S.settings.blPhone||'0945 215 551',addr:S.settings.blAddr||'حلب – جامع الكبير – سوق السويقة',sort:S.settings.blSort||'type'};
+function bulletinSheet(){const B=S.blt=S.blt||{kind:'cust',hideOut:true,imgs:true,margin:nv(S.settings.blMargin)||10,phone:S.settings.blPhone||'0945 215 551',addr:S.settings.blAddr||'حلب – جامع الكبير – سوق السويقة',sort:S.settings.blSort||'type',lock:S.settings.blLock!==false,wm:S.settings.blWm!==false};
   const sg=(k,v,l)=>`<button type="button" data-act="f-blt" data-k="${k}" data-v="${v}" aria-pressed="${String(B[k])===String(v)}">${l}</button>`;
   openSheet(`<h2>📄 نشرة أسعار PDF</h2>
    <div class="seg">${sg('kind','cust','👥 للزبائن')}${sg('kind','staff','🧑‍💼 للموظفين')}</div>
    <span class="small muted">${B.kind==='staff'?'فيها سعر نصف الجملة والمفرق، والكمية المتاحة بالمخزون، وأقل سعر مسموح البيع فيه. ما فيها التكلفة.':'فيها سعر نصف الجملة بس، مع شعار الشركة ورقم الواتساب ورمز شام كاش.'}</span>
    <div class="seg">${sg('hideOut','true','إخفاء المواد الخالصة')}${sg('hideOut','false','كل المواد')}</div>
    <div class="seg">${sg('imgs','true','مع الصور')}${sg('imgs','false','بدون صور (ملف أخف)')}</div>
+   <div class="field"><label>الحماية</label><div class="seg">${sg('lock','true','🔒 حماية الملف')}${sg('lock','false','🔓 بدون حماية')}</div><div class="seg">${sg('wm','true','💧 علامة مائية')}${sg('wm','false','بدون علامة')}</div><span class="small muted">${B.lock?'الملف بينفتح عادي، بس ممنوع طباعته أو تعديله أو نسخ صفحاته.':'⚠️ الملف مفتوح: بينطبع وبيتعدّل. استعمله إلك بس.'}</span></div>
    <div class="field"><label>الترتيب</label><div class="seg">${sg('sort','type','حسب نوع المادة')}${sg('sort','code','حسب الكود')}${sg('sort','asc','الأرخص ← الأغلى')}${sg('sort','desc','الأغلى ← الأرخص')}</div></div>
    ${B.kind==='staff'?`<div class="field"><label for="bl-m">أقل سعر = التكلفة + هامش ربح %</label><input id="bl-m" type="number" min="0" step="1" inputmode="numeric" value="${esc(B.margin)}"><span class="small muted">مثال: 10% يعني ما حدا بيبيع بأقل من التكلفة وزيادة 10%.</span></div>`
      :`<div class="field"><label for="bl-ph">رقم الواتساب على النشرة</label><input id="bl-ph" dir="ltr" value="${esc(B.phone)}"></div><div class="field"><label for="bl-ad">العنوان</label><input id="bl-ad" value="${esc(B.addr)}"></div>`}
@@ -1238,12 +1259,12 @@ function bulletinSheet(){const B=S.blt=S.blt||{kind:'cust',hideOut:true,imgs:tru
    <button class="btn" type="button" data-act="close">إغلاق</button>`)}
 async function bulletinGo(){const B=S.blt,box=$('#bltbox');if(!B||!box)return;const m=$('#bl-m'),ph=$('#bl-ph'),ad=$('#bl-ad');if(m)B.margin=nv(m.value);if(ph)B.phone=ph.value;if(ad)B.addr=ad.value;
   box.innerHTML='<div class="empty">جارٍ تجهيز النشرة…</div>';
-  try{const st={...S.settings,blMargin:B.margin,blPhone:B.phone,blAddr:B.addr,blSort:B.sort||'type'};if(st.blMargin!==S.settings.blMargin||st.blPhone!==S.settings.blPhone||st.blAddr!==S.settings.blAddr||st.blSort!==S.settings.blSort){S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}}catch(e){}
-  try{const R=await drawBulletin(B);const pdf=pagesPDF(R.pages);S.bltPdf=pdf;S.bltName=(B.kind==='staff'?'Sales Staff Prices ':'Price List ')+today();
+  try{const st={...S.settings,blMargin:B.margin,blPhone:B.phone,blAddr:B.addr,blSort:B.sort||'type',blLock:B.lock!==false,blWm:B.wm!==false};if(st.blMargin!==S.settings.blMargin||st.blPhone!==S.settings.blPhone||st.blAddr!==S.settings.blAddr||st.blSort!==S.settings.blSort||st.blLock!==S.settings.blLock||st.blWm!==S.settings.blWm){S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}}catch(e){}
+  try{const R=await drawBulletin(B);const pdf=pagesPDF(R.pages,B.lock!==false);S.bltPdf=pdf;S.bltName=(B.kind==='staff'?'Sales Staff Prices ':'Price List ')+today();
     (S.bltUrls||[]).forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});const N=R.pages.length;
     const urls=S.bltUrls=await Promise.all(R.pages.map(cv=>new Promise(r=>{try{cv.toBlob(bl=>r(bl?URL.createObjectURL(bl):cv.toDataURL('image/jpeg',0.7)),'image/jpeg',0.7)}catch(e){r(cv.toDataURL('image/jpeg',0.7))}})));
     const btns=`<div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div>`;
-    box.innerHTML=`<div class="note">✔ النشرة جاهزة: ${R.n} مادة على ${N} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا).</div>${btns}
+    box.innerHTML=`<div class="note">✔ النشرة جاهزة: ${R.n} مادة على ${N} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا)${B.lock!==false?' · 🔒 محمية':' · 🔓 بدون حماية'}.</div>${btns}
      <span class="small muted" style="text-align:center">⬇️ انزل لتشوف كل الصفحات · اكبس على أي صفحة لتكبر</span>
      <div id="bltpv" style="max-height:70vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:10px;background:var(--sunk,#0003);border:1px solid var(--line);border-radius:12px;overscroll-behavior:contain">
      ${urls.map((u,i)=>`<div style="display:flex;flex-direction:column;gap:6px"><span class="small" style="display:flex;justify-content:space-between;align-items:center"><b>صفحة ${i+1} من ${N}</b>${i===0?'<span class="muted">الغلاف</span>':''}</span><button type="button" data-act="f-blt-zoom" data-i="${i}" aria-label="تكبير صفحة ${i+1}" style="all:unset;cursor:zoom-in;display:block"><img src="${u}" alt="صفحة ${i+1}" loading="lazy" width="1080" height="1527" style="width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 2px 10px #0005;background:#fff"></button></div>`).join('')}
@@ -3314,7 +3335,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1606';
+const BUILD='20261123-1630';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
