@@ -17,6 +17,9 @@ import android.print.PrintManager;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import org.json.JSONObject;
+import org.json.JSONArray;
+import android.content.ClipData;
+import java.util.ArrayList;
 import android.util.Base64;
 import android.view.ViewGroup;
 import android.webkit.*;
@@ -43,6 +46,7 @@ public class MainActivity extends Activity {
       + "function b64(b){return new Promise(function(r,j){var f=new FileReader();f.onload=function(){r(String(f.result).split(',')[1]||'')};f.onerror=j;f.readAsDataURL(b)})}"
       + "navigator.canShare=function(){return true};"
       + "navigator.share=function(d){d=d||{};var fs=d.files||[];"
+      + "if(fs.length>1&&Android.shareMany){return Promise.all(fs.map(b64)).then(function(xs){Android.shareMany(d.title||'',d.text||'',JSON.stringify(fs.map(function(f,i){return{n:f.name||('file'+i),m:f.type||'application/octet-stream',b:xs[i]}})))})}"
       + "if(fs.length){return b64(fs[0]).then(function(x){Android.share(d.title||'',d.text||'',fs[0].name||'file',fs[0].type||'application/octet-stream',x)})}"
       + "Android.share(d.title||'',[d.text,d.url].filter(Boolean).join('\\n'),'','','');return Promise.resolve()};"
       + "window.print=function(){Android.print()};"
@@ -240,6 +244,37 @@ public class MainActivity extends Activity {
                     } else {
                         i.setType("text/plain");
                     }
+                    if (text != null && !text.isEmpty()) i.putExtra(Intent.EXTRA_TEXT, text);
+                    if (title != null && !title.isEmpty()) i.putExtra(Intent.EXTRA_SUBJECT, title);
+                    startActivity(Intent.createChooser(i, "مشاركة"));
+                } catch (Exception e) { toast("تعذرت المشاركة"); }
+            });
+        }
+
+        @JavascriptInterface public void shareMany(String title, String text, String json) {
+            ui.post(() -> {
+                try {
+                    JSONArray a = new JSONArray(json);
+                    File dir = new File(getCacheDir(), "shared"); dir.mkdirs();
+                    ArrayList<Uri> uris = new ArrayList<>();
+                    String type = null;
+                    ClipData clip = null;
+                    for (int k = 0; k < a.length(); k++) {
+                        JSONObject o = a.getJSONObject(k);
+                        File f = new File(dir, safeName(o.optString("n", "file" + k)));
+                        try (FileOutputStream out = new FileOutputStream(f)) { out.write(Base64.decode(o.optString("b", ""), Base64.DEFAULT)); }
+                        Uri uri = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".fp", f);
+                        uris.add(uri);
+                        String m = o.optString("m", "*/*");
+                        type = type == null ? m : (type.equals(m) ? type : (type.startsWith("image/") && m.startsWith("image/") ? "image/*" : "*/*"));
+                        if (clip == null) clip = ClipData.newRawUri("", uri); else clip.addItem(new ClipData.Item(uri));
+                    }
+                    if (uris.isEmpty()) { toast("ما في ملفات"); return; }
+                    Intent i = new Intent(uris.size() == 1 ? Intent.ACTION_SEND : Intent.ACTION_SEND_MULTIPLE);
+                    i.setType(type == null ? "*/*" : type);
+                    if (uris.size() == 1) i.putExtra(Intent.EXTRA_STREAM, uris.get(0)); else i.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+                    if (clip != null) i.setClipData(clip);
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     if (text != null && !text.isEmpty()) i.putExtra(Intent.EXTRA_TEXT, text);
                     if (title != null && !title.isEmpty()) i.putExtra(Intent.EXTRA_SUBJECT, title);
                     startActivity(Intent.createChooser(i, "مشاركة"));

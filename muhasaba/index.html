@@ -1288,19 +1288,12 @@ async function bulletinGo(){const B=S.blt,box=$('#bltbox');if(!B||!box)return;co
   box.innerHTML='<div class="empty">جارٍ تجهيز النشرة…</div>';
   try{const st={...S.settings,blMargin:B.margin,blPhone:B.phone,blAddr:B.addr,blSort:B.sort||'type',blLock:B.lock!==false,blWm:B.wm!==false};if(st.blMargin!==S.settings.blMargin||st.blPhone!==S.settings.blPhone||st.blAddr!==S.settings.blAddr||st.blSort!==S.settings.blSort||st.blLock!==S.settings.blLock||st.blWm!==S.settings.blWm){S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}}catch(e){}
   try{const R=await drawBulletin(B);const pdf=pagesPDF(R.pages,B.lock!==false);S.bltPdf=pdf;S.bltName=(B.kind==='staff'?'Sales Staff Prices ':'Price List ')+today();
-    (S.bltUrls||[]).forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});const N=R.pages.length;
-    const urls=S.bltUrls=await Promise.all(R.pages.map(cv=>new Promise(r=>{try{cv.toBlob(bl=>r(bl?URL.createObjectURL(bl):cv.toDataURL('image/jpeg',0.7)),'image/jpeg',0.7)}catch(e){r(cv.toDataURL('image/jpeg',0.7))}})));
-    const btns=`<div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div>`;
-    box.innerHTML=`<div class="note">✔ النشرة جاهزة: ${R.n} مادة على ${N} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا)${B.lock!==false?' · 🔒 محمية':' · 🔓 بدون حماية'}.</div>${btns}
-     <span class="small muted" style="text-align:center">⬇️ انزل لتشوف كل الصفحات · اكبس على أي صفحة لتكبر</span>
-     <div id="bltpv" style="max-height:70vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:10px;background:var(--sunk,#0003);border:1px solid var(--line);border-radius:12px;overscroll-behavior:contain">
-     ${urls.map((u,i)=>`<div style="display:flex;flex-direction:column;gap:6px"><span class="small" style="display:flex;justify-content:space-between;align-items:center"><b>صفحة ${i+1} من ${N}</b>${i===0?'<span class="muted">الغلاف</span>':''}</span><button type="button" data-act="f-blt-zoom" data-i="${i}" aria-label="تكبير صفحة ${i+1}" style="all:unset;cursor:zoom-in;display:block"><img src="${u}" alt="صفحة ${i+1}" loading="lazy" width="1080" height="1527" style="width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 2px 10px #0005;background:#fff"></button></div>`).join('')}
-     </div>${N>1?btns:''}`}
+    await pvShow(box,R.pages,pdf,{name:S.bltName,label:`النشرة جاهزة: ${R.n} مادة`,lock:B.lock!==false,tags:R.pages.map((_,i)=>i===0?'الغلاف':''),names:R.pages.map((_,i)=>(B.kind==='staff'?'Staff Prices ':'Price List ')+today()+' p'+(i+1))})}
   catch(e){console.error(e);box.innerHTML='<div class="note">تعذّر تجهيز النشرة. جرّب «بدون صور».</div>'}}
 /* ---------- bulk preparation pack: pick list + one page per draft order (no prices) ---------- */
-function pvShow(box,pages,pdf,o){(S.bltUrls||[]).forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});const N=pages.length;S.bltPdf=pdf;S.bltName=o.name;
+function pvShow(box,pages,pdf,o){(S.bltUrls||[]).forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});const N=pages.length;S.bltPdf=pdf;S.bltName=o.name;S.pvPages=pages;S.pvNames=o.names||pages.map((_,i)=>o.name+' - '+(i+1));
   return Promise.all(pages.map(cv=>new Promise(r=>{try{cv.toBlob(bl=>r(bl?URL.createObjectURL(bl):cv.toDataURL('image/jpeg',0.7)),'image/jpeg',0.7)}catch(e){r(cv.toDataURL('image/jpeg',0.7))}}))).then(urls=>{S.bltUrls=urls;
-    const btns=`<div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div>`;
+    const btns=`<div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال PDF (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div><button class="btn wa" type="button" data-act="f-img-share" style="width:100%">🖼 إرسال كصور دفعة وحدة (${N} صورة)</button>`;
     box.innerHTML=`<div class="note">✔ ${o.label} على ${N} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا)${o.lock?' · 🔒 محمية':' · 🔓 بدون حماية'}.</div>${o.warn||''}${btns}
      <span class="small muted" style="text-align:center">⬇️ انزل لتشوف كل الصفحات · اكبس على أي صفحة لتكبر</span>
      <div id="bltpv" style="max-height:70vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:10px;background:var(--sunk,#0003);border:1px solid var(--line);border-radius:12px;overscroll-behavior:contain">
@@ -1367,7 +1360,7 @@ async function prepGo(){const P=S.prep,box=$('#prepbox');if(!P||!box)return;cons
   box.innerHTML='<div class="empty">جارٍ تجهيز الملف…</div>';
   try{const st={...S.settings,blLock:P.lock!==false,blWm:P.wm!==false};if(st.blLock!==S.settings.blLock||st.blWm!==S.settings.blWm)S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}catch(e){}
   try{const R=await drawPrep(L,P);const pdf=pagesPDF(R.pages,P.lock!==false);const zq=L.filter(o=>zeroQtyItems((o.draft&&o.draft.items)||[]).length);
-    await pvShow(box,R.pages,pdf,{name:'Preparation '+today()+' ('+L.length+')',label:`ملف التجهيز جاهز: عدد الطلبات ${L.length}`,lock:P.lock!==false,tags:R.tags,warn:zq.length?`<div class="note" style="background:var(--debt-bg);color:var(--debt);border:2px solid var(--debt)"><b>⚠️ في ${zq.length} طلب فيه مواد بلا كمية:</b> ${zq.map(o=>'#'+esc(o.no||'—')+' '+esc(o.cname||'')).join('، ')}. عدّلهن قبل ما تبعت.</div>`:''})}
+    await pvShow(box,R.pages,pdf,{names:(()=>{const c={};return R.tags.map(t=>{c[t]=(c[t]||0)+1;return 'Order '+t+(R.tags.filter(z=>z===t).length>1?' p'+c[t]:'')})})(),name:'Preparation '+today()+' ('+L.length+')',label:`ملف التجهيز جاهز: عدد الطلبات ${L.length}`,lock:P.lock!==false,tags:R.tags,warn:zq.length?`<div class="note" style="background:var(--debt-bg);color:var(--debt);border:2px solid var(--debt)"><b>⚠️ في ${zq.length} طلب فيه مواد بلا كمية:</b> ${zq.map(o=>'#'+esc(o.no||'—')+' '+esc(o.cname||'')).join('، ')}. عدّلهن قبل ما تبعت.</div>`:''})}
   catch(e){console.error(e);box.innerHTML='<div class="note">تعذّر تجهيز الملف.</div>'}}
 function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getElementById('bltzoom');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='bltzoom';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','معاينة صفحة');
@@ -1376,6 +1369,19 @@ function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getEle
   draw();ov.addEventListener('click',e=>{const z=e.target.closest('[data-z]');const k=z&&z.dataset.z;if(e.target.tagName==='IMG')return;if(k==='p'&&i>0){i--;draw()}else if(k==='n'&&i<N-1){i++;draw()}else if(k==='x'||k==='bg'){close()}});
   const key=e=>{if(e.key==='Escape')close();else if(e.key==='ArrowLeft'&&i<N-1){i++;draw()}else if(e.key==='ArrowRight'&&i>0){i--;draw()}};const close=()=>{ov.remove();document.removeEventListener('keydown',key)};document.addEventListener('keydown',key);
   document.body.appendChild(ov)}
+async function imgShareAll(seq){const P=S.pvPages||[],NM=S.pvNames||[];if(!P.length)return;toast('جارٍ تجهيز الصور…');
+  const files=await Promise.all(P.map((cv,i)=>new Promise(r=>{const done=bl=>r(new File([bl],fileName((NM[i]||('صفحة '+(i+1))).replace(/[#\\/:*?"<>|]/g,' ').trim(),'jpg'),{type:'image/jpeg'}));
+    try{cv.toBlob(bl=>{if(bl)done(bl);else fetch(cv.toDataURL('image/jpeg',0.85)).then(x=>x.blob()).then(done)},'image/jpeg',0.85)}catch(e){fetch(cv.toDataURL('image/jpeg',0.85)).then(x=>x.blob()).then(done)}})));
+  if(window.Android){if(files.length>1&&typeof window.Android.shareMany!=='function'&&!seq){const bx=$('#bltpv');const n=document.createElement('div');n.className='note';n.style.border='2px solid var(--due,#b7791f)';
+      n.innerHTML='<b>📲 نسخة التطبيق عندك قديمة</b><span class="small">لإرسال كل الصور دفعة وحدة لازم تنزّل النسخة الجديدة من التطبيق مرة وحدة: <b dir="ltr">asb-70.github.io/ASB-70/apk/muhasaba.apk</b></span><button class="btn sm" type="button" data-act="f-img-seq">بعتهن وحدة وحدة هلق</button>';if(bx)bx.before(n);return}
+    if(seq){S.imgSeq={files,i:0};return imgSeqNext()}
+    try{await navigator.share({files,title:S.bltName})}catch(e){toast('تعذّر الإرسال')}return}
+  if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:S.bltName});return}catch(e){if(e&&e.name==='AbortError')return}}
+  if(S.dl){let k=0;for(const f of files){try{await S.dl.save({filename:f.name,data:f});k++}catch(e){if(e&&e.code==='declined')break}}if(k)toast('انحفظت '+k+' صورة، أرفقهن بالواتساب');return}
+  for(const f of files){const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove();await new Promise(r=>setTimeout(r,350))}toast('انحفظت الصور، أرفقهن بالواتساب')}
+async function imgSeqNext(){const Q=S.imgSeq;if(!Q)return;const f=Q.files[Q.i];if(!f){S.imgSeq=null;toast('خلصت الصور');return}Q.i++;
+  try{await navigator.share({files:[f],title:f.name})}catch(e){}if(Q.i<Q.files.length)toast(`انبعتت ${Q.i} من ${Q.files.length} · اكبس «الصورة التالية»`);const bt=$('#imgseqbtn')||(()=>{const b2=document.createElement('button');b2.id='imgseqbtn';b2.type='button';b2.className='btn wa';b2.dataset.act='f-img-next';const bx=$('#bltpv');if(bx)bx.before(b2);return b2})();
+  if(Q.i<Q.files.length)bt.textContent=`📤 الصورة التالية (${Q.i+1} من ${Q.files.length})`;else{bt.remove();S.imgSeq=null}}
 async function bulletinOut(share){const pdf=S.bltPdf;if(!pdf)return;const nm=fileName(S.bltName,'pdf');
   if(share&&window.Android&&typeof window.Android.share==='function'){const r=new FileReader();r.onload=()=>{try{window.Android.share(S.bltName,'',nm,'application/pdf',String(r.result).split(',')[1])}catch(e){toast('تعذّر الإرسال')}};r.readAsDataURL(pdf);return}
   if(share){const f=new File([pdf],nm,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:S.bltName});return}catch(e){if(e&&e.name==='AbortError')return}}}
@@ -3058,6 +3064,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-wip-no'){if(S.draft)wipClear(S.draft);S.wipOffer=null;const b2=$('#wipbar');if(b2)b2.remove();toast('انحذفت النسخة المؤقتة');return}
   if(a==='f-wip-back'){const x=$('#wipleave');if(x)x.remove();return}
   if(a==='f-wip-leave'){wipClear(S.draft);closeSheet();toast('طلعت بدون حفظ');return}
+  if(a==='f-img-share'){b.disabled=true;imgShareAll(false).finally(()=>{b.disabled=false});return}
+  if(a==='f-img-seq'){const n=b.closest('.note');if(n)n.remove();imgShareAll(true);return}
+  if(a==='f-img-next'){imgSeqNext();return}
   if(a==='f-prep-open'){S.prep=null;prepSheet();return}
   if(a==='f-prep-t'){const P=S.prep;if(!P)return;P.sel.has(D.id)?P.sel.delete(D.id):P.sel.add(D.id);const st=$('#sheet').scrollTop;prepRender();$('#sheet').scrollTop=st;return}
   if(a==='f-prep-sel'){const P=S.prep;if(!P)return;const L=prepPending(),T=today();P.sel=new Set(D.v==='all'?L.map(o=>o.id):D.v==='today'?L.filter(o=>o.due&&o.due<=T).map(o=>o.id):[]);prepRender();if(D.v==='today'&&!P.sel.size)toast('ما في طلبات تسليمها اليوم أو متأخرة');return}
@@ -3452,7 +3461,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1842';
+const BUILD='20261123-1854';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
