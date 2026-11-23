@@ -891,7 +891,7 @@ function renderInv(focusLast){
     ${(d.cashCur||'usd')!=='usd'?`<div class="grid2"><div class="field"><label for="in-cashSyp">${d.cashCur==='mix'?'المقبوض بالليرة السورية (ل.س)':'المبلغ بالليرة السورية (ل.س)'}</label><input id="in-cashSyp" data-f="cashSyp" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashSyp)}"></div><div class="field"><label for="in-cashRate">سعر الصرف (ل.س لكل $)</label><input id="in-cashRate" data-f="cashRate" type="number" step="any" min="0" inputmode="decimal" value="${esc(d.cashRate)}"></div></div>`:''}
     <div class="small muted" id="cashinfo">${cashInfo(d)}</div>`:''}
     <div class="field"><label for="in-wh">تُسحب البضاعة من مستودع</label><select id="in-wh" data-f="wh">${whOpts(d.wh||'main')}</select></div>
-    <div class="field"><label>سعر البيع لكل المواد (اختياري)</label><div class="seg"><button type="button" data-act="draft-tier" data-v="" aria-pressed="${!d.tier}">يدوي</button>${TIERS.slice().reverse().map(t=>`<button type="button" data-act="draft-tier" data-v="${t[0]}" aria-pressed="${d.tier===t[0]}">${t[1]}</button>`).join('')}</div><span class="small muted">اختار شريحة السعر فتتعبّى أسعار كل المواد منها، أو خليها «يدوي» واكتب السعر بنفسك. وتحت كل مادة في أزرار بأسعارها.</span></div>
+    <div class="field"><label>سعر البيع لكل المواد (اختياري)</label><div class="seg"><button type="button" data-act="draft-tier" data-v="" aria-pressed="${!d.tier}">يدوي</button>${TIERS.slice().reverse().map(t=>`<button type="button" data-act="draft-tier" data-v="${t[0]}" aria-pressed="${tierOk(d.tier)===t[0]}">${t[1]}</button>`).join('')}</div><span class="small muted">اختار شريحة السعر فتتعبّى أسعار كل المواد منها، أو خليها «يدوي» واكتب السعر بنفسك. وتحت كل مادة في أزرار بأسعارها.</span></div>
     <div class="sechead"><h2>المواد</h2><small>${d.items.length} مادة</small></div>
     ${dupHTML(d)}
     ${d.items.map(itemHTML).join('')}
@@ -1098,10 +1098,10 @@ function niceRound(v,tolPct){v=nv(v);const t=(tolPct===undefined?rndTol():tolPct
   for(const st of [100,50,10,5,1,0.5,0.1,0.05]){const c=Math.round(Math.round(v/st)*st*100)/100;if(c>0&&Math.abs(c-v)/v<=t+1e-9)return c}
   return r2(v)}
 const rndSel=id=>`<div class="field"><label for="${id}">تقريب السعر الناتج من نسبة الربح (أقصى فرق عن السعر الحقيقي)</label><select id="${id}">${[[0,'بدون تقريب'],[1,'حتى 1%'],[1.5,'حتى 1.5% (مثال: 1.53←1.55 · 2.01←2 · 1.785←1.80)'],[2,'حتى 2%']].map(([v,l])=>`<option value="${v}" ${v===rndTol()?'selected':''}>${l}</option>`).join('')}</select></div>`;
-const TIERS=[['p2','جملة الجملة','d2'],['price','نصف جملة','d1'],['pt','مفرق','dt']];
-const effP=(p,k)=>{const t=TIERS.find(x=>x[0]===k);return r4(nv(p[k])*(1-nv(p[t[2]])/100))};
+const TIERS=[['price','نصف جملة','d1'],['pt','مفرق','dt']];const tierOk=t=>t==='p2'?'price':t;
+const effP=(p,k)=>{const t=TIERS.find(x=>x[0]===k);if(!t)return 0;return r4(nv(p[k])*(1-nv(p[t[2]])/100))};
 const defP=p=>effP(p,'price')||effP(p,'pt')||effP(p,'p2')||'';
-const defPD=p=>{const t=S.draft&&S.draft.tier;return t&&effP(p,t)?effP(p,t):defP(p)};
+const defPD=p=>{const t=tierOk(S.draft&&S.draft.tier);return t&&effP(p,t)?effP(p,t):defP(p)};
 const tierList=p=>TIERS.filter(t=>nv(p[t[0]])>0);
 function tierBlock(p,c){return TIERS.map(t=>{const v=nv(p[t[0]]);if(!(v>0))return'';const dd=nv(p[t[2]]),e=effP(p,t[0]);return `<br>${t[1]} <b class="num">${pr(v)}</b>${dd>0?` − حسم ${dd}% = <b class="num">${pr(e)}</b>`:''}${c>0?` · ربح <b class="num" style="color:var(--credit)">${pr(r4(e-c))} (${r2((e/c-1)*100)}%)</b>`:''}`}).join('')||'<br><span class="chip c-due">لم تُحدَّد أسعار البيع بعد</span>'}
 S.sel=null;
@@ -1175,7 +1175,7 @@ async function drawBulletin(o){try{await Promise.race([Promise.all([document.fon
   const pics={};if(o.imgs)await Promise.all(codes.map(k=>S.img[k]?new Promise(r=>{const im=new Image();im.onload=()=>{pics[k]=im;r()};im.onerror=r;im.src=S.img[k]}):0));
   const pages=[];let i=0,pn=0;const per=y0=>Math.floor((H-foot-y0-56)/RH),total=(()=>{let n=0,j=0;while(j<codes.length||n===0){j+=per(n?head:first);n++}return n})();
   // columns (right to left)
-  const cols=ST?[['#',46],['',o.imgs?96:0],['الكود',112],['المادة',o.imgs?272:368],['المتاح',96],['جملة الجملة',110],['نصف جملة',110],['مفرق',96],['أقل سعر',100]]
+  const cols=ST?[['#',46],['',o.imgs?96:0],['الكود',112],['المادة',o.imgs?290:386],['المتاح',110],['نصف جملة',140],['مفرق',120],['أقل سعر',124]]
                :[['#',56],['',o.imgs?96:0],['الكود',130],['المادة',o.imgs?418:514],['الطرد',140],['السعر',168]];
   while(i<codes.length||pn===0){const cv=document.createElement('canvas'),K=1.6;cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);
     const ar=(t,px,py,f,c)=>{x.direction='rtl';x.textAlign='right';x.font=f;x.fillStyle=c;x.fillText(t,px,py)},nu=(t,px,py,f,c,al)=>{x.direction='ltr';x.textAlign=al||'right';x.font=f;x.fillStyle=c;x.fillText(t,px,py)};
@@ -1196,8 +1196,8 @@ async function drawBulletin(o){try{await Promise.race([Promise.all([document.fon
       if(o.imgs&&pics[k]){const im=pics[k],sz=Math.min(im.naturalWidth,im.naturalHeight);x.drawImage(im,(im.naturalWidth-sz)/2,(im.naturalHeight-sz)/2,sz,sz,xs[1]-86,y+6,RH-12,RH-12)}
       nu(fit(k,cols[2][1]-14,'600 22px '+DF),xs[2]-6,ty,'600 22px '+DF,'#5A6684');ar(fit(p.name||'',cols[3][1]-14,'500 23px '+BF),xs[3]-6,ty,'500 23px '+BF,'#101B33');
       if(ST){const av=blAvail(k);nu(f1(av),xs[4]-10,ty,'700 22px '+DF,av>0?'#0B7447':'#B3261E');
-        [['p2',5],['price',6],['pt',7]].forEach(([t,j])=>{const v=effP(p,t);nu(v>0?pr(v):'—',xs[j]-8,ty,(t==='price'?'700':'500')+' 22px '+DF,'#101B33')});
-        const mn=blMin(k,o.margin);nu(mn>0?pr(mn):'—',xs[8]-8,ty,'700 22px '+DF,'#B3261E')}
+        [['price',5],['pt',6]].forEach(([t,j])=>{const v=effP(p,t);nu(v>0?pr(v):'—',xs[j]-8,ty,(t==='price'?'700':'500')+' 22px '+DF,'#101B33')});
+        const mn=blMin(k,o.margin);nu(mn>0?pr(mn):'—',xs[7]-8,ty,'700 22px '+DF,'#B3261E')}
       else{ar(nv(p.pack)>0?f1(nv(p.pack))+' '+(p.unit||'قطعة'):(p.unit||''),xs[4]-6,ty,'400 21px '+BF,'#5A6684');nu(pr(effP(p,'price')||effP(p,'pt')||effP(p,'p2')),xs[5]-10,ty,'700 26px '+DF,'#13265C')}
       x.strokeStyle='#E3E8F1';x.lineWidth=1;x.beginPath();x.moveTo(P,y+RH);x.lineTo(W-P,y+RH);x.stroke();y+=RH}
     pn++;x.fillStyle='#13265C';x.fillRect(0,H-foot+14,W,2);
@@ -1239,14 +1239,14 @@ function prodSheet(code){
     <div class="seg" id="pmseg"><button type="button" data-pm="in" aria-pressed="${m==='in'}">إدخال بضاعة</button><button type="button" data-pm="set" aria-pressed="${m==='set'}">تصحيح الكمية</button>${S.wh.length>1?`<button type="button" data-pm="move" aria-pressed="${m==='move'}">نقل</button>`:''}</div>
     <div class="grid2"><div class="field"><label for="p-w">${m==='move'?'من مستودع':'المستودع'}</label><select id="p-w">${whOpts(w0)}</select></div>
      ${m==='move'?`<div class="field"><label for="p-w2">إلى مستودع</label><select id="p-w2">${whOpts((S.wh.find(w=>w.id!==w0)||MAINWH).id)}</select></div>`:`<div class="field"><label for="p-c">تكلفة الوحدة ($)</label><input id="p-c" type="number" step="any" min="0" inputmode="decimal" placeholder="${c>0?c:''}"></div>`}</div>
-    ${m==='move'?'':`<div class="card" style="gap:8px;padding:10px"><b class="small">💲 سعر البيع ($) · هاد اللي بيطلع على الفاتورة</b><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${[['p-p2','جملة الجملة',p.p2],['p-p1','نصف جملة',p.price],['p-pt','مفرق',p.pt]].map(([id,l,v])=>`<div class="field"><label for="${id}">${l}</label><input id="${id}" type="number" step="any" min="0" inputmode="decimal" value="${nv(v)>0?nv(v):''}" placeholder="—"></div>`).join('')}</div><span class="small muted" id="p-prof"></span></div>`}
+    ${m==='move'?'':`<div class="card" style="gap:8px;padding:10px"><b class="small">💲 سعر البيع ($) · هاد اللي بيطلع على الفاتورة</b><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${[['p-p1','نصف جملة',p.price],['p-pt','مفرق',p.pt]].map(([id,l,v])=>`<div class="field"><label for="${id}">${l}</label><input id="${id}" type="number" step="any" min="0" inputmode="decimal" value="${nv(v)>0?nv(v):''}" placeholder="—"></div>`).join('')}</div><span class="small muted" id="p-prof"></span></div>`}
     <div class="field"><label for="p-q">${m==='in'?'الكمية الواردة':m==='set'?'الكمية الفعلية الآن في هذا المستودع':'الكمية المنقولة'}</label><input id="p-q" type="number" step="any" min="0" inputmode="decimal"></div>
     <span class="small muted">${m==='in'?'عند إدخال بضاعة بتكلفة مختلفة تُحسب التكلفة كمتوسط بين القديم والجديد.':m==='set'?'اترك الكمية فارغة إذا أردت تعديل التكلفة فقط.':'النقل لا يغيّر الإجمالي ولا رأس المال.'}</span>
     <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إغلاق</button></div></form>
    ${logs.length?`<div class="sec"><b class="small">آخر الحركات اليدوية</b><div class="list">${logs.map(l=>`<div class="row"><span class="who"><b>${KL[l.kind]||''}</b><small><span class="num">${dmy((l.t||'').slice(0,10))}</span>${l.w?`<span>${esc(whName(l.w))}${l.w2?' ← '+esc(whName(l.w2)):''}</span>`:''}</small></span><span class="amt"><b>${l.d>0?'+':''}${f1(nv(l.d))}</b><small>الإجمالي <span class="num">${f1(nv(l.q))}</span></small></span></div>`).join('')}</div></div>`:''}`);
 }
 async function saveProd(code){const s=S.stock[code]||{},q0=nv(s.q),c0=nv(s.cost),wid=$('#p-w').value,qs=$('#p-q').value,ce=$('#p-c'),cs=ce?ce.value:'',hasQ=qs!=='',hasC=cs!=='',st={...S.stock},cur=wq(code,wid),m=S.pmode;S.pw=wid;
-  {const P0=S.products[code]||{},np={...P0};let pch=false;for(const [id,k] of [['p-p2','p2'],['p-p1','price'],['p-pt','pt']]){const el=$('#'+id);if(!el)continue;const v=nv(el.value);if(v!==nv(P0[k])){pch=true;if(v>0)np[k]=v;else if(k==='price')np[k]=0;else delete np[k]}}
+  {const P0=S.products[code]||{},np={...P0};let pch=false;for(const [id,k] of [['p-p1','price'],['p-pt','pt']]){const el=$('#'+id);if(!el)continue;const v=nv(el.value);if(v!==nv(P0[k])){pch=true;if(v>0)np[k]=v;else if(k==='price')np[k]=0;else delete np[k]}}
    if(pch){await saveProducts({...S.products,[code]:np});audit('price','تعديل سعر بيع · '+(P0.name||code),{ref:code,old:[nv(P0.p2),nv(P0.price),nv(P0.pt)].join(' / '),new:[nv(np.p2),nv(np.price),nv(np.pt)].join(' / ')})}
    if(pch&&!hasQ&&!hasC){closeSheet();refresh();toast('انحفظ سعر البيع، وصار يطلع على الفاتورة');return}}
   let kind='cost',d=0,w2;
@@ -1749,7 +1749,7 @@ async function doBackupXlsx(){bmsg('جارٍ تحميل مكتبة الإكسل�
   const meta={};for(const m of D.meta)meta[m.id]=m.d;const P=(meta.products||{}).items||{},ST=(meta.stock||{}).items||{},WH=(meta.stock||{}).wh||S.wh||[],ORD=(meta.orders||{}).list||[];
   const rsv=(k,wid)=>{let t=0;for(const o of ORD){if(o.st==='d'||o.invNo||!o.draft)continue;if(wid!=='all'&&(o.draft.wh||'main')!==wid)continue;for(const y of o.draft.items||[])if(codeOf(y)===k)t+=nv(y.qty)}return t};
   const codes=[...new Set([...Object.keys(P),...Object.keys(ST)])].sort();
-  add('المخزون',['الكود','المادة','الوحدة','التعبئة','الكمية الإجمالية',...WH.map(w=>'كمية: '+w.name),'محجوز للمسودات','المتاح للبيع','التكلفة $','رأسمال الصين ¥','جملة الجملة $','نصف جملة $','مفرق $','قيمة رأس المال $'],codes.map(k=>{const p=P[k]||{},st=ST[k]||{},q=nv(st.q),w=getW(st),r=rsv(k,'all');return[k,p.name||'',p.unit||'',N(p.pack),q,...WH.map(x=>nv(w[x.id])),r,r2(q-r),N(st.cost),N(st.cny),N(p.p2),N(p.price),N(p.pt),r2(q*nv(st.cost))]}),[10,30,8,8,10,...WH.map(()=>12),12,12,10,10,10,10,10,14]);
+  add('المخزون',['الكود','المادة','الوحدة','التعبئة','الكمية الإجمالية',...WH.map(w=>'كمية: '+w.name),'محجوز للمسودات','المتاح للبيع','التكلفة $','رأسمال الصين ¥','نصف جملة $','مفرق $','قيمة رأس المال $'],codes.map(k=>{const p=P[k]||{},st=ST[k]||{},q=nv(st.q),w=getW(st),r=rsv(k,'all');return[k,p.name||'',p.unit||'',N(p.pack),q,...WH.map(x=>nv(w[x.id])),r,r2(q-r),N(st.cost),N(st.cny),N(p.price),N(p.pt),r2(q*nv(st.cost))]}),[10,30,8,8,10,...WH.map(()=>12),12,12,10,10,10,10,14]);
   add('مسودات الطلبات',['الزبون','تاريخ الطلب','التسليم','الحالة','حُوّلت لفاتورة رقم','الكود','المادة','الكمية','الوحدة','السعر $','المستودع','ملاحظة'],ORD.flatMap(o=>{const its=(o.draft&&o.draft.items)||[],h=[o.cname||cn[o.cid]||'',(o.at||'').slice(0,10),o.due||'',o.st==='d'?'منتهية':'قيد التجهيز',o.invNo||''];return its.length?its.map(y=>[...h,codeOf(y),y.name||'',N(y.qty),y.unit||'',N(y.price),whName((o.draft&&o.draft.wh)||'main'),o.note||'']):[[...h,'','','','','','',o.note||'']]}),[26,12,12,12,12,10,30,8,8,10,12,24]);
   const days=D.cash.map(x=>({id:x.id,...x.d})).sort((a,b)=>(a.date||a.id).localeCompare(b.date||b.id));
   add('الصندوق اليومي',['التاريخ','رصيد أول اليوم $','رصيد أول اليوم ل.س','سعر الصرف','عدد الحركات','المعدود عند الإغلاق $','المعدود عند الإغلاق ل.س'],days.map(v=>[v.date||v.id,N((v.open||{}).usd),N((v.open||{}).syp),N(v.rate),(v.tx||[]).length,v.closed?N(v.closed.usd):'',v.closed?N(v.closed.syp):'']),[12,14,16,10,10,16,18]);
@@ -1847,7 +1847,7 @@ function thumbOf(bytes,mime){return new Promise(res=>{const u=URL.createObjectUR
   im.onerror=()=>{URL.revokeObjectURL(u);res(null)};im.src=u})}
 function loadXLSX(){if(window.XLSX)return Promise.resolve();if(!S.xp)S.xp=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=()=>res();sc.onerror=()=>{S.xp=null;rej(new Error('lib'))};document.head.appendChild(sc)});return S.xp}
 const imgDocId=code=>{const h=[...code].map(ch=>ch.charCodeAt(0).toString(16).padStart(4,'0')).join('');return h.length<=190?'m'+h:'m'+newId()};
-const CL={code:'الكود',name:'الاسم',price:'نصف جملة',p2:'جملة الجملة',pt:'مفرق',pack:'التعبئة',unit:'الوحدة',min:'أقل كمية',qty:'الكمية',cost:'التكلفة',cny:'رأسمال الصين ¥',ctn:'عدد الطرود',total:'إجمالي المبلغ',wh:'المستودع'};
+const CL={code:'الكود',name:'الاسم',price:'نصف جملة',p2:'جملة الجملة (مُلغى، يُتجاهل)',pt:'مفرق',pack:'التعبئة',unit:'الوحدة',min:'أقل كمية',qty:'الكمية',cost:'التكلفة',cny:'رأسمال الصين ¥',ctn:'عدد الطرود',total:'إجمالي المبلغ',wh:'المستودع'};
 function impSheet(){openSheet(`<h2>استيراد المواد والمخزون من إكسل</h2>
    <span class="small muted">الملف يحتاج عمود <b>الكود</b> ومعه ما تريد من: اسم المادة، الصورة، التعبئة داخل الطرد، الكمية الواردة، عدد الطرود، رأسمال الصين (يوان)، التكلفة بعد المصاريف، إجمالي المبلغ، المستودع، سعر الجملة، سعر الطرد. عمود «المستودع» إذا كان فيه اسم المستودع لكل مادة تدخل الكمية إليه (ويُنشأ المستودع إن لم يوجد). وإذا غابت الكمية تُحسب من عدد الطرود × التعبئة، وإذا غابت التكلفة تُحسب من إجمالي المبلغ ÷ الكمية. صور المواد (داخل الخلايا أو فوقها) تُستورد أيضاً.</span>
    <div class="field"><label for="xfile">ملف الإكسل (xlsx أو csv)</label><input id="xfile" type="file" accept=".xlsx,.xls,.csv" style="padding:8px;font-size:13px"></div>
@@ -1878,7 +1878,7 @@ async function doImport(){const R=S.imp;if(!R||!R.items)return;const msg=t=>{con
   for(const n of [...R.whCols,...new Set(R.items.map(i=>i.rowWh).filter(Boolean))])if(!wh.some(w=>nrm(w.name)===nrm(n)))wh.push({id:'w'+newId(),name:n});
   const wid=n=>wh.find(w=>nrm(w.name)===nrm(n)).id,selWh=($('#imp-wh')||{}).value||'main',own=c=>{if(!st[c]||st[c]===S.stock[c])setW(st,c,'main',nv(getW(st[c]).main))};
   for(const it of R.items){const o=P[it.code]||{},p={...o,name:it.name||o.name||it.code,pack:it.pack??o.pack??0,unit:(it.unit==='القطعة'?'قطعة':it.unit)||o.unit||'قطعة',price:it.price??o.price??0};
-    const p2=it.p2??o.p2;if(p2>0)p.p2=p2;const pt=it.pt??o.pt;if(pt>0)p.pt=pt;for(const d of ['d1','d2','dt'])if(o[d])p[d]=o[d];const mn=it.min??o.min;if(mn)p.min=mn;delete p.off;P[it.code]=p;
+    delete p.p2;delete p.d2;const pt=it.pt??o.pt;if(pt>0)p.pt=pt;else if(it.pt===0)delete p.pt;for(const d of ['d1','d2','dt'])if(o[d])p[d]=o[d];const mn=it.min??o.min;if(mn)p.min=mn;delete p.off;P[it.code]=p;
     for(const [n,q] of Object.entries(it.wq))setW(st,it.code,wid(n),q);
     if(!R.whCols.length&&it.qty!=null)setW(st,it.code,it.rowWh?wid(it.rowWh):selWh,it.qty);
     if(it.cost!=null){own(it.code);st[it.code].cost=it.cost}
@@ -1896,7 +1896,7 @@ function prodForm(code){const p=code?S.products[code]:null;S.pphoto=null;S.armed
      <div class="field" style="flex:1;min-width:0"><label for="m-photo">صورة المادة</label><input id="m-photo" type="file" accept="image/*" style="padding:8px;font-size:13px"></div></div>
    <div class="grid2">${p?`<div class="field"><label>كود المادة</label><input value="${esc(code)}" disabled dir="ltr"></div>`:f('m-code','كود المادة','','required dir="ltr" autocomplete="off" autocapitalize="characters"')}${f('m-name','اسم المادة',p?.name,'required')}</div>
    <div class="card" style="gap:8px"><b class="small">أسعار البيع ($) · نسبة الربح على التكلفة · نسبة الحسم</b>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-p2','جملة الجملة',p?.p2,nm)}${f('m-r2','ربح %','',nm)}${f('m-d2','حسم %',p?.d2,nm)}</div>
+    
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-price','نصف جملة (أقل من طرد)',p?.price,nm)}${f('m-r1','ربح %','',nm)}${f('m-d1','حسم %',p?.d1,nm)}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${f('m-pt','مفرق',p?.pt,nm)}${f('m-rt','ربح %','',nm)}${f('m-dt','حسم %',p?.dt,nm)}</div>
     <span class="small muted">اكتب السعر فتظهر نسبة الربح، أو اكتب نسبة الربح فيُحسب السعر من التكلفة. الحسم يُنزّل السعر النهائي في الفاتورة.</span>${rndSel('m-rnd')}<span class="small muted" id="m-eff"></span></div>
@@ -1906,17 +1906,18 @@ function prodForm(code){const p=code?S.products[code]:null;S.pphoto=null;S.armed
    ${p?`<div class="grid2">${f('m-cost','التكلفة بعد المصاريف ($)',nv((S.stock[code]||{}).cost)||'',nm)}${f('m-cny','رأسمال الصين (¥) بدون مصاريف',nv((S.stock[code]||{}).cny)||'',nm)}</div>`:`<div class="grid2">${f('m-qty','الكمية الموجودة الآن','',nm)}${f('m-cost','تكلفة الوحدة ($)','',nm)}</div>${f('m-cny','رأسمال الصين (¥) بدون مصاريف (اختياري)','',nm)}${S.wh.length>1?`<div class="field"><label for="m-wh">في مستودع</label><select id="m-wh">${whOpts(S.stockF.wh!=='all'?S.stockF.wh:'main')}</select></div>`:''}`}
    <div class="grid2"><button class="btn primary" type="submit">حفظ</button><button class="btn" type="button" data-act="close">إلغاء</button></div>
    ${p?`<button class="btn danger" type="button" data-act="prod-del" data-code="${esc(code)}">حذف المادة</button>`:''}</form>`);profSync(null)}
-const PT=[['m-p2','m-r2','m-d2'],['m-price','m-r1','m-d1'],['m-pt','m-rt','m-dt']];
+const PT=[['m-price','m-r1','m-d1'],['m-pt','m-rt','m-dt']];
 function profSync(src){const g=i=>nv(($('#'+i)||{}).value),cost=g('m-cost');
   for(const [pi,ri,di] of PT){const P=$('#'+pi),R=$('#'+ri);if(!P||!R)continue;
     if(src===ri){if(cost>0&&R.value!=='')P.value=niceRound(cost*(1+g(ri)/100))}
     else if(src===pi||src==='m-cost'||src==null){if(cost>0&&g(pi)>0)R.value=r2((g(pi)/cost-1)*100);else if(src===pi)R.value=''}}
   const o=$('#m-eff');if(!o)return;o.textContent=PT.map(([pi,ri,di],k)=>{const v=g(pi);if(!(v>0))return'';const e=r4(v*(1-g(di)/100));return `${TIERS[k][1]}: ${pr(e)}`+(cost>0?` (ربح ${r2((e/cost-1)*100)}%)`:'')}).filter(Boolean).join(' · ')}
-document.addEventListener('input',e=>{const t0=e.target;if(t0&&['p-p2','p-p1','p-pt','p-c'].includes(t0.id)){const f=$('#pform'),o=$('#p-prof');if(f&&o){const code=f.dataset.code,c=nv(($('#p-c')||{}).value)||nv((S.stock[code]||{}).cost);o.textContent=c>0?[['p-p2','جملة الجملة'],['p-p1','نصف جملة'],['p-pt','مفرق']].map(([id,l])=>{const v=nv(($('#'+id)||{}).value);return v>0?l+': ربح '+pr(r4(v-c))+' ('+r2((v/c-1)*100)+'%)':''}).filter(Boolean).join(' · '):''}}});
+document.addEventListener('input',e=>{const t0=e.target;if(t0&&['p-p2','p-p1','p-pt','p-c'].includes(t0.id)){const f=$('#pform'),o=$('#p-prof');if(f&&o){const code=f.dataset.code,c=nv(($('#p-c')||{}).value)||nv((S.stock[code]||{}).cost);o.textContent=c>0?[['p-p1','نصف جملة'],['p-pt','مفرق']].map(([id,l])=>{const v=nv(($('#'+id)||{}).value);return v>0?l+': ربح '+pr(r4(v-c))+' ('+r2((v/c-1)*100)+'%)':''}).filter(Boolean).join(' · '):''}}});
 document.addEventListener('input',e=>{const id=e.target&&e.target.id;if(id==='m-rnd'||id==='bp-rnd'){const st={...S.settings,rnd:nv(e.target.value)};S.settings=st;try{S.db.doc('settings/main').set(st)}catch(x){}const o=id==='m-rnd'?$('#bp-rnd'):$('#m-rnd');if(o)o.value=e.target.value;return}if(id&&(id==='m-cost'||PT.some(r=>r.includes(id))))profSync(id)});
 async function saveProdForm(f){const isNew=!f.dataset.code,code=(isNew?$('#m-code').value:f.dataset.code).trim(),name=$('#m-name').value.trim();if(!code||!name){toast('أدخل الكود والاسم');return}
   if(isNew&&S.products[code]){toast('هذا الكود موجود مسبقاً');return}
   const p={name,pack:nv($('#m-pack').value),unit:$('#m-unit').value,price:nv($('#m-price').value)},mn=$('#m-min').value.trim();for(const [k,,d] of TIERS){const id=k==='price'?'m-price':'m-'+k,did='m-'+d;if(k!=='price'){const v=nv($('#'+id).value);if(v>0)p[k]=v}const dv=nv($('#'+did).value);if(dv>0)p[d]=Math.min(dv,100)}if(mn)p.min=mn;{const mq=nv(($('#m-minq')||{}).value);if(mq>0)p.minq=mq;const bc=(($('#m-bc')||{}).value||'').trim();if(bc)p.bc=bc}
+  if(!isNew&&(S.products[code]||{}).off)p.off=1;
   const P={...S.products,[code]:p};await saveProducts(P);
   const cc=nv(($('#m-cost')||{}).value),yy=nv(($('#m-cny')||{}).value);
   if(isNew){const q=nv($('#m-qty').value);if(q>0||cc>0||yy>0){const st={...S.stock};setW(st,code,($('#m-wh')||{}).value||'main',q);st[code].cost=cc;if(yy>0)st[code].cny=yy;await saveStock(st)}}
@@ -2083,7 +2084,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='cimp-go'){b.disabled=true;guard(async()=>{try{await doCustImport()}finally{b.disabled=false}});return}
   if(b.dataset.act==='cimp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد الزبائن.csv',data:'\ufeffاسم الزبون,المحافظة,رقم الموبايل,الرصيد,دائن / مدين,ملاحظات\nمثال: أحمد التاجر (احذف هذا السطر),حلب,0944000000,1500,مدين,جملة\n'}).catch(()=>{});return}
   if(b.dataset.act==='imp-go'){if(S.imp){const ho=$('#imp-off');S.imp.hideMiss=!!(ho&&ho.checked)}b.disabled=true;guard(async()=>{try{await doImport()}finally{b.disabled=false}});return}
-  if(b.dataset.act==='imp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد المواد.csv',data:'\ufeffكود المادة,اسم المادة,سعر الجملة,سعر الطرد وأكثر,التعبئة داخل الطرد,الوحدة,الكمية,التكلفة\nA-1,مثال: صحن بورسلان (احذف هذا السطر),1.5,1.4,48,قطعة,480,1.1\n'}).catch(()=>{});return}
+  if(b.dataset.act==='imp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد المواد.csv',data:'\ufeffكود المادة,اسم المادة,سعر نصف جملة,سعر مفرق,التعبئة داخل الطرد,الوحدة,الكمية,التكلفة\nA-1,مثال: صحن بورسلان (احذف هذا السطر),1.5,1.8,48,قطعة,480,1.1\n'}).catch(()=>{});return}
   if(b.dataset.act==='stab'){S.stab=b.dataset.v;renderSales();return}
   if(b.dataset.act==='ord-st'){S.ost=b.dataset.v;renderSales();return}
   if(b.dataset.act==='ord-sort'){S.osort=b.dataset.v;renderSales();return}
@@ -2115,11 +2116,11 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='sale-cust'&&S.ordMode){S.ordMode=false;closeSheet();ordDraftOpen(b.dataset.id);return}
   if(b.dataset.act==='sale-cust'){const id=b.dataset.id;closeSheet();show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger)invSheet()}},100);return}
   if(b.dataset.act==='bulk-price'){const nm='type="number" step="any" min="0" inputmode="decimal"';openSheet(`<h2>تسعير بنسبة ربح</h2><span class="small muted">يحسب السعر = التكلفة × (1 + النسبة). اترك النسبة فارغة للفئة التي لا تريدها. يُسعَّر فقط ما له تكلفة.</span>
-    <div class="field"><label for="bp-p2">ربح جملة الجملة %</label><input id="bp-p2" ${nm}></div><div class="field"><label for="bp-price">ربح نصف الجملة %</label><input id="bp-price" ${nm}></div><div class="field"><label for="bp-pt">ربح المفرق %</label><input id="bp-pt" ${nm}></div>
+    <div class="field"><label for="bp-price">ربح نصف الجملة %</label><input id="bp-price" ${nm}></div><div class="field"><label for="bp-pt">ربح المفرق %</label><input id="bp-pt" ${nm}></div>
     ${rndSel('bp-rnd')}
     <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bp-only" checked> فقط المواد التي ليس لها سعر في هذه الفئة</label>
     <div class="grid2"><button class="btn primary" type="button" data-act="bulk-go">طبّق</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`);return}
-  if(b.dataset.act==='bulk-go'){const only=$('#bp-only').checked,tol=nv($('#bp-rnd').value),pc={};for(const k of ['p2','price','pt']){const v=$('#bp-'+k).value;if(v!=='')pc[k]=nv(v)}if(!Object.keys(pc).length){toast('أدخل نسبة لفئة واحدة على الأقل');return}
+  if(b.dataset.act==='bulk-go'){const only=$('#bp-only').checked,tol=nv($('#bp-rnd').value),pc={};for(const k of ['price','pt']){const v=$('#bp-'+k).value;if(v!=='')pc[k]=nv(v)}if(!Object.keys(pc).length){toast('أدخل نسبة لفئة واحدة على الأقل');return}
     guard(async()=>{const P={...S.products};let n=0;for(const c in P){const cost=nv((S.stock[c]||{}).cost);if(!(cost>0))continue;const q={...P[c]};let ch=false;for(const k in pc){if(only&&nv(q[k])>0)continue;q[k]=niceRound(cost*(1+pc[k]/100),tol);ch=true}if(ch){P[c]=q;n++}}
       await saveProducts(P);closeSheet();refresh();toast('سُعّرت '+n+' مادة')});return}
   if(b.dataset.act==='prod-del'){const code=b.dataset.code,q=nv((S.stock[code]||{}).q);if(S.armed!=='pd'){S.armed='pd';b.textContent='اضغط ثانية للتأكيد'+(q>0?` (تُحذف كميتها ${f1(q)})`:'');return}
@@ -3083,7 +3084,7 @@ async function webGo(id){const o=(S.F.web||[]).find(x=>String(x.id)===String(id)
   S.F.web=(S.F.web||[]).filter(x=>x!==o);audit('web','طلب موقع ← مسودة',{name:c.name,no,total:o.total});toast('صار الطلب مسودة رقم '+no+' بدفتر الطلبات');if(S.F.web.length)webSheet();else{closeSheet();S.stab='ord';renderSales()}}
 
 /* ---------- price list image for one customer ---------- */
-function plSheet(){const c=cust(S.cid);if(!c)return;S.F.pl={tier:c.tier||'price',q:''};plRender()}
+function plSheet(){const c=cust(S.cid);if(!c)return;S.F.pl={tier:tierOk(c.tier)||'price',q:''};plRender()}
 function plRender(){const f=S.F.pl,c=cust(S.cid);openSheet(`<h2>📋 لائحة أسعار لـ ${esc(c.name)}</h2><div class="field"><label>بأي سعر؟</label><div class="seg">${TIERS.slice().reverse().map(t=>`<button type="button" data-act="f-plt" data-v="${t[0]}" aria-pressed="${f.tier===t[0]}">${t[1]}</button>`).join('')}</div></div>
    <div class="field"><label for="pl-q">فلترة (اختياري): اسم أو كود أو أول حرف</label><input id="pl-q" value="${esc(f.q)}" placeholder="مثال: صحون، B"></div>
    <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pl-in" checked> المتوفر بالمخزون بس</label>
@@ -3168,7 +3169,7 @@ document.addEventListener('submit',e=>{const f=e.target;if(f.id!=='chqform')retu
    حزمة 3: أسعار الكاتالوج · مصدر الزبون · اقتراح طلبية الصين · دفتر الدوام · تقرير الشهر
    ===================================================================== */
 /* ---------- 1) catalog prices follow the accounting prices (public price table, opt-in) ---------- */
-const catSync=()=>FM().catSync||{on:false,tier:'price'};
+const catSync=()=>{const c=FM().catSync||{on:false,tier:'price'};return c.tier==='p2'?{...c,tier:'price'}:c};
 async function catPush(codes){const C=catSync();if(!C.on||!S.db||!S.db.table)return{ok:false};const P=S.products,L=(codes||Object.keys(P)).filter(k=>P[k]).map(k=>({code:k,price:r4(effP(P[k],C.tier))})).filter(x=>x.price>0);
   for(let i=0;i<L.length;i+=400){await S.db.table('pub_prices','?on_conflict=code',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(L.slice(i,i+400))})}return{ok:true,n:L.length}}
 function catCard(){if(!isOwner()||!EXT)return'';const C=catSync();return`<div class="card"><b>🌐 أسعار موقع الكاتالوج</b><span class="muted small">لما تفعّلها، أي سعر بتغيّره بالمحاسبة بيتحدث لحاله على موقع الكاتالوج وتطبيق الزبائن، بدون ما تنشر من لوحة الإدارة.</span>
@@ -3278,7 +3279,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1329';
+const BUILD='20261123-1416';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
