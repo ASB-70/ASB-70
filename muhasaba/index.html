@@ -1225,9 +1225,22 @@ async function bulletinGo(){const B=S.blt,box=$('#bltbox');if(!B||!box)return;co
   box.innerHTML='<div class="empty">جارٍ تجهيز النشرة…</div>';
   try{const st={...S.settings,blMargin:B.margin,blPhone:B.phone,blAddr:B.addr,blSort:B.sort||'code'};if(st.blMargin!==S.settings.blMargin||st.blPhone!==S.settings.blPhone||st.blAddr!==S.settings.blAddr||st.blSort!==S.settings.blSort){S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}}catch(e){}
   try{const R=await drawBulletin(B);const pdf=pagesPDF(R.pages);S.bltPdf=pdf;S.bltName=(B.kind==='staff'?'Sales Staff Prices ':'Price List ')+today();
-    box.innerHTML=`<div class="note">✔ النشرة جاهزة: ${R.n} مادة على ${R.pages.length} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا).</div><img src="${R.pages[0].toDataURL('image/jpeg',0.7)}" alt="أول صفحة" style="width:100%;border:1px solid var(--line);border-radius:8px">
-     <div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div>`}
+    (S.bltUrls||[]).forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});const N=R.pages.length;
+    const urls=S.bltUrls=await Promise.all(R.pages.map(cv=>new Promise(r=>{try{cv.toBlob(bl=>r(bl?URL.createObjectURL(bl):cv.toDataURL('image/jpeg',0.7)),'image/jpeg',0.7)}catch(e){r(cv.toDataURL('image/jpeg',0.7))}})));
+    const btns=`<div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div>`;
+    box.innerHTML=`<div class="note">✔ النشرة جاهزة: ${R.n} مادة على ${N} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا).</div>${btns}
+     <span class="small muted" style="text-align:center">⬇️ انزل لتشوف كل الصفحات · اكبس على أي صفحة لتكبر</span>
+     <div id="bltpv" style="max-height:70vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:10px;background:var(--sunk,#0003);border:1px solid var(--line);border-radius:12px;overscroll-behavior:contain">
+     ${urls.map((u,i)=>`<div style="display:flex;flex-direction:column;gap:6px"><span class="small" style="display:flex;justify-content:space-between;align-items:center"><b>صفحة ${i+1} من ${N}</b>${i===0?'<span class="muted">الغلاف</span>':''}</span><button type="button" data-act="f-blt-zoom" data-i="${i}" aria-label="تكبير صفحة ${i+1}" style="all:unset;cursor:zoom-in;display:block"><img src="${u}" alt="صفحة ${i+1}" loading="lazy" width="1080" height="1527" style="width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 2px 10px #0005;background:#fff"></button></div>`).join('')}
+     </div>${N>1?btns:''}`}
   catch(e){console.error(e);box.innerHTML='<div class="note">تعذّر تجهيز النشرة. جرّب «بدون صور».</div>'}}
+function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getElementById('bltzoom');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='bltzoom';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','معاينة صفحة');
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:#000e;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)';
+  const N=U.length,draw=()=>{ov.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;color:#fff;flex:none"><button type="button" class="btn sm" data-z="x">✕ إغلاق</button><b class="num">صفحة ${i+1} / ${N}</b><span style="display:flex;gap:6px"><button type="button" class="btn sm" data-z="p" ${i>0?'':'disabled'}>→ السابقة</button><button type="button" class="btn sm" data-z="n" ${i<N-1?'':'disabled'}>التالية ←</button></span></div><div data-z="bg" style="flex:1;overflow:auto;display:flex;justify-content:center;padding:0 8px 16px"><img src="${U[i]}" alt="صفحة ${i+1}" style="width:100%;max-width:1080px;height:auto;align-self:flex-start;background:#fff;border-radius:4px"></div>`};
+  draw();ov.addEventListener('click',e=>{const z=e.target.closest('[data-z]');const k=z&&z.dataset.z;if(e.target.tagName==='IMG')return;if(k==='p'&&i>0){i--;draw()}else if(k==='n'&&i<N-1){i++;draw()}else if(k==='x'||k==='bg'){close()}});
+  const key=e=>{if(e.key==='Escape')close();else if(e.key==='ArrowLeft'&&i<N-1){i++;draw()}else if(e.key==='ArrowRight'&&i>0){i--;draw()}};const close=()=>{ov.remove();document.removeEventListener('keydown',key)};document.addEventListener('keydown',key);
+  document.body.appendChild(ov)}
 async function bulletinOut(share){const pdf=S.bltPdf;if(!pdf)return;const nm=fileName(S.bltName,'pdf');
   if(share&&window.Android&&typeof window.Android.share==='function'){const r=new FileReader();r.onload=()=>{try{window.Android.share(S.bltName,'',nm,'application/pdf',String(r.result).split(',')[1])}catch(e){toast('تعذّر الإرسال')}};r.readAsDataURL(pdf);return}
   if(share){const f=new File([pdf],nm,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:S.bltName});return}catch(e){if(e&&e.name==='AbortError')return}}}
@@ -2897,6 +2910,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-fixed-pay'){fixedPay(D.id);return}
   if(a==='f-aging'){agingLoad();return}
   if(a==='f-poff'){const c=D.code;if(!S.products[c])return;fguard(async()=>{const P={...S.products},q={...P[c]};if(q.off)delete q.off;else q.off=1;P[c]=q;await saveProducts(P);toast(q.off?'🙈 انخفت المادة':'👁 رجعت المادة');refresh();prodSheet(c)});return}
+  if(a==='f-blt-zoom'){bltZoom(+D.i);return}
   if(a==='f-blt-open'){bulletinSheet();return}
   if(a==='f-blt'){const B=S.blt;if(!B)return;const m=$('#bl-m'),ph=$('#bl-ph'),ad=$('#bl-ad');if(m)B.margin=nv(m.value);if(ph)B.phone=ph.value;if(ad)B.addr=ad.value;B[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;if(D.k==='kind')B.hideOut=D.v==='cust';bulletinSheet();return}
   if(a==='f-blt-go'){b.disabled=true;bulletinGo().finally(()=>{b.disabled=false});return}
@@ -3285,7 +3299,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1545';
+const BUILD='20261123-1550';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
