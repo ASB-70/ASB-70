@@ -1180,6 +1180,10 @@ async function drawBulletin(o){try{await Promise.race([Promise.all([document.fon
   while(i<codes.length||pn===0){const cv=document.createElement('canvas'),K=1.6;cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);
     const ar=(t,px,py,f,c)=>{x.direction='rtl';x.textAlign='right';x.font=f;x.fillStyle=c;x.fillText(t,px,py)},nu=(t,px,py,f,c,al)=>{x.direction='ltr';x.textAlign=al||'right';x.font=f;x.fillStyle=c;x.fillText(t,px,py)};
     const fit=(t,max,f)=>{t=String(t||'');x.font=f;if(x.measureText(t).width<=max)return t;while(t.length>1&&x.measureText(t+'…').width>max)t=t.slice(0,-1);return t+'…'};
+    const wrap2=(t,max,f)=>{x.font=f;const w=t.split(/\s+/).filter(Boolean),L=[''];for(const z of w){const c=L[L.length-1]?L[L.length-1]+' '+z:z;if(x.measureText(c).width<=max||!L[L.length-1])L[L.length-1]=c;else L.push(z)}return L};
+    const nmDraw=(t,max,px,ry,rh)=>{t=String(t||'').replace(/\s+/g,' ').trim();const C='#101B33';x.font='500 23px '+BF;if(x.measureText(t).width<=max){ar(t,px,ry+rh/2+9,'500 23px '+BF,C);return}for(const sz of [21,19]){const f='500 '+sz+'px '+BF;x.font=f;if(x.measureText(t).width<=max){ar(t,px,ry+rh/2+sz*0.36,f,C);return}}
+      for(const sz of [21,19,17]){const f='500 '+sz+'px '+BF,lh=Math.round(sz*1.25),L=wrap2(t,max,f);if(L.length<=2&&L.every(l=>{x.font=f;return x.measureText(l).width<=max})&&lh*2<=rh-6){const y0=ry+rh/2-lh/2+sz*0.36;L.forEach((l,j)=>ar(l,px,y0+j*lh,f,C));return}}
+      const sz=17,f='500 '+sz+'px '+BF,lh=Math.round(sz*1.25),L=wrap2(t,max,f),y0=ry+rh/2-lh/2+sz*0.36;ar(fit(L[0],max,f),px,y0,f,C);ar(fit(L.slice(1).join(' '),max,f),px,y0+lh,f,C)};
     x.fillStyle='#FFFFFF';x.fillRect(0,0,W,H);let y;
     if(pn===0){x.fillStyle='#13265C';x.fillRect(0,0,W,first-20);const lg=drawLogo(x,P,22,ST?130:170);
       ar(fit(S.settings.company,W-2*P-230,'600 34px '+DF),W-P,70,'600 34px '+DF,'#F3F6FF');
@@ -1194,7 +1198,7 @@ async function drawBulletin(o){try{await Promise.race([Promise.all([document.fon
     const n=per(pn===0?first:head);
     for(let r=0;r<n&&i<codes.length;r++,i++){const k=codes[i],p=S.products[k],ty=y+RH/2+9;if(r%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH)}nu(String(i+1),xs[0]-cols[0][1]/2,ty,'500 '+(ST?18:20)+'px '+DF,'#8A94AE','center');
       if(o.imgs&&pics[k]){const im=pics[k],sz=Math.min(im.naturalWidth,im.naturalHeight);x.drawImage(im,(im.naturalWidth-sz)/2,(im.naturalHeight-sz)/2,sz,sz,xs[1]-86,y+6,RH-12,RH-12)}
-      nu(fit(k,cols[2][1]-14,'600 22px '+DF),xs[2]-6,ty,'600 22px '+DF,'#5A6684');ar(fit(p.name||'',cols[3][1]-14,'500 23px '+BF),xs[3]-6,ty,'500 23px '+BF,'#101B33');
+      nu(fit(k,cols[2][1]-14,'600 22px '+DF),xs[2]-6,ty,'600 22px '+DF,'#5A6684');nmDraw(p.name||'',cols[3][1]-14,xs[3]-6,y,RH);
       if(ST){const av=blAvail(k);nu(f1(av),xs[4]-10,ty,'700 22px '+DF,av>0?'#0B7447':'#B3261E');
         [['price',5],['pt',6]].forEach(([t,j])=>{const v=effP(p,t);nu(v>0?pr(v):'—',xs[j]-8,ty,(t==='price'?'700':'500')+' 22px '+DF,'#101B33')});
         const mn=blMin(k,o.margin);nu(mn>0?pr(mn):'—',xs[7]-8,ty,'700 22px '+DF,'#B3261E')}
@@ -3279,7 +3283,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1416';
+const BUILD='20261123-1530';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
