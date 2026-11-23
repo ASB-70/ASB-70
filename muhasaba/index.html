@@ -202,7 +202,7 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);background:var(--surface);b
         <div style="display:flex;gap:6px"><input type="search" id="sq" placeholder="ابحث في المخزون بالاسم أو الكود أو الباركود" autocomplete="off" style="flex:1"><button class="btn sm" type="button" data-act="f-scan-q" data-for="sq">📷</button></div>
         <div class="seg" id="stseg" role="group" aria-label="حالة المخزون">
           <button type="button" data-st="all" aria-pressed="true">الكل</button><button type="button" data-st="in" aria-pressed="false">متوفر</button>
-          <button type="button" data-st="out" aria-pressed="false">منتهي</button><button type="button" data-st="nocost" aria-pressed="false">بدون تكلفة</button><button type="button" data-st="noprice" aria-pressed="false">بدون سعر</button><button type="button" data-st="nostock" aria-pressed="false">بدون مخزون</button>
+          <button type="button" data-st="out" aria-pressed="false">منتهي</button><button type="button" data-st="nocost" aria-pressed="false">بدون تكلفة</button><button type="button" data-st="noprice" aria-pressed="false">بدون سعر</button><button type="button" data-st="nostock" aria-pressed="false">بدون مخزون</button><button type="button" data-st="off" aria-pressed="false">🙈 مخفية</button>
         </div>
       </div>
       <div id="slist"></div>
@@ -911,11 +911,11 @@ function pickSheet(){S.picking=true;S.pq='';
   $('#sheet').innerHTML=`<h2>لائحة الأسعار</h2><div class="tools"><div style="display:flex;gap:6px"><input type="search" id="pq" placeholder="ابحث بالاسم أو الكود أو الباركود" autocomplete="off" style="flex:1"><button class="btn sm" type="button" data-act="f-scan-pick">📷 مسح</button></div></div><div id="plistbox" class="empty">جارٍ تحميل اللائحة…</div><button class="btn" type="button" data-act="pick-back">رجوع إلى الفاتورة</button>`;
   $('#sheet').scrollTop=0;loadImgs().then(renderPick,renderPick)}
 function renderPick(){const box=$('#plistbox');if(!box||!S.picking)return;const q=(S.pq||'').trim().toLowerCase();
-  const L=Object.entries(S.products).filter(([k,p])=>pmatch(k,p,q)).slice(0,80);
+  const L=Object.entries(S.products).filter(([k,p])=>!p.off&&pmatch(k,p,q)).slice(0,80);
   box.className='list';box.innerHTML=L.map(([k,p])=>`<button class="row" type="button" data-act="pick" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="48" height="48" loading="lazy" style="border-radius:8px;object-fit:cover;flex:none">`:''}<span class="who"><b>${esc(p.name)}</b><small><span class="num">${esc(k)}</span><span>الطرد ${f1(nv(p.pack))} ${esc(p.unit||'')}</span><span class="chip ${wq(k,(S.draft||{}).wh||'main')>0?'c-credit':'c-zero'}">المتوفر ${f1(wq(k,(S.draft||{}).wh||'main'))}${nv(p.pack)>0?` (${f1(wq(k,(S.draft||{}).wh||'main')/nv(p.pack))} طرد)`:''}</span>${S.wh.length>1?`<span class="chip c-zero">كل المستودعات ${f1(wq(k,'all'))}</span>`:''}${p.min?`<span>${esc(p.min)}</span>`:''}</small></span><span class="amt"><b>${pr(p.price)}</b></span></button>`).join('')||'<div class="row muted">لا توجد مادة مطابقة</div>'}
 function sugFor(t){const kind=t.dataset.sug;if(!kind)return;document.querySelectorAll('.sug').forEach(b=>b.innerHTML='');
   const box=t.dataset.i!==undefined?$('#sg-'+t.dataset.i):$(t.id==='c-city'?'#sug-c':'#sug-h');if(!box)return;const q=t.value.trim();
-  if(kind==='code'){const L=q?Object.entries(S.products).filter(([k,p])=>pmatch(k,p,q)).sort((a,b)=>prank(a[0],q)-prank(b[0],q)).slice(0,8):[];
+  if(kind==='code'){const L=q?Object.entries(S.products).filter(([k,p])=>!p.off&&pmatch(k,p,q)).sort((a,b)=>prank(a[0],q)-prank(b[0],q)).slice(0,8):[];
     box.innerHTML=L.map(([k,p])=>`<button type="button" data-act="sug-code" data-i="${t.dataset.i}" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="36" height="36" style="border-radius:6px;object-fit:cover;flex:none">`:''}<span><b class="num">${esc(k)}</b> · ${esc(p.name||'')} · <span class="num">${pr(defP(p)||p.price)}</span> · المتوفر <b class="num">${f1(wq(k,(S.draft||{}).wh||'main'))}</b>${nv(p.pack)>0?` (${f1(wq(k,(S.draft||{}).wh||'main')/nv(p.pack))} طرد)`:''}</span></button>`).join('')}
   else if(kind==='cust'){const L=q?S.customers.filter(c=>(c.name||'').includes(q)).slice(0,6):[];
     box.innerHTML=L.map(c=>`<button type="button" data-act="sug-cust" data-id="${esc(c.id)}"><span><b>${esc(c.name)}</b> · ${esc(c.city||'')} · <span class="num">${money(c.balance||0)}</span></span></button>`).join('')}
@@ -1117,7 +1117,7 @@ function renderStock(){
    <button class="btn sm" type="button" data-act="bulk-price" style="width:100%;margin-bottom:10px" ${np?'':'disabled'}>💲 تسعير كل المواد بنسبة ربح على التكلفة</button>`;
   const fa=stockAlerts();
   if(!np){el.innerHTML=fa+top+'<div class="empty"><b>لا توجد مواد بعد</b><span>أضف المواد واحدة واحدة، أو استورد لائحة كاملة مع الكميات والتكلفة من ملف إكسل.</span></div>';return}
-  const L=Object.entries(S.products).filter(([k,p])=>{const qty=wq(k,wid);const qa=qty-resvAll(k,wid);if(f==='in'&&!(qa>0))return false;if(f==='out'&&qa>0)return false;if(f==='nocost'&&nv((S.stock[k]||{}).cost)>0)return false;if(f==='noprice'&&nv(p.price)>0)return false;if(f==='nostock'&&S.stock[k]&&Object.values(getW(S.stock[k])).some(v=>nv(v)!==0))return false;if(f==='nostock'&&S.stock[k]&&nv(S.stock[k].q)>0)return false;return pmatch(k,p,q)});
+  const L=Object.entries(S.products).filter(([k,p])=>{if(f==='off')return !!p.off&&pmatch(k,p,q);if(p.off)return false;const qty=wq(k,wid);const qa=qty-resvAll(k,wid);if(f==='in'&&!(qa>0))return false;if(f==='out'&&qa>0)return false;if(f==='nocost'&&nv((S.stock[k]||{}).cost)>0)return false;if(f==='noprice'&&nv(p.price)>0)return false;if(f==='nostock'&&S.stock[k]&&Object.values(getW(S.stock[k])).some(v=>nv(v)!==0))return false;if(f==='nostock'&&S.stock[k]&&nv(S.stock[k].q)>0)return false;return pmatch(k,p,q)});
   el.innerHTML=fa+top+`
    <div class="sechead" style="margin-bottom:8px"><small>${L.length} مادة · ${S.stockMeta.lastCount?'آخر جرد '+dmy(S.stockMeta.lastCount):'لم يُسجَّل جرد بعد'}</small><small>${S.sel?'اضغط المواد لتحديدها':'اضغط المادة للإدخال أو النقل'}</small></div>`+
    (S.sel?`<div class="selbar"><b class="small">${S.sel.size} محددة</b><button class="btn sm" type="button" data-act="sel-all">تحديد الكل (${L.length})</button><button class="btn sm" type="button" data-act="sel-none">مسح</button><button class="btn sm danger" type="button" data-act="sel-del" ${S.sel.size?'':'disabled'}>${S.armed==='seldel'?'تأكيد حذف '+S.sel.size:'حذف المحدد'}</button></div>`:'')+
@@ -1169,7 +1169,7 @@ const blAvail=k=>r2(wq(k,'all')-resvAll(k,'all'));
 const blMin=(k,m)=>{const c=nv((S.stock[k]||{}).cost);return c>0?Math.ceil(c*(1+m/100)*20)/20:0};
 async function drawBulletin(o){try{await Promise.race([Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"')]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   try{await Promise.race([loadImgs(),new Promise(r=>setTimeout(r,6000))])}catch(e){}
-  const ST=o.kind==='staff',codes=Object.keys(S.products).filter(k=>{const p=S.products[k];if(!(effP(p,'price')||effP(p,'pt')||effP(p,'p2')))return false;if(o.hideOut&&blAvail(k)<=0)return false;return true})
+  const ST=o.kind==='staff',codes=Object.keys(S.products).filter(k=>{const p=S.products[k];if(p.off)return false;if(!(effP(p,'price')||effP(p,'pt')||effP(p,'p2')))return false;if(o.hideOut&&blAvail(k)<=0)return false;return true})
     .sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
   const W=1080,H=1527,P=36,RH=o.imgs?92:58,first=ST?190:300,head=86,foot=64,DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif',BF='"IBM Plex Sans Arabic",Tahoma,sans-serif';
   const pics={};if(o.imgs)await Promise.all(codes.map(k=>S.img[k]?new Promise(r=>{const im=new Image();im.onload=()=>{pics[k]=im;r()};im.onerror=r;im.src=S.img[k]}):0));
@@ -1232,7 +1232,7 @@ function prodSheet(code){
   const w0=S.pw&&S.wh.some(w=>w.id===S.pw)?S.pw:(S.stockF.wh!=='all'?S.stockF.wh:'main'),m=S.pmode;
   openSheet(`<h2>${esc(p.name)}</h2>
    <button class="btn wa" type="button" data-act="item-file" data-code="${esc(code)}">📒 ملف حركة المادة (لمين انباعت)</button>
-   <div class="grid2"><button class="btn primary" type="button" data-act="prod-edit" data-code="${esc(code)}">✎ تعديل المادة</button><button class="btn danger" type="button" data-act="prod-del" data-code="${esc(code)}">🗑 حذف المادة</button></div>
+   <div class="grid2"><button class="btn primary" type="button" data-act="prod-edit" data-code="${esc(code)}">✎ تعديل المادة</button><button class="btn danger" type="button" data-act="prod-del" data-code="${esc(code)}">🗑 حذف المادة</button></div><button class="btn" type="button" data-act="f-poff" data-code="${esc(code)}" style="width:100%;margin-top:8px">${(S.products[code]||{}).off?'👁 إظهار المادة (ترجع للبيع والنشرات)':'🙈 إخفاء المادة (من غير حذف)'}</button>
    <div class="card" style="flex-direction:row;align-items:center">${S.img[code]?`<img src="${S.img[code]}" alt="" width="64" height="64" style="border-radius:10px;object-fit:cover;flex:none">`:''}<div class="small" style="min-width:0"><b class="num">${esc(code)}</b><br>التعبئة <b class="num">${f1(nv(p.pack))}</b> ${esc(p.unit||'')} في الطرد${nv(p.pack)>0?` · عدد الطرود <b class="num">${f1(q/nv(p.pack))}</b>`:''} · الإجمالي <b class="num">${f1(q)}</b> ${esc(p.unit||'')}${resvAll(code,'all')>0?`<br>محجوز لمسودات الطلبات <b class="num">${f1(resvAll(code,'all'))}</b> ← المتاح للبيع <b class="num" style="color:var(--credit)">${f1(q-resvAll(code,'all'))}</b>`:''}<br>التكلفة <b class="num">${c>0?pr(c):'—'}</b>${nv(s.cny)>0?` · رأسمال الصين <b class="num">¥${nv(s.cny)}</b>`:''}${tierBlock(p,c)}</div></div>
    <div class="sug">${S.wh.map(w=>`<span class="chip ${wq(code,w.id)-resvAll(code,w.id)>0?'c-credit':'c-zero'}">${esc(w.name)}: <span class="num">${f1(wq(code,w.id)-resvAll(code,w.id))}</span>${resvAll(code,w.id)>0?` <small>(من ${f1(wq(code,w.id))})</small>`:''}</span>`).join('')}</div>
    <form id="pform" data-code="${esc(code)}">
@@ -1872,22 +1872,24 @@ async function readImport(file){const box=$('#ibox');if(!box)return;box.innerHTM
      ${noName?`<span class="note">${noName} مادة جديدة بدون اسم، ستدخل باسم الكود.</span>`:''}</div>
    <div class="list">${R.items.slice(0,5).map(i=>`<div class="row"><span class="who"><b>${esc(i.name||(S.products[i.code]||{}).name||i.code)}</b><small><span class="num">${esc(i.code)}</span>${i.pack!=null?`<span>الطرد ${f1(i.pack)}</span>`:''}${i.qty!=null?`<span>الكمية ${f1(i.qty)}</span>`:''}${Object.entries(i.wq).map(([n,q])=>`<span>${esc(n)}: ${f1(q)}</span>`).join('')}${i.cost!=null?`<span>التكلفة ${pr(i.cost)}</span>`:''}${i.cny!=null?`<span>¥${i.cny}</span>`:''}${i.rowWh?`<span>${esc(i.rowWh)}</span>`:''}</small></span><span class="amt"><b>${i.price!=null?pr(i.price):i.total!=null?pr(i.total):''}</b></span></div>`).join('')}</div>
    ${R.items.length>5?`<span class="small muted">هذه أول 5 مواد للتأكد من القراءة.</span>`:''}
+   ${(()=>{const inF=new Set(R.items.map(i=>i.code)),miss=Object.keys(S.products).filter(k=>!inF.has(k)&&!S.products[k].off).length;return miss?`<label class="small" style="display:flex;gap:8px;align-items:flex-start;padding:10px;border:1px dashed var(--line,#ccd);border-radius:10px"><input type="checkbox" id="imp-off" style="margin-top:3px"><span>🙈 خبّي المواد يلي <b>مو موجودة</b> بالملف (<b class="num">${miss}</b> مادة)<br><span class="muted">بتختفي من البيع والنشرات والمخزون، وبيضل تاريخها بالفواتير. بترجع من المخزون ← «مخفية».</span></span></label>`:''})()}
    <button class="btn primary" type="button" data-act="imp-go">استيراد ${R.items.length} مادة</button><span class="small" id="imsg"></span>`}
 async function doImport(){const R=S.imp;if(!R||!R.items)return;const msg=t=>{const m=$('#imsg');if(m)m.textContent=t},P={...S.products},st={...S.stock},oldWh=S.wh;let wh=S.wh.slice();
   for(const n of [...R.whCols,...new Set(R.items.map(i=>i.rowWh).filter(Boolean))])if(!wh.some(w=>nrm(w.name)===nrm(n)))wh.push({id:'w'+newId(),name:n});
   const wid=n=>wh.find(w=>nrm(w.name)===nrm(n)).id,selWh=($('#imp-wh')||{}).value||'main',own=c=>{if(!st[c]||st[c]===S.stock[c])setW(st,c,'main',nv(getW(st[c]).main))};
-  for(const it of R.items){const o=P[it.code]||{},p={name:it.name||o.name||it.code,pack:it.pack??o.pack??0,unit:(it.unit==='القطعة'?'قطعة':it.unit)||o.unit||'قطعة',price:it.price??o.price??0};
-    const p2=it.p2??o.p2;if(p2>0)p.p2=p2;const pt=it.pt??o.pt;if(pt>0)p.pt=pt;for(const d of ['d1','d2','dt'])if(o[d])p[d]=o[d];const mn=it.min??o.min;if(mn)p.min=mn;P[it.code]=p;
+  for(const it of R.items){const o=P[it.code]||{},p={...o,name:it.name||o.name||it.code,pack:it.pack??o.pack??0,unit:(it.unit==='القطعة'?'قطعة':it.unit)||o.unit||'قطعة',price:it.price??o.price??0};
+    const p2=it.p2??o.p2;if(p2>0)p.p2=p2;const pt=it.pt??o.pt;if(pt>0)p.pt=pt;for(const d of ['d1','d2','dt'])if(o[d])p[d]=o[d];const mn=it.min??o.min;if(mn)p.min=mn;delete p.off;P[it.code]=p;
     for(const [n,q] of Object.entries(it.wq))setW(st,it.code,wid(n),q);
     if(!R.whCols.length&&it.qty!=null)setW(st,it.code,it.rowWh?wid(it.rowWh):selWh,it.qty);
     if(it.cost!=null){own(it.code);st[it.code].cost=it.cost}
     if(it.cny!=null){own(it.code);st[it.code].cny=it.cny}}
+  let nOff=0;if(R.hideMiss){const inF=new Set(R.items.map(i=>i.code));for(const k in P)if(!inF.has(k)&&!P[k].off){P[k]={...P[k],off:1};nOff++}}
   msg('جارٍ حفظ المواد…');await saveProducts(P);
   if(R.col.qty!==undefined||R.col.cost!==undefined||R.col.cny!==undefined||R.col.total!==undefined||R.col.ctn!==undefined||R.whCols.length||R.rowWhUsed){S.wh=wh;try{await saveStock(st)}catch(e){S.wh=oldWh;throw e}}
   const codes=Object.keys(R.imgs||{});let ni=0;if(codes.length){const ts='u'+Date.now().toString(36);let cur=[],sz=0,k=0;const flush=async()=>{if(cur.length){await S.db.doc('pimg/'+ts+'_'+String(k++).padStart(3,'0')).set({list:cur});cur=[];sz=0}};
     for(const c of codes){msg(`جارٍ تجهيز الصور ${ni+1} من ${codes.length}…`);const d=await thumbOf(R.imgs[c].bytes,R.imgs[c].mime);if(!d)continue;if(sz+d.length>170000)await flush();cur.push({c,d});sz+=d.length;S.img[c]=d;ni++}
     await flush()}
-  const n=R.items.length;closeSheet();refresh();toast(`اكتمل الاستيراد: ${n} مادة${ni?' و'+ni+' صورة':''}`)}
+  const n=R.items.length;closeSheet();refresh();toast(`اكتمل الاستيراد: ${n} مادة${ni?' و'+ni+' صورة':''}${nOff?' · انخفت '+nOff+' مادة':''}`)}
 function prodForm(code){const p=code?S.products[code]:null;S.pphoto=null;S.armed=null;const f=(id,l,v,attr)=>`<div class="field"><label for="${id}">${l}</label><input id="${id}" value="${esc(v??'')}" ${attr||''}></div>`,nm='type="number" step="any" min="0" inputmode="decimal"';
   openSheet(`<h2>${p?'تعديل بيانات المادة':'مادة جديدة'}</h2><form id="mform" data-code="${esc(code||'')}">
    <div style="display:flex;gap:12px;align-items:center"><img id="m-prev" alt="صورة المادة" ${code&&S.img[code]?`src="${S.img[code]}"`:''} width="72" height="72" style="border-radius:10px;object-fit:cover;background:var(--sunk);flex:none">
@@ -2080,7 +2082,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.act==='cimp-skip'){const R=S.imp;if(R&&R.skip){const n=b.dataset.name;R.skip.has(n)?R.skip.delete(n):R.skip.add(n);const st=$('#sheet').scrollTop;custPreview();$('#sheet').scrollTop=st}return}
   if(b.dataset.act==='cimp-go'){b.disabled=true;guard(async()=>{try{await doCustImport()}finally{b.disabled=false}});return}
   if(b.dataset.act==='cimp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد الزبائن.csv',data:'\ufeffاسم الزبون,المحافظة,رقم الموبايل,الرصيد,دائن / مدين,ملاحظات\nمثال: أحمد التاجر (احذف هذا السطر),حلب,0944000000,1500,مدين,جملة\n'}).catch(()=>{});return}
-  if(b.dataset.act==='imp-go'){b.disabled=true;guard(async()=>{try{await doImport()}finally{b.disabled=false}});return}
+  if(b.dataset.act==='imp-go'){if(S.imp){const ho=$('#imp-off');S.imp.hideMiss=!!(ho&&ho.checked)}b.disabled=true;guard(async()=>{try{await doImport()}finally{b.disabled=false}});return}
   if(b.dataset.act==='imp-tpl'){if(S.dl)S.dl.save({filename:'نموذج استيراد المواد.csv',data:'\ufeffكود المادة,اسم المادة,سعر الجملة,سعر الطرد وأكثر,التعبئة داخل الطرد,الوحدة,الكمية,التكلفة\nA-1,مثال: صحن بورسلان (احذف هذا السطر),1.5,1.4,48,قطعة,480,1.1\n'}).catch(()=>{});return}
   if(b.dataset.act==='stab'){S.stab=b.dataset.v;renderSales();return}
   if(b.dataset.act==='ord-st'){S.ost=b.dataset.v;renderSales();return}
@@ -2822,7 +2824,7 @@ function assetSheet(a){openSheet(`<h2>${a?'تعديل أصل':'أصل ثابت �
 /* =====================================================================
    9) المخزون: حد أدنى · بضاعة راكدة · مشتريات المادة
    ===================================================================== */
-const lowList=()=>Object.entries(S.products).filter(([k,p])=>nv(p.minq)>0&&wq(k,'all')<=nv(p.minq)).map(([k,p])=>({k,p,q:wq(k,'all')})).sort((a,b)=>a.q/nv(a.p.minq)-b.q/nv(b.p.minq));
+const lowList=()=>Object.entries(S.products).filter(([k,p])=>!p.off&&nv(p.minq)>0&&wq(k,'all')<=nv(p.minq)).map(([k,p])=>({k,p,q:wq(k,'all')})).sort((a,b)=>a.q/nv(a.p.minq)-b.q/nv(b.p.minq));
 function stockAlerts(){if(!isOwner())return'';const low=lowList();return`<div class="grid2" style="margin-bottom:10px"><button class="btn sm" type="button" data-act="f-sups">🚚 الموردين والمشتريات</button><button class="btn sm primary" type="button" data-act="f-pur-new">📥 فاتورة شراء</button></div>
    ${low.length?`<button class="note" type="button" data-act="f-low" style="border:0;width:100%;text-align:right;cursor:pointer;margin-bottom:10px">⚠️ <b>${low.length}</b> مادة قرّبت تخلص (تحت الحد الأدنى اللي حددته). اكبس لتشوفها ←</button>`:''}
    <div class="grid2" style="margin-bottom:10px"><button class="btn sm" type="button" data-act="f-ro">🛒 اقتراح طلبية الصين</button><button class="btn sm" type="button" data-act="f-slow">🐢 البضاعة الراكدة</button></div>`}
@@ -2887,6 +2889,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-fixed-del'){if(S.armed!=='fxd'){S.armed='fxd';b.textContent='اكبس للتأكيد';return}fguard(async()=>{await finSave({fixed:fixedList().filter(x=>x.id!==D.id)});S.armed=null;fixedSheet();finPaint()});return}
   if(a==='f-fixed-pay'){fixedPay(D.id);return}
   if(a==='f-aging'){agingLoad();return}
+  if(a==='f-poff'){const c=D.code;if(!S.products[c])return;fguard(async()=>{const P={...S.products},q={...P[c]};if(q.off)delete q.off;else q.off=1;P[c]=q;await saveProducts(P);toast(q.off?'🙈 انخفت المادة':'👁 رجعت المادة');refresh();prodSheet(c)});return}
   if(a==='f-blt-open'){bulletinSheet();return}
   if(a==='f-blt'){const B=S.blt;if(!B)return;const m=$('#bl-m'),ph=$('#bl-ph'),ad=$('#bl-ad');if(m)B.margin=nv(m.value);if(ph)B.phone=ph.value;if(ad)B.addr=ad.value;B[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;if(D.k==='kind')B.hideOut=D.v==='cust';bulletinSheet();return}
   if(a==='f-blt-go'){b.disabled=true;bulletinGo().finally(()=>{b.disabled=false});return}
@@ -3086,7 +3089,7 @@ function plRender(){const f=S.F.pl,c=cust(S.cid);openSheet(`<h2>📋 لائحة 
    <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pl-in" checked> المتوفر بالمخزون بس</label>
    <button class="btn primary" type="button" data-act="f-pl-go">تجهيز اللائحة</button><div id="stmtbox"></div><button class="btn" type="button" data-act="close">إغلاق</button>`)}
 async function plGo(){const f=S.F.pl,c=cust(S.cid);f.q=$('#pl-q').value.trim();const only=$('#pl-in').checked;
-  const L=Object.entries(S.products).filter(([k,p])=>effP(p,f.tier)>0&&pmatch(k,p,f.q)&&(!only||wq(k,'all')>0)).sort((a,b)=>a[0].localeCompare(b[0],'en',{numeric:true}));if(!L.length){toast('ما في مواد بهالسعر');return}
+  const L=Object.entries(S.products).filter(([k,p])=>!p.off&&effP(p,f.tier)>0&&pmatch(k,p,f.q)&&(!only||wq(k,'all')>0)).sort((a,b)=>a[0].localeCompare(b[0],'en',{numeric:true}));if(!L.length){toast('ما في مواد بهالسعر');return}
   try{await S.db.doc('customers/'+c.id).update({tier:f.tier});c.tier=f.tier}catch(e){}
   const box=$('#stmtbox');box.className='empty';box.textContent='جارٍ تجهيز اللائحة…';await loadImgs().catch(()=>{});
   const cv=await drawPriceList(c,L,f.tier);outBox(cv,'لائحة أسعار '+c.name)}
@@ -3275,7 +3278,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1225';
+const BUILD='20261123-1329';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
