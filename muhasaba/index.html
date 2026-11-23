@@ -1,4 +1,4 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://ecvzyptrpekgsouhgbdb.supabase.co data: blob:; worker-src 'self'; manifest-src 'self'; media-src 'self' data: blob:; frame-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'self'"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#13265C"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://ecvzyptrpekgsouhgbdb.supabase.co https://api.github.com data: blob:; worker-src 'self'; manifest-src 'self'; media-src 'self' data: blob:; frame-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'self'"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#13265C"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
 <title>محاسبة شركة الثقة</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
@@ -1139,7 +1139,7 @@ function renderStock(){
   const el=$('#slist'),q=S.stockF.q.trim(),ql=q.toLowerCase(),f=S.stockF.f;if(S.stockF.wh!=='all'&&!S.wh.some(w=>w.id===S.stockF.wh))S.stockF.wh='all';const wid=S.stockF.wh;
   const np=Object.keys(S.products).length,top=`<div class="sechead" style="margin-bottom:6px"><h2>المستودعات</h2><button class="btn sm primary" type="button" data-act="wh-open">＋ إضافة مستودع</button></div>
    <div class="seg" style="margin-bottom:10px" role="group" aria-label="المستودع"><button type="button" data-wh="all" aria-pressed="${wid==='all'}">الكل</button>${S.wh.map(w=>`<button type="button" data-wh="${esc(w.id)}" aria-pressed="${wid===w.id}">${esc(w.name)}</button>`).join('')}</div>
-   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px"><button class="btn sm" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn sm" type="button" data-act="imp-open">استيراد إكسل</button><button class="btn sm" type="button" data-act="f-blt-open">📄 نشرة أسعار PDF</button><button class="btn sm" type="button" data-act="count-open" ${np?'':'disabled'}>جرد مستودع</button></div>
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px"><button class="btn sm" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn sm" type="button" data-act="imp-open">استيراد إكسل</button><button class="btn sm" type="button" data-act="f-blt-open">📄 نشرة أسعار PDF</button><button class="btn sm" type="button" data-act="f-st-open">🌐 تحديث المتجر</button><button class="btn sm" type="button" data-act="count-open" ${np?'':'disabled'}>جرد مستودع</button></div>
    <button class="btn sm ${S.sel?'primary':''}" type="button" data-act="sel-mode" style="width:100%;margin-bottom:10px" ${np?'':'disabled'}>${S.sel?'إلغاء وضع التحديد':'☑ تحديد وحذف مواد'}</button>
    <button class="btn sm" type="button" data-act="bulk-price" style="width:100%;margin-bottom:10px" ${np?'':'disabled'}>💲 تسعير كل المواد بنسبة ربح على التكلفة</button>`;
   const fa=stockAlerts();
@@ -1410,6 +1410,49 @@ async function bulkRun(){const B=S.bulk;if(!B||S.batch)return;const L=prepPendin
     ${done.length?`<div class="list">${done.map(d=>`<div class="row"><span class="who"><b>${esc(d.o.cname||'')}</b><small><span class="num">فاتورة #${esc(d.no)}</span></small></span><span class="amt"><b>${money(d.total)}</b></span></div>`).join('')}</div><span class="small">المجموع <b class="num">${money(r2(done.reduce((a,d)=>a+d.total,0)))}</b></span>`:''}
     ${bad.length?`<div class="note" style="background:var(--debt-bg);color:var(--debt)"><b>⚠️ ما انعتمدت (${bad.length}):</b><br>${bad.map(b=>'#'+esc(b.o.no||'—')+' '+esc(b.o.cname||'')+': '+esc(b.why)).join('<br>')}<br><span class="small">ضلّت بالانتظار، صلّحها واعتمدها لحالها.</span></div>`:''}
     <button class="btn primary" type="button" id="bulkok">تمام</button>`);ov.querySelector('#bulkok').onclick=()=>{ov.remove();try{renderSales()}catch(e){}}}
+/* ---------- push products + half-wholesale prices + photos to the online store (site.json / imgs.json on GitHub) ---------- */
+const STKW=[["cutlery","معالق|معلقة|ملعقة|ملاعق|شوكة|سكين|سكاكين|ملقط|جماجي|كفكير|سد رز"],["glass","بللور|زجاج|مطربان|ركوة|ابريق|إبريق|سكرية|بيركس|مباهر|مطرة|تاج"],["porcelain","بورسلان|فخار|فنجان|صحن|زباد|سيراميك"],["steel","ستانلس|براد|منسف|جاط|مصافي|مصفاية|مصفاة|زورق|نفاضة|زبدية|طناجر|ألمنيوم"],["clean","ليفة|مساحة|مسّاحة|غبرة|كشاشة|غسيل|بشكير|بكشير|برداية|مريول|مجلى|منشفة|مناشف|دعّاسة|كفوف|جلد مسح|فرشاة|فرشاية"],["home","لمبدير|ساعة|تعاليق|مبخرة|تعلوقة|فلتر|مضخة|قداحة|حافظة|متة|صواني|صينية|قالب|رف|ستاند|كيس|حبل|حكاكة|طاولة"]];
+const stCat=d=>{for(const [c,re] of STKW)if(new RegExp(re).test(d))return c;return 'kitchen'};
+const stNorm=c=>String(c||'').replace(/\s+/g,'').toUpperCase();
+const stURL=p=>new URL('../'+p,location.href).href;
+async function storeLoad(){const [a,b]=await Promise.all([fetch(stURL('site.json')+'?'+Date.now(),{cache:'no-store'}),fetch(stURL('imgs.json')+'?'+Date.now(),{cache:'no-store'})]);if(!a.ok||!b.ok)throw new Error('load');return{sj:await a.json(),ims:await b.json()}}
+function storePlan(sj,ims){const P=S.products,rows=sj.rows.map(r=>({...r})),by={};rows.forEach(r=>{(by[stNorm(r.c)]=by[stNorm(r.c)]||[]).push(r)});
+  const act={};for(const k in P){const p=P[k];if(p.off)continue;const pr=effP(p,'price');if(!(pr>0))continue;act[stNorm(k)]={k,p,pr}}
+  const out={upd:0,name:0,price:0,unit:0,pack:0,shown:0,add:[],hide:[],noImg:0},newIms=ims.slice();let maxId=0;rows.forEach(r=>{const n=+String(r.id||'').replace(/\D/g,'');if(n>maxId)maxId=n});
+  for(const nk in act){const {k,p,pr}=act[nk],L=by[nk];const nm=String(p.name||'').trim()||k,un=p.unit||'قطعة',pk=nv(p.pack)>0?String(nv(p.pack)):'',ps=pr.toFixed(2);
+    if(L){let ch=false;for(const r of L){if(String(r.d||'').trim()!==nm){r.d=nm;out.name++;ch=true}if(Math.abs(nv(r.p)-pr)>0.0001||r.p!==ps){if(Math.abs(nv(r.p)-pr)>0.0001)out.price++;r.p=ps;ch=true}if(String(r.u||'')!==un){r.u=un;out.unit++;ch=true}if(String(r.k||'')!==pk){r.k=pk;out.pack++;ch=true}if(r.h){r.h=0;out.shown++;ch=true}
+        if((r.i===null||r.i===undefined||newIms[r.i]===undefined)&&S.img[k]){newIms.push(String(S.img[k]).split(',')[1]);r.i=newIms.length-1;ch=true}}if(ch)out.upd++}
+    else{let i=null;if(S.img[k]){newIms.push(String(S.img[k]).split(',')[1]);i=newIms.length-1}else out.noImg++;
+      const r={id:'p'+(++maxId),c:k,d:nm,p:ps,u:un,k:pk,m:0,n:'',i,cat:stCat(nm),h:0,b:'new'};rows.push(r);out.add.push(r)}}
+  for(const r of rows){if(!act[stNorm(r.c)]&&!r.h){r.h=1;out.hide.push(r)}}
+  return{out,sj:{...sj,rows,updated:new Date().toISOString()},ims:newIms,ims0:ims.length}}
+async function storeSheet(){openSheet('<h2>🌐 تحديث المتجر الإلكتروني</h2><div id="stbox" class="empty">جارٍ مقارنة البرنامج بالمتجر…</div><button class="btn" type="button" data-act="close">إغلاق</button>');
+  try{await Promise.race([loadImgs(),new Promise(r=>setTimeout(r,8000))])}catch(e){}
+  let cur;try{cur=await storeLoad()}catch(e){const bx=$('#stbox');if(bx)bx.innerHTML='<div class="note">ما قدرت أقرأ بيانات المتجر. افتح البرنامج من نسختك (الموبايل أو اللابتوب) وتأكد من الإنترنت.</div>';return}
+  const pl=S.stPlan=storePlan(cur.sj,cur.ims),o=pl.out,bx=$('#stbox');if(!bx)return;bx.className='sec';
+  const li=(arr,f)=>arr.slice(0,60).map(f).join('، ')+(arr.length>60?' …':'');
+  bx.innerHTML=`<div class="trio"><div><span>تتحدّث</span><b class="num">${o.upd}</b></div><div><span>جديدة</span><b class="num" style="color:var(--credit)">${o.add.length}</b></div><div><span>تنخفى</span><b class="num" style="color:var(--debt)">${o.hide.length}</b></div></div>
+   <div class="card small" style="gap:4px">${o.upd?`<span>✏️ أسماء: <b class="num">${o.name}</b> · أسعار نصف الجملة: <b class="num">${o.price}</b> · وحدات: <b class="num">${o.unit}</b> · تعبئة: <b class="num">${o.pack}</b>${o.shown?` · رجعت تبين: <b class="num">${o.shown}</b>`:''}</span>`:'<span>ما في تعديلات على المواد الموجودة.</span>'}
+   ${o.add.length?`<details><summary>➕ المواد الجديدة (${o.add.length})${o.noImg?` · ${o.noImg} بلا صورة`:''}</summary><span class="muted">${li(o.add,r=>esc(r.c)+' '+esc(r.d))}</span></details>`:''}
+   ${o.hide.length?`<details><summary>🙈 تنخفى من المتجر (${o.hide.length}) · ما بتنمسح</summary><span class="muted">${li(o.hide,r=>esc(r.c)+' '+esc(r.d||''))}</span></details>`:''}</div>
+   ${o.upd||o.add.length||o.hide.length?`<div class="field"><label for="st-pw">كلمة سر لوحة إدارة المتجر</label><input id="st-pw" type="password" autocomplete="off" dir="ltr" placeholder="نفس كلمة سر admin"><span class="small muted">بتنستعمل هلق بس للنشر وما بتنحفظ.</span></div>
+   <button class="btn primary" type="button" data-act="f-st-pub">🚀 نشر التحديث على المتجر</button><div id="stlog" class="small"></div>`:'<div class="note">✔ المتجر مطابق للبرنامج، ما في شي ينشر.</div>'}`}
+async function storePublish(btn){const pl=S.stPlan,pwI=$('#st-pw'),log=$('#stlog');if(!pl||!pwI||!log)return;const pw=pwI.value;if(!pw){toast('اكتب كلمة السر');pwI.focus();return}
+  const L=m=>{log.innerHTML+=m+'<br>'};log.innerHTML='';btn.disabled=true;
+  try{L('⏳ التحقق من كلمة السر…');const t=await (await fetch(stURL('admin.cfg.enc')+'?'+Date.now(),{cache:'no-store'})).text();const j=JSON.parse(t);
+    const ubx=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+    const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:ubx(j.s),iterations:250000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+    let G;try{G=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ubx(j.i)},key,ubx(j.d))))}catch(e){throw new Error('كلمة السر غلط')}
+    pwI.value='';const U=p=>'https://api.github.com/repos/'+G.owner+'/'+G.repo+'/contents/'+p,H={Authorization:'Bearer '+G.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+    const sha=async p=>{const r=await fetch(U(p)+'?ref='+encodeURIComponent(G.branch),{headers:H,cache:'no-store'});if(r.status===404)return null;if(!r.ok)throw new Error('GitHub '+r.status);return (await r.json()).sha};
+    const b64u=s=>{const u=new TextEncoder().encode(s);let o='';for(let i=0;i<u.length;i+=32768)o+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(o)};
+    const wr=async(p,text,msg)=>{const body={message:msg,content:b64u(text),branch:G.branch},sh=await sha(p);if(sh)body.sha=sh;const r=await fetch(U(p),{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('GitHub '+r.status+' '+(await r.text()).slice(0,120))};
+    const msg='تحديث المتجر من برنامج المحاسبة '+new Date().toLocaleString('en-GB');
+    if(pl.ims.length!==(pl.ims0||0)){L('⏳ رفع الصور…');await wr('imgs.json',JSON.stringify(pl.ims),msg);L('✔ الصور')}
+    L('⏳ رفع المواد والأسعار…');await wr('site.json',JSON.stringify(pl.sj),msg);L('✔ المواد والأسعار');
+    audit('store-pub','تحديث المتجر الإلكتروني',{a:pl.out.upd,n:pl.out.add.length+' جديدة، '+pl.out.hide.length+' مخفية'});
+    L('<b>🎉 انتشر التحديث. بيبين على المتجر خلال دقائق.</b>');S.stPlan=null}
+  catch(e){console.error(e);L('<span style="color:var(--debt)">❌ '+esc(e.message==='Failed to fetch'?'ما في اتصال بـ GitHub، جرّب مرة تانية':e.message)+'</span>');btn.disabled=false}}
 function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getElementById('bltzoom');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='bltzoom';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','معاينة صفحة');
   ov.style.cssText='position:fixed;inset:0;z-index:9999;background:#000e;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)';
@@ -3115,6 +3158,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-img-share'){b.disabled=true;imgShareAll(false).finally(()=>{b.disabled=false});return}
   if(a==='f-img-seq'){const n=b.closest('.note');if(n)n.remove();imgShareAll(true);return}
   if(a==='f-img-next'){imgSeqNext();return}
+  if(a==='f-st-open'){storeSheet();return}
+  if(a==='f-st-pub'){storePublish(b);return}
   if(a==='f-bulk-open'){bulkSheet();return}
   if(a==='f-bulk-t'){const B=S.bulk;if(!B)return;const o=prepPending().find(x=>x.id===D.id);if(!o)return;const k=bulkCheck(o);if(!k.ok){toast('⚠️ '+k.why+'. صلّحها واعتمدها لحالها');return}B.sel.has(D.id)?B.sel.delete(D.id):B.sel.add(D.id);B.armed=false;const st=$('#sheet').scrollTop;bulkRender();$('#sheet').scrollTop=st;return}
   if(a==='f-bulk-sel'){const B=S.bulk;if(!B)return;const L=prepPending().filter(o=>bulkCheck(o).ok),T=today();B.sel=new Set(D.v==='all'?L.map(o=>o.id):D.v==='today'?L.filter(o=>o.due&&o.due<=T).map(o=>o.id):[]);B.armed=false;bulkRender();if(D.v==='today'&&!B.sel.size)toast('ما في مسودات جاهزة تسليمها اليوم أو متأخرة');return}
@@ -3515,7 +3560,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-2051';
+const BUILD='20261123-2110';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
