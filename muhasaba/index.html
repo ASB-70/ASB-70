@@ -1112,7 +1112,7 @@ function renderStock(){
   const el=$('#slist'),q=S.stockF.q.trim(),ql=q.toLowerCase(),f=S.stockF.f;if(S.stockF.wh!=='all'&&!S.wh.some(w=>w.id===S.stockF.wh))S.stockF.wh='all';const wid=S.stockF.wh;
   const np=Object.keys(S.products).length,top=`<div class="sechead" style="margin-bottom:6px"><h2>المستودعات</h2><button class="btn sm primary" type="button" data-act="wh-open">＋ إضافة مستودع</button></div>
    <div class="seg" style="margin-bottom:10px" role="group" aria-label="المستودع"><button type="button" data-wh="all" aria-pressed="${wid==='all'}">الكل</button>${S.wh.map(w=>`<button type="button" data-wh="${esc(w.id)}" aria-pressed="${wid===w.id}">${esc(w.name)}</button>`).join('')}</div>
-   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px"><button class="btn sm" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn sm" type="button" data-act="imp-open">استيراد إكسل</button><button class="btn sm" type="button" data-act="count-open" ${np?'':'disabled'}>جرد مستودع</button></div>
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px"><button class="btn sm" type="button" data-act="prod-new">＋ مادة جديدة</button><button class="btn sm" type="button" data-act="imp-open">استيراد إكسل</button><button class="btn sm" type="button" data-act="f-blt-open">📄 نشرة أسعار PDF</button><button class="btn sm" type="button" data-act="count-open" ${np?'':'disabled'}>جرد مستودع</button></div>
    <button class="btn sm ${S.sel?'primary':''}" type="button" data-act="sel-mode" style="width:100%;margin-bottom:10px" ${np?'':'disabled'}>${S.sel?'إلغاء وضع التحديد':'☑ تحديد وحذف مواد'}</button>
    <button class="btn sm" type="button" data-act="bulk-price" style="width:100%;margin-bottom:10px" ${np?'':'disabled'}>💲 تسعير كل المواد بنسبة ربح على التكلفة</button>`;
   const fa=stockAlerts();
@@ -1154,6 +1154,79 @@ async function itemXlsx(){const F=S.itf;if(!F||!F.L)return;try{await loadXLSX()}
   const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:12},{wch:10},{wch:28},{wch:8},{wch:8},{wch:10},{wch:12},{wch:10},{wch:10}];const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'حركة المادة');wb.Workbook={Views:[{RTL:true}]};
   const blob=new Blob([X.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   try{await S.dl.save({filename:fileName('Item '+F.code+' '+today(),'xlsx'),data:blob});toast('نُزّل ملف حركة المادة')}catch(er){if(er&&er.code!=='declined')toast('تعذّر التنزيل')}}
+/* ===== price bulletins (PDF): customers (half-wholesale price) and sales staff (all prices, stock, minimum price) ===== */
+function pagesPDF(pages){const enc=new TextEncoder(),parts=[],offs=[];let len=0;
+  const push=d=>{const u=typeof d==='string'?enc.encode(d):d;parts.push(u);len+=u.length};const obj=(n,body)=>{offs[n]=len;push(n+' 0 obj\n');body();push('\nendobj\n')};
+  push('%PDF-1.4\n');const N=pages.length;obj(1,()=>push('<</Type/Catalog/Pages 2 0 R>>'));obj(2,()=>push('<</Type/Pages/Count '+N+'/Kids['+pages.map((_,i)=>(3+i*3)+' 0 R').join(' ')+']>>'));
+  pages.forEach((cv,i)=>{const W=cv.width,h=cv.height,bin=atob(cv.toDataURL('image/jpeg',0.86).split(',')[1]),jpg=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)jpg[k]=bin.charCodeAt(k);
+    const p=3+i*3,hh=Math.min(841.89,h*595.28/W),cs='q 595.28 0 0 '+hh.toFixed(2)+' 0 '+(841.89-hh).toFixed(2)+' cm /Im0 Do Q';
+    obj(p,()=>push('<</Type/Page/Parent 2 0 R/MediaBox[0 0 595.28 841.89]/Resources<</XObject<</Im0 '+(p+2)+' 0 R>>>>/Contents '+(p+1)+' 0 R>>'));
+    obj(p+1,()=>push('<</Length '+cs.length+'>>\nstream\n'+cs+'\nendstream'));
+    obj(p+2,()=>{push('<</Type/XObject/Subtype/Image/Width '+W+'/Height '+h+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+jpg.length+'>>\nstream\n');push(jpg);push('\nendstream')})});
+  const xo=len,cnt=3+N*3;push('xref\n0 '+cnt+'\n0000000000 65535 f \n');for(let n=1;n<cnt;n++)push(String(offs[n]).padStart(10,'0')+' 00000 n \n');
+  push('trailer\n<</Size '+cnt+'/Root 1 0 R>>\nstartxref\n'+xo+'\n%%EOF');return new Blob(parts,{type:'application/pdf'})}
+const blAvail=k=>r2(wq(k,'all')-resvAll(k,'all'));
+const blMin=(k,m)=>{const c=nv((S.stock[k]||{}).cost);return c>0?Math.ceil(c*(1+m/100)*20)/20:0};
+async function drawBulletin(o){try{await Promise.race([Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"')]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
+  try{await Promise.race([loadImgs(),new Promise(r=>setTimeout(r,6000))])}catch(e){}
+  const ST=o.kind==='staff',codes=Object.keys(S.products).filter(k=>{const p=S.products[k];if(!(effP(p,'price')||effP(p,'pt')||effP(p,'p2')))return false;if(o.hideOut&&blAvail(k)<=0)return false;return true})
+    .sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
+  const W=1080,H=1527,P=36,RH=o.imgs?92:58,first=ST?190:300,head=86,foot=64,DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif',BF='"IBM Plex Sans Arabic",Tahoma,sans-serif';
+  const pics={};if(o.imgs)await Promise.all(codes.map(k=>S.img[k]?new Promise(r=>{const im=new Image();im.onload=()=>{pics[k]=im;r()};im.onerror=r;im.src=S.img[k]}):0));
+  const pages=[];let i=0,pn=0;const per=y0=>Math.floor((H-foot-y0-56)/RH),total=(()=>{let n=0,j=0;while(j<codes.length||n===0){j+=per(n?head:first);n++}return n})();
+  // columns (right to left)
+  const cols=ST?[['#',46],['',o.imgs?96:0],['الكود',112],['المادة',o.imgs?272:368],['المتاح',96],['جملة الجملة',110],['نصف جملة',110],['مفرق',96],['أقل سعر',100]]
+               :[['#',56],['',o.imgs?96:0],['الكود',130],['المادة',o.imgs?418:514],['الطرد',140],['السعر',168]];
+  while(i<codes.length||pn===0){const cv=document.createElement('canvas'),K=1.6;cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);
+    const ar=(t,px,py,f,c)=>{x.direction='rtl';x.textAlign='right';x.font=f;x.fillStyle=c;x.fillText(t,px,py)},nu=(t,px,py,f,c,al)=>{x.direction='ltr';x.textAlign=al||'right';x.font=f;x.fillStyle=c;x.fillText(t,px,py)};
+    const fit=(t,max,f)=>{t=String(t||'');x.font=f;if(x.measureText(t).width<=max)return t;while(t.length>1&&x.measureText(t+'…').width>max)t=t.slice(0,-1);return t+'…'};
+    x.fillStyle='#FFFFFF';x.fillRect(0,0,W,H);let y;
+    if(pn===0){x.fillStyle='#13265C';x.fillRect(0,0,W,first-20);const lg=drawLogo(x,P,22,ST?130:170);
+      ar(fit(S.settings.company,W-2*P-230,'600 34px '+DF),W-P,70,'600 34px '+DF,'#F3F6FF');
+      ar(ST?'نشرة أسعار البيع · للموظفين فقط':'نشرة الأسعار',W-P,ST?124:132,'700 '+(ST?32:44)+'px '+DF,ST?'#FFD27A':'#FFFFFF');
+      ar('بتاريخ '+dmy(today())+' · '+codes.length+' مادة · الأسعار بالدولار',W-P,ST?160:182,'400 24px '+BF,'#AEBBE0');
+      if(!ST){const ph=(o.phone||'').trim(),ad=(o.addr||'').trim();if(ph){ar('📞 واتساب:',W-P,226,'500 24px '+BF,'#FFFFFF');x.font='500 24px '+BF;const lw=x.measureText('📞 واتساب: ').width;nu(ph,W-P-lw-6,226,'600 24px '+DF,'#FFFFFF')}if(ad)ar(fit('📍 '+ad,W-2*P-260,'400 22px '+BF),W-P,262,'400 22px '+BF,'#AEBBE0');
+        if(SHAM.img.complete&&SHAM.img.naturalWidth){x.fillStyle='#FFFFFF';x.fillRect(P+(lg?190:0),40,170,170);x.imageSmoothingEnabled=false;x.drawImage(SHAM.img,P+(lg?195:5),45,160,160);x.imageSmoothingEnabled=true;x.direction='rtl';x.textAlign='center';x.font='600 18px '+BF;x.fillStyle='#FFFFFF';x.fillText('ادفع عبر شام كاش',P+(lg?190:0)+85,236)}}
+      y=first}
+    else{x.fillStyle='#13265C';x.fillRect(0,0,W,head-20);ar(fit(S.settings.company,W-2*P-300,'600 26px '+DF),W-P,44,'600 26px '+DF,'#F3F6FF');nu(ST?'للموظفين فقط':dmy(today()),P,44,'500 22px '+DF,ST?'#FFD27A':'#AEBBE0','left');y=head}
+    x.fillStyle='#E3E8F1';x.fillRect(0,y,W,52);let cx=W-P;const xs=cols.map(([,w])=>{const v=cx;cx-=w;return v});
+    cols.forEach(([l,w],j)=>{if(l==='#'){x.direction='ltr';x.textAlign='center';x.font='600 '+(ST?18:21)+'px '+BF;x.fillStyle='#101B33';x.fillText('#',xs[j]-w/2,y+34)}else if(l&&w)ar(fit(l,w-10,'600 '+(ST?18:21)+'px '+BF),xs[j]-6,y+34,'600 '+(ST?18:21)+'px '+BF,'#101B33')});y+=52;
+    const n=per(pn===0?first:head);
+    for(let r=0;r<n&&i<codes.length;r++,i++){const k=codes[i],p=S.products[k],ty=y+RH/2+9;if(r%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH)}nu(String(i+1),xs[0]-cols[0][1]/2,ty,'500 '+(ST?18:20)+'px '+DF,'#8A94AE','center');
+      if(o.imgs&&pics[k]){const im=pics[k],sz=Math.min(im.naturalWidth,im.naturalHeight);x.drawImage(im,(im.naturalWidth-sz)/2,(im.naturalHeight-sz)/2,sz,sz,xs[1]-86,y+6,RH-12,RH-12)}
+      nu(fit(k,cols[2][1]-14,'600 22px '+DF),xs[2]-6,ty,'600 22px '+DF,'#5A6684');ar(fit(p.name||'',cols[3][1]-14,'500 23px '+BF),xs[3]-6,ty,'500 23px '+BF,'#101B33');
+      if(ST){const av=blAvail(k);nu(f1(av),xs[4]-10,ty,'700 22px '+DF,av>0?'#0B7447':'#B3261E');
+        [['p2',5],['price',6],['pt',7]].forEach(([t,j])=>{const v=effP(p,t);nu(v>0?pr(v):'—',xs[j]-8,ty,(t==='price'?'700':'500')+' 22px '+DF,'#101B33')});
+        const mn=blMin(k,o.margin);nu(mn>0?pr(mn):'—',xs[8]-8,ty,'700 22px '+DF,'#B3261E')}
+      else{ar(nv(p.pack)>0?f1(nv(p.pack))+' '+(p.unit||'قطعة'):(p.unit||''),xs[4]-6,ty,'400 21px '+BF,'#5A6684');nu(pr(effP(p,'price')||effP(p,'pt')||effP(p,'p2')),xs[5]-10,ty,'700 26px '+DF,'#13265C')}
+      x.strokeStyle='#E3E8F1';x.lineWidth=1;x.beginPath();x.moveTo(P,y+RH);x.lineTo(W-P,y+RH);x.stroke();y+=RH}
+    pn++;x.fillStyle='#13265C';x.fillRect(0,H-foot+14,W,2);
+    ar(ST?'⚠️ للاستعمال الداخلي، لا ترسلها للزبائن. «أقل سعر» = لا تبيع تحته.':'الأسعار قابلة للتغيير · '+S.settings.company,W-P,H-22,'400 19px '+BF,'#5A6684');nu(pn+' / '+total,P,H-22,'500 19px '+DF,'#5A6684','left');
+    pages.push(cv);if(!codes.length)break}
+  return{pages,n:codes.length}}
+function bulletinSheet(){const B=S.blt=S.blt||{kind:'cust',hideOut:true,imgs:true,margin:nv(S.settings.blMargin)||10,phone:S.settings.blPhone||'0945 215 551',addr:S.settings.blAddr||'حلب – جامع الكبير – سوق السويقة'};
+  const sg=(k,v,l)=>`<button type="button" data-act="f-blt" data-k="${k}" data-v="${v}" aria-pressed="${String(B[k])===String(v)}">${l}</button>`;
+  openSheet(`<h2>📄 نشرة أسعار PDF</h2>
+   <div class="seg">${sg('kind','cust','👥 للزبائن')}${sg('kind','staff','🧑‍💼 للموظفين')}</div>
+   <span class="small muted">${B.kind==='staff'?'فيها الأسعار الثلاثة، والكمية المتاحة بالمخزون، وأقل سعر مسموح البيع فيه. ما فيها التكلفة.':'فيها سعر نصف الجملة بس، مع شعار الشركة ورقم الواتساب ورمز شام كاش.'}</span>
+   <div class="seg">${sg('hideOut','true','إخفاء المواد الخالصة')}${sg('hideOut','false','كل المواد')}</div>
+   <div class="seg">${sg('imgs','true','مع الصور')}${sg('imgs','false','بدون صور (ملف أخف)')}</div>
+   ${B.kind==='staff'?`<div class="field"><label for="bl-m">أقل سعر = التكلفة + هامش ربح %</label><input id="bl-m" type="number" min="0" step="1" inputmode="numeric" value="${esc(B.margin)}"><span class="small muted">مثال: 10% يعني ما حدا بيبيع بأقل من التكلفة وزيادة 10%.</span></div>`
+     :`<div class="field"><label for="bl-ph">رقم الواتساب على النشرة</label><input id="bl-ph" dir="ltr" value="${esc(B.phone)}"></div><div class="field"><label for="bl-ad">العنوان</label><input id="bl-ad" value="${esc(B.addr)}"></div>`}
+   <button class="btn primary" type="button" data-act="f-blt-go">📄 تجهيز النشرة</button><div id="bltbox"></div>
+   <button class="btn" type="button" data-act="close">إغلاق</button>`)}
+async function bulletinGo(){const B=S.blt,box=$('#bltbox');if(!B||!box)return;const m=$('#bl-m'),ph=$('#bl-ph'),ad=$('#bl-ad');if(m)B.margin=nv(m.value);if(ph)B.phone=ph.value;if(ad)B.addr=ad.value;
+  box.innerHTML='<div class="empty">جارٍ تجهيز النشرة…</div>';
+  try{const st={...S.settings,blMargin:B.margin,blPhone:B.phone,blAddr:B.addr};if(st.blMargin!==S.settings.blMargin||st.blPhone!==S.settings.blPhone||st.blAddr!==S.settings.blAddr){S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}}catch(e){}
+  try{const R=await drawBulletin(B);const pdf=pagesPDF(R.pages);S.bltPdf=pdf;S.bltName=(B.kind==='staff'?'Sales Staff Prices ':'Price List ')+today();
+    box.innerHTML=`<div class="note">✔ النشرة جاهزة: ${R.n} مادة على ${R.pages.length} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا).</div><img src="${R.pages[0].toDataURL('image/jpeg',0.7)}" alt="أول صفحة" style="width:100%;border:1px solid var(--line);border-radius:8px">
+     <div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div>`}
+  catch(e){console.error(e);box.innerHTML='<div class="note">تعذّر تجهيز النشرة. جرّب «بدون صور».</div>'}}
+async function bulletinOut(share){const pdf=S.bltPdf;if(!pdf)return;const nm=fileName(S.bltName,'pdf');
+  if(share&&window.Android&&typeof window.Android.share==='function'){const r=new FileReader();r.onload=()=>{try{window.Android.share(S.bltName,'',nm,'application/pdf',String(r.result).split(',')[1])}catch(e){toast('تعذّر الإرسال')}};r.readAsDataURL(pdf);return}
+  if(share){const f=new File([pdf],nm,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:S.bltName});return}catch(e){if(e&&e.name==='AbortError')return}}}
+  if(window.Android&&typeof window.Android.saveFile==='function'){const r=new FileReader();r.onload=()=>{try{window.Android.saveFile(nm,'application/pdf',String(r.result).split(',')[1]);toast('انحفظ الملف')}catch(e){toast('تعذّر الحفظ')}};r.readAsDataURL(pdf);return}
+  if(S.dl){try{await S.dl.save({filename:nm,data:pdf});toast(share?'انحفظ الملف، أرفقه بالواتساب':'انحفظ الملف')}catch(e){if(e&&e.code!=='declined')toast('تعذّر الحفظ')}}}
 function prodSheet(code){
   const p=S.products[code];if(!p)return;const s=S.stock[code]||{},q=nv(s.q),c=nv(s.cost),logs=S.slog.filter(l=>l.code===code).slice(0,6),KL={in:'إدخال بضاعة',set:'تصحيح كمية',count:'جرد',cost:'تعديل تكلفة',move:'نقل بين مستودعين',pur:'فاتورة شراء',purv:'إلغاء فاتورة شراء',ret:'مرتجع من زبون'};
   const w0=S.pw&&S.wh.some(w=>w.id===S.pw)?S.pw:(S.stockF.wh!=='all'?S.stockF.wh:'main'),m=S.pmode;
@@ -2814,6 +2887,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-fixed-del'){if(S.armed!=='fxd'){S.armed='fxd';b.textContent='اكبس للتأكيد';return}fguard(async()=>{await finSave({fixed:fixedList().filter(x=>x.id!==D.id)});S.armed=null;fixedSheet();finPaint()});return}
   if(a==='f-fixed-pay'){fixedPay(D.id);return}
   if(a==='f-aging'){agingLoad();return}
+  if(a==='f-blt-open'){bulletinSheet();return}
+  if(a==='f-blt'){const B=S.blt;if(!B)return;const m=$('#bl-m'),ph=$('#bl-ph'),ad=$('#bl-ad');if(m)B.margin=nv(m.value);if(ph)B.phone=ph.value;if(ad)B.addr=ad.value;B[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;if(D.k==='kind')B.hideOut=D.v==='cust';bulletinSheet();return}
+  if(a==='f-blt-go'){b.disabled=true;bulletinGo().finally(()=>{b.disabled=false});return}
+  if(a==='f-blt-share'){bulletinOut(true);return}
+  if(a==='f-blt-save'){bulletinOut(false);return}
   if(a==='f-rank'){rankLoad();return}
   if(a==='f-rank-all'){S.F.rankAll=!S.F.rankAll;refresh();return}
   if(a==='f-stale'){staleSheet();return}
@@ -3197,7 +3275,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-0924';
+const BUILD='20261123-1225';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
