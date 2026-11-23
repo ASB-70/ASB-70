@@ -1178,7 +1178,7 @@ async function drawBulletin(o){try{await Promise.race([Promise.all([document.fon
   const bpx=k=>{const p=S.products[k];return effP(p,'price')||effP(p,'pt')||0};let rows=codes.map(k=>({k}));
   if((o.sort||'type')==='type'){const G={};for(const k of codes){const g=grpKey(S.products[k].name);(G[g]=G[g]||[]).push(k)}
     const lab=g=>{if(GRP_LBL[g])return GRP_LBL[g];const c={};for(const k of G[g]){const w=String(S.products[k].name||'').trim().split(/\s+/)[0].replace(/^ال(?=..)/,'');c[w]=(c[w]||0)+1}return Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]};
-    const byP=(a,b)=>bpx(a)-bpx(b)||a.localeCompare(b,'en',{numeric:true}),big=[],misc=[];
+    const byP=(a,b)=>a.localeCompare(b,'en',{numeric:true,sensitivity:'base'}),big=[],misc=[];
     for(const g in G){if(G[g].length>=2)big.push({l:lab(g),ks:G[g].sort(byP)});else misc.push(G[g][0])}
     big.sort((a,b)=>a.l.localeCompare(b.l,'ar'));if(misc.length)big.push({l:'متفرقات',ks:misc.sort(byP),m:1});
     codes.length=0;rows=[];for(const g of big){rows.push({g:g.l,n:g.ks.length,m:g.m});for(const k of g.ks){codes.push(k);rows.push({k})}}}
@@ -3314,7 +3314,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1554';
+const BUILD='20261123-1606';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
