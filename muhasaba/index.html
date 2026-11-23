@@ -958,7 +958,7 @@ async function saveInvoice(){
   const items=d.items.filter(it=>(it.name||'').trim()||(it.code||'').trim()).map(it=>({code:ck(it),name:(it.name||'').trim(),pack:nv(it.pack),qty:nv(it.qty),unit:(it.unit||'').trim(),price:nv(it.price),cost:nv(it.cost)>0?nv(it.cost):nv((S.stock[(it.code||'').trim()]||{}).cost)}));
   if(!items.length){toast('أضف مادة واحدة على الأقل');return}
   if(dupBlock(d,items))return;
-  if(items.some(it=>!(it.qty>0))){toast('أدخل الكمية لكل مادة');return}
+  if(items.some(it=>!(it.qty>0))){qtyBlock(d);return}
   if(c.walkin&&!PAID.includes(d.pay)&&!(d.wname||'').trim()){toast('بيع آجل لزبون غير معروف: اكتب اسم الزبون حتى تعرف مين لازم يدفع');const e=$('#in-wname');if(e)e.focus();return}
   if(stockBlock(d,items))return;
   const total=invTotal({items,disc:d.disc});if(!(total>0)){toast('أدخل أسعار المواد');return}
@@ -1297,6 +1297,78 @@ async function bulletinGo(){const B=S.blt,box=$('#bltbox');if(!B||!box)return;co
      ${urls.map((u,i)=>`<div style="display:flex;flex-direction:column;gap:6px"><span class="small" style="display:flex;justify-content:space-between;align-items:center"><b>صفحة ${i+1} من ${N}</b>${i===0?'<span class="muted">الغلاف</span>':''}</span><button type="button" data-act="f-blt-zoom" data-i="${i}" aria-label="تكبير صفحة ${i+1}" style="all:unset;cursor:zoom-in;display:block"><img src="${u}" alt="صفحة ${i+1}" loading="lazy" width="1080" height="1527" style="width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 2px 10px #0005;background:#fff"></button></div>`).join('')}
      </div>${N>1?btns:''}`}
   catch(e){console.error(e);box.innerHTML='<div class="note">تعذّر تجهيز النشرة. جرّب «بدون صور».</div>'}}
+/* ---------- bulk preparation pack: pick list + one page per draft order (no prices) ---------- */
+function pvShow(box,pages,pdf,o){(S.bltUrls||[]).forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});const N=pages.length;S.bltPdf=pdf;S.bltName=o.name;
+  return Promise.all(pages.map(cv=>new Promise(r=>{try{cv.toBlob(bl=>r(bl?URL.createObjectURL(bl):cv.toDataURL('image/jpeg',0.7)),'image/jpeg',0.7)}catch(e){r(cv.toDataURL('image/jpeg',0.7))}}))).then(urls=>{S.bltUrls=urls;
+    const btns=`<div class="grid2"><button class="btn wa" type="button" data-act="f-blt-share">📤 إرسال (واتساب…)</button><button class="btn primary" type="button" data-act="f-blt-save">💾 حفظ PDF</button></div>`;
+    box.innerHTML=`<div class="note">✔ ${o.label} على ${N} صفحة (${(pdf.size/1048576).toFixed(1)} ميغا)${o.lock?' · 🔒 محمية':' · 🔓 بدون حماية'}.</div>${o.warn||''}${btns}
+     <span class="small muted" style="text-align:center">⬇️ انزل لتشوف كل الصفحات · اكبس على أي صفحة لتكبر</span>
+     <div id="bltpv" style="max-height:70vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:10px;background:var(--sunk,#0003);border:1px solid var(--line);border-radius:12px;overscroll-behavior:contain">
+     ${urls.map((u,i)=>`<div style="display:flex;flex-direction:column;gap:6px"><span class="small" style="display:flex;justify-content:space-between;align-items:center"><b>صفحة ${i+1} من ${N}</b>${o.tags&&o.tags[i]?`<span class="muted">${esc(o.tags[i])}</span>`:''}</span><button type="button" data-act="f-blt-zoom" data-i="${i}" aria-label="تكبير صفحة ${i+1}" style="all:unset;cursor:zoom-in;display:block"><img src="${u}" alt="صفحة ${i+1}" loading="lazy" width="1080" height="1527" style="width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 2px 10px #0005;background:#fff"></button></div>`).join('')}
+     </div>${N>1?btns:''}`})}
+const prepPending=()=>(S.orders||[]).filter(o=>o.st!=='d'&&!o.invNo).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')||String(a.at).localeCompare(String(b.at)));
+function prepSheet(){const L=prepPending();const P=S.prep=S.prep&&S.prep.v===L.length?S.prep:{v:L.length,sel:new Set(L.map(o=>o.id)),lock:S.settings.blLock!==false,wm:S.settings.blWm!==false};prepRender()}
+function prepRender(){const P=S.prep,L=prepPending(),T=today();if(!P)return;
+  const sg=(k,v,l)=>`<button type="button" data-act="f-prep-k" data-k="${k}" data-v="${v}" aria-pressed="${String(P[k])===String(v)}">${l}</button>`;
+  const dueTx=o=>{if(!o.due)return'';const n=ddiff(o.due,T);return n<0?`<span class="chip c-due">متأخر ${-n} يوم</span>`:n===0?'<span class="chip c-due">التسليم اليوم</span>':`<span class="chip c-zero">بعد ${n} يوم</span>`};
+  openSheet(`<h2>📦 إرسال المسودات للتجهيز</h2>
+   <span class="small muted">بيطلع ملف واحد: أول شي «قائمة التجميع» لكل المواد مجموعة، وبعدها كل طلب بصفحته، بلا أسعار، مع مربع ☐ جنب كل مادة.</span>
+   ${L.length?`<div class="grid3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><button class="btn sm" type="button" data-act="f-prep-sel" data-v="all">الكل (${L.length})</button><button class="btn sm" type="button" data-act="f-prep-sel" data-v="today">اليوم والمتأخر</button><button class="btn sm" type="button" data-act="f-prep-sel" data-v="none">ولا شي</button></div>
+   <div class="list">${L.map(o=>{const on=P.sel.has(o.id),it=((o.draft&&o.draft.items)||[]).filter(x=>(x.name||'').trim()||(x.code||'').trim()),zq=zeroQtyItems(it).length;return `<button class="row" type="button" data-act="f-prep-t" data-id="${esc(o.id)}" aria-pressed="${on}"><span class="selbox${on?' on':''}" aria-hidden="true">${on?'✓':''}</span><span class="who"><b>${esc(o.cname||'')}</b><small><span class="num">#${esc(o.no||'—')}</span><span>${it.length} مادة</span>${o.draft&&o.draft.dest?`<span>${esc(o.draft.dest)}</span>`:''}${dueTx(o)}${zq?`<span class="chip c-due">⚠️ ${zq} بلا كمية</span>`:''}</small></span></button>`}).join('')}</div>
+   <div class="field"><label>الحماية</label><div class="seg">${sg('lock','true','🔒 حماية الملف')}${sg('lock','false','🔓 بدون حماية')}</div><div class="seg">${sg('wm','true','💧 علامة مائية')}${sg('wm','false','بدون علامة')}</div></div>
+   <button class="btn primary" type="button" data-act="f-prep-go" ${P.sel.size?'':'disabled'}>📦 تجهيز الملف (عدد الطلبات ${P.sel.size})</button><div id="prepbox"></div>`:'<div class="empty">ما في مسودات بالانتظار.</div>'}
+   <button class="btn" type="button" data-act="close">إغلاق</button>`)}
+async function drawPrep(orders,o){try{await Promise.race([Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"')]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
+  const W=1080,H=1527,P=40,K=1.6,foot=60,DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif',BF='"IBM Plex Sans Arabic",Tahoma,sans-serif',pages=[],tags=[],T=today();let x,cv,y;
+  const ar=(t,px,py,f,c)=>{x.direction='rtl';x.textAlign='right';x.font=f;x.fillStyle=c;x.fillText(t,px,py)},nu=(t,px,py,f,c,al)=>{x.direction='ltr';x.textAlign=al||'right';x.font=f;x.fillStyle=c;x.fillText(t,px,py)};
+  const fit=(t,max,f)=>{t=String(t||'');x.font=f;if(x.measureText(t).width<=max)return t;while(t.length>1&&x.measureText(t+'…').width>max)t=t.slice(0,-1);return t+'…'};
+  const wrapL=(t,max,f)=>{x.font=f;const L=[''];for(const z of String(t||'').replace(/\s+/g,' ').trim().split(' ')){const c=L[L.length-1]?L[L.length-1]+' '+z:z;if(x.measureText(c).width<=max||!L[L.length-1])L[L.length-1]=c;else L.push(z)}return L};
+  const nameAt=(t,max,px,ry,rh,big)=>{const C='#101B33';for(const sz of big?[24,22]:[22,20]){const f='500 '+sz+'px '+BF;x.font=f;if(x.measureText(t).width<=max){ar(t,px,ry+rh/2+sz*0.36,f,C);return}}
+    for(const sz of [20,18,16]){const f='500 '+sz+'px '+BF,lh=Math.round(sz*1.22),L=wrapL(t,max,f);if(L.length<=2&&L.every(l=>{x.font=f;return x.measureText(l).width<=max})){const y0=ry+rh/2-lh/2+sz*0.36;L.forEach((l,j)=>ar(l,px,y0+j*lh,f,C));return}}
+    const f='500 16px '+BF,L=wrapL(t,max,f),y0=ry+rh/2-10+6;ar(fit(L[0],max,f),px,y0,f,C);ar(fit(L.slice(1).join(' '),max,f),px,y0+20,f,C)};
+  const box=(px,ry,sz)=>{x.strokeStyle='#5A6684';x.lineWidth=2;x.strokeRect(px,ry,sz,sz)};
+  const newPage=(title,sub,tag)=>{cv=document.createElement('canvas');cv.width=W*K;cv.height=H*K;x=cv.getContext('2d');x.scale(K,K);x.fillStyle='#FFFFFF';x.fillRect(0,0,W,H);
+    x.fillStyle='#13265C';x.fillRect(0,0,W,118);const lg=drawLogo(x,P,14,90);ar(fit(title,W-2*P-(lg?120:0),'700 32px '+DF),W-P,54,'700 32px '+DF,'#FFFFFF');ar(fit(sub,W-2*P-(lg?120:0),'400 21px '+BF),W-P,94,'400 21px '+BF,'#AEBBE0');
+    pages.push(cv);tags.push(tag||'');y=138};
+  const cols=(defs)=>{let cx=W-P;return defs.map(([l,w])=>{const v=cx;cx-=w;return[l,w,v]})};
+  const thead=C=>{x.fillStyle='#E3E8F1';x.fillRect(0,y,W,46);C.forEach(([l,w,v])=>{if(!l)return;if(l==='☐'){box(v-w/2-10,y+13,20);return}ar(fit(l,w-10,'600 19px '+BF),v-6,y+30,'600 19px '+BF,'#101B33')});y+=46};
+  const room=()=>H-foot-y;
+  // ---- 1) pick list
+  const agg={},ord=new Map();for(const od of orders){const its=((od.draft&&od.draft.items)||[]).filter(z=>(z.name||'').trim()||(z.code||'').trim());ord.set(od.id,its);
+    for(const it of its){const k=codeOf(it)||('~'+nrm(it.name||''));const a=agg[k]||(agg[k]={k,code:codeOf(it)||(it.code||'').trim(),name:(it.name||'').trim()||((S.products[codeOf(it)]||{}).name)||'',unit:it.unit||(S.products[codeOf(it)]||{}).unit||'',pack:nv(it.pack)||nv((S.products[codeOf(it)]||{}).pack),q:0,from:[]});a.q+=nv(it.qty);a.from.push('#'+(od.no||'—')+' ('+f1(nv(it.qty))+')')}}
+  const A=Object.values(agg).sort((a,b)=>String(a.code||'~').localeCompare(String(b.code||'~'),'en',{numeric:true})||a.name.localeCompare(b.name,'ar'));
+  const PC=cols([['☐',56],['الكود',120],['المادة',420],['المجموع',130],['الوحدة',90],['الطرود',94],['بالمخزون',90]]),RH1=70;
+  const pickHead=(cont)=>{newPage('📋 قائمة التجميع'+(cont?' (تابع)':''),`عدد الطلبات ${orders.length} · ${A.length} مادة · ${dmy(T)} · للتجهيز، بلا أسعار`,'قائمة التجميع');thead(PC)};
+  pickHead(false);A.forEach((a,i)=>{if(room()<RH1)pickHead(true);if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH1)}const ty=y+30;
+    box(PC[0][2]-PC[0][1]/2-12,y+RH1/2-12,24);nu(fit(a.code||'—',PC[1][1]-12,'600 21px '+DF),PC[1][2]-6,ty+4,'600 21px '+DF,'#5A6684');
+    ar(fit(a.name,PC[2][1]-12,'500 22px '+BF),PC[2][2]-6,ty,'500 22px '+BF,'#101B33');ar(fit('من: '+a.from.join(' · '),PC[2][1]-12,'400 16px '+BF),PC[2][2]-6,ty+28,'400 16px '+BF,'#5A6684');
+    const zq=!(a.q>0);nu(zq?'⚠️ 0':f1(a.q),PC[3][2]-10,ty+4,'700 26px '+DF,zq?'#B3261E':'#13265C');ar(fit(a.unit,PC[4][1]-8,'400 20px '+BF),PC[4][2]-6,ty+4,'400 20px '+BF,'#101B33');
+    nu(a.pack>0?f1(a.q/a.pack):'',PC[5][2]-10,ty+4,'500 21px '+DF,'#5A6684');
+    if(a.code&&(S.products[a.code]||S.stock[a.code])){const have=wq(a.code,'all');nu(f1(have),PC[6][2]-10,ty+4,'700 21px '+DF,have>=a.q?'#0B7447':'#B3261E')}
+    x.strokeStyle='#E3E8F1';x.lineWidth=1;x.beginPath();x.moveTo(P,y+RH1);x.lineTo(W-P,y+RH1);x.stroke();y+=RH1});
+  if(room()>50){y+=26;ar('الأخضر = المخزون بيكفي · الأحمر = المخزون ما بيكفي، تأكد قبل التجهيز',W-P,y,'400 18px '+BF,'#5A6684')}
+  // ---- 2) one section per order
+  const OC=cols([['☐',56],['الكود',120],['المادة',430],['التعبئة',90],['الكمية',110],['الوحدة',90],['الطرود',104]]),RH2=62;
+  for(const od of orders){const its=ord.get(od.id)||[],dr=od.draft||{},c=cust(od.cid)||{};
+    const head=(cont)=>{newPage(`طلب #${od.no||'—'} · ${od.cname||c.name||''}`+(cont?' (تابع)':''),[dr.dest&&('📍 '+dr.dest),dr.shipper&&('🚚 '+dr.shipper),(dr.phone||c.phone)&&('📞 '+(dr.phone||c.phone)),od.due&&('التسليم '+dmy(od.due))].filter(Boolean).join('  ·  ')||'مسودة طلب','#'+(od.no||'—')+' '+(od.cname||''));thead(OC)};
+    head(false);its.forEach((it,i)=>{if(room()<RH2)head(true);if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH2)}const ty=y+RH2/2+9,zq=!(nv(it.qty)>0);
+      box(OC[0][2]-OC[0][1]/2-12,y+RH2/2-12,24);nu(fit(codeOf(it)||it.code||'—',OC[1][1]-12,'600 21px '+DF),OC[1][2]-6,ty,'600 21px '+DF,'#5A6684');nameAt(String(it.name||'').trim()||((S.products[codeOf(it)]||{}).name)||'',OC[2][1]-12,OC[2][2]-6,y,RH2,true);
+      nu(nv(it.pack)>0?f1(nv(it.pack)):'',OC[3][2]-10,ty,'500 21px '+DF,'#5A6684');nu(zq?'⚠️ 0':f1(nv(it.qty)),OC[4][2]-10,ty,'700 26px '+DF,zq?'#B3261E':'#13265C');ar(fit(it.unit||'',OC[5][1]-8,'400 20px '+BF),OC[5][2]-6,ty,'400 20px '+BF,'#101B33');
+      nu(lineCart(it)?f1(lineCart(it)):'',OC[6][2]-8,ty,'500 20px '+DF,'#5A6684');x.strokeStyle='#E3E8F1';x.lineWidth=1;x.beginPath();x.moveTo(P,y+RH2);x.lineTo(W-P,y+RH2);x.stroke();y+=RH2});
+    if(room()<130)head(true);y+=34;ar(`عدد المواد: ${its.length}   ·   إجمالي الطرود: ${f1(invCart({items:its}))}`,W-P,y,'600 22px '+BF,'#101B33');
+    if(od.note){y+=16;const L=wrapL('📝 '+od.note,W-2*P-24,'400 20px '+BF).slice(0,4);x.fillStyle='#FFF7E0';x.fillRect(P,y,W-2*P,L.length*28+20);L.forEach((l,j)=>ar(l,W-P-12,y+34+j*28,'400 20px '+BF,'#5A4A00'));y+=L.length*28+20}
+    y+=40;ar('جهّزه: ................................     راجعه: ................................',W-P,Math.min(y,H-foot-12),'400 20px '+BF,'#5A6684')}
+  // ---- footers + watermark
+  const N=pages.length;pages.forEach((c2,i)=>{x=c2.getContext('2d');x.setTransform(K,0,0,K,0,0);
+    if(o.wm!==false){x.save();x.globalAlpha=0.06;x.fillStyle='#13265C';x.font='700 40px '+DF;x.direction='rtl';x.textAlign='center';x.translate(W/2,H/2);x.rotate(-Math.PI/6);for(let gy=-H;gy<=H;gy+=230)for(let gx=-W;gx<=W;gx+=520)x.fillText('شركة الثقة · للتجهيز',gx+((gy/230)%2?260:0),gy);x.restore()}
+    x.fillStyle='#13265C';x.fillRect(0,H-foot+10,W,2);ar('للاستعمال الداخلي · '+(S.settings.company||''),W-P,H-20,'400 18px '+BF,'#5A6684');nu((i+1)+' / '+N,P,H-20,'500 18px '+DF,'#5A6684','left')});
+  return{pages,tags,items:A.length}}
+async function prepGo(){const P=S.prep,box=$('#prepbox');if(!P||!box)return;const L=prepPending().filter(o=>P.sel.has(o.id));if(!L.length){toast('اختار طلب واحد على الأقل');return}
+  box.innerHTML='<div class="empty">جارٍ تجهيز الملف…</div>';
+  try{const st={...S.settings,blLock:P.lock!==false,blWm:P.wm!==false};if(st.blLock!==S.settings.blLock||st.blWm!==S.settings.blWm)S.db.doc('settings/main').set(st).then(()=>{S.settings=st}).catch(()=>{})}catch(e){}
+  try{const R=await drawPrep(L,P);const pdf=pagesPDF(R.pages,P.lock!==false);const zq=L.filter(o=>zeroQtyItems((o.draft&&o.draft.items)||[]).length);
+    await pvShow(box,R.pages,pdf,{name:'Preparation '+today()+' ('+L.length+')',label:`ملف التجهيز جاهز: عدد الطلبات ${L.length} · ${R.items} مادة`,lock:P.lock!==false,tags:R.tags,warn:zq.length?`<div class="note" style="background:var(--debt-bg);color:var(--debt);border:2px solid var(--debt)"><b>⚠️ في ${zq.length} طلب فيه مواد بلا كمية:</b> ${zq.map(o=>'#'+esc(o.no||'—')+' '+esc(o.cname||'')).join('، ')}. عدّلهن قبل ما تبعت.</div>`:''})}
+  catch(e){console.error(e);box.innerHTML='<div class="note">تعذّر تجهيز الملف.</div>'}}
 function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getElementById('bltzoom');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='bltzoom';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','معاينة صفحة');
   ov.style.cssText='position:fixed;inset:0;z-index:9999;background:#000e;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)';
@@ -1705,7 +1777,7 @@ function ordHTML(){const all=S.orders||[],pend=all.filter(o=>o.st!=='d').sort((a
   let L=S.ost==='d'?all.filter(o=>o.st==='d').sort((a,b)=>(b.doneAt||'').localeCompare(a.doneAt||'')).slice(0,60):(S.osort==='due'?pend.slice().sort((a,b)=>(a.due||'9').localeCompare(b.due||'9')||(a.at||'').localeCompare(b.at||'')):pend);
   const chip=o=>{if(o.st==='d')return o.invNo?`<span class="chip c-credit">فاتورة رقم ${esc(o.invNo)} · سُلّم ${dmy(o.doneAt||'')}</span>`:`<span class="chip c-due">⚠️ بدون فاتورة · ${dmy(o.doneAt||'')}</span>`;if(!o.due)return'';const n=ddiff(o.due,t);return n<0?`<span class="chip c-due">متأخر ${-n} يوم</span>`:n===0?'<span class="chip c-due">التسليم اليوم</span>':`<span class="chip c-zero">بعد ${n} يوم</span>`};
   return `<div class="trio"><div><span>بالانتظار</span><b class="num">${pend.length}</b></div><div><span>متأخرة</span><b class="num" style="color:var(--debt)">${late}</b></div><div><span>تسليمها اليوم</span><b class="num">${td}</b></div></div>
-   <button class="btn primary" type="button" data-act="ord-new" style="width:100%">＋ طلب جديد في الدفتر</button>
+   <button class="btn primary" type="button" data-act="ord-new" style="width:100%">＋ طلب جديد في الدفتر</button>${pend.length?`<button class="btn wa" type="button" data-act="f-prep-open" style="width:100%">📦 إرسال المسودات للتجهيز (${pend.length})</button>`:''}
    <div class="seg"><button type="button" data-act="ord-st" data-v="w" aria-pressed="${S.ost!=='d'}">بالانتظار (${pend.length})</button><button type="button" data-act="ord-st" data-v="d" aria-pressed="${S.ost==='d'}">مسلّمة</button></div>
    ${S.ost==='d'?'':`<div class="seg"><button type="button" data-act="ord-sort" data-v="turn" aria-pressed="${S.osort!=='due'}">حسب الدور (الأقدم أولاً)</button><button type="button" data-act="ord-sort" data-v="due" aria-pressed="${S.osort==='due'}">حسب موعد التسليم</button></div>`}
    ${L.length?`<div class="list">${L.map(o=>`<button class="row" type="button" data-act="ord-open" data-id="${esc(o.id)}">${o.st==='d'?'':`<span class="chip c-credit num" style="flex:none;min-width:34px;text-align:center">${rank.get(o.id)}</span>`}<span class="who"><b>${numOf(o.no)?`<span class="num">#${esc(o.no)}</span> · `:''}${esc(o.cname)}</b><small><span>طُلب <span class="num">${dmy((o.at||'').slice(0,10))} ${hm(o.at)}</span></span>${o.due?`<span>التسليم <span class="num">${dmy(o.due)}</span></span>`:''}${chip(o)}${prChip(o.printed)}</small>${(()=>{const it=(o.draft&&o.draft.items)||[];return it.length||o.note?`<small>${it.length?`<span>${it.length} مادة · <span class="num">${f1(invCart({items:it}))}</span> طرد · <span class="num">${money(invTotal({items:it}))}</span></span>`:''}${o.invNo?`<span class="chip c-credit">فاتورة #${esc(o.invNo)}</span>`:''}${o.note?`<span>${esc(o.note.slice(0,50))}</span>`:''}</small>`:''})()}</span></button>`).join('')}</div>`:`<div class="empty">${S.ost==='d'?'لا توجد طلبات مسلّمة بعد.':'دفتر الطلبات فارغ. أضف أول طلب.'}</div>`}
@@ -1731,7 +1803,14 @@ const ldate=iso=>{const d=new Date(iso);return d.getFullYear()+'-'+String(d.getM
 function ordDraftOpen(cid,o){S.dupAsk=null;S.dupOK=false;S.stockOK=false;const c=cust(cid);if(!c)return;S.cid=cid;S.picking=false;const dr=(o&&o.draft)||{};
   S.draft={ord:true,ordId:o?o.id:'',id:'',old:{},wh:dr.wh||'main',oldWh:dr.wh||'main',no:'',date:today(),odate:o?ldate(o.at):today(),otime:o?hm(o.at):hm(new Date().toISOString()),odue:o?(o.due||''):ldate(new Date(Date.now()+2*864e5).toISOString()),dest:dr.dest!==undefined?dr.dest:(c.city||''),phone:dr.phone!==undefined?dr.phone:(c.phone||''),shipper:dr.shipper||'',shipFee:dr.shipFee||'واصل على الزبون',pay:dr.pay||'آجل',note:o?(o.note||''):'',items:dr.items&&dr.items.length?dr.items.map(x=>({...x})):[blankItem()],disc:dr.disc||''};
   loadImgs();renderInv()}
-async function saveOrdDraft(){const d=S.draft,c=cust(S.cid);if(!d||!d.ord||!c)return;
+/* zero-quantity guard: name the item, paint its row red, jump to its quantity box */
+function qtyBlock(d){const bad=[];(d.items||[]).forEach((it,i)=>{if(((it.name||'').trim()||(it.code||'').trim())&&!(nv(it.qty)>0))bad.push(i)});
+  document.querySelectorAll('#iform .it.qbad').forEach(e=>{e.classList.remove('qbad');e.style.outline='';e.style.background=''});if(!bad.length)return false;
+  for(const i of bad){const q=$('#it-'+i+'-qty'),row=q&&q.closest('.it');if(row){row.classList.add('qbad');row.style.outline='2px solid var(--debt,#c0392b)';row.style.background='var(--debt-bg,#c0392b22)'}}
+  const it=d.items[bad[0]],nm=(it.name||it.code||'').trim();toast(bad.length>1?`⚠️ في ${bad.length} مواد بلا كمية، أولها «${nm}». اكتب الكمية لكل مادة`:`⚠️ المادة «${nm}» ما إلها كمية، اكتب الكمية`);
+  const q=$('#it-'+bad[0]+'-qty');if(q){q.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(()=>{try{q.focus()}catch(e){}},250)}return true}
+const zeroQtyItems=items=>(items||[]).filter(x=>((x.name||'').trim()||(x.code||'').trim())&&!(nv(x.qty)>0));
+async function saveOrdDraft(){const d=S.draft,c=cust(S.cid);if(!d||!d.ord||!c)return;if(qtyBlock(d))return;
   const items=d.items.filter(it=>(it.name||'').trim()||(it.code||'').trim()).map(it=>({code:codeOf(it),name:(it.name||'').trim(),pack:nv(it.pack)||nv((S.products[codeOf(it)]||{}).pack),qty:nv(it.qty),unit:(it.unit||'').trim(),price:nv(it.price)}));
   if(!items.length&&!(d.note||'').trim()){toast('أضف مادة واحدة أو اكتب ملاحظة');return}
   if(dupBlock(d,items))return;
@@ -1758,7 +1837,7 @@ async function ordPrint(id){let o=(S.orders||[]).find(x=>x.id===id),c=o&&cust(o.
   try{o=await ensureOrdNo(o)}catch(e){}S.cid=o.cid;S.armed=null;const pend=(S.orders||[]).filter(x=>x.st!=='d').sort((a,b)=>(a.at||'').localeCompare(b.at||'')),r=pend.findIndex(x=>x.id===id)+1,dr=o.draft||{};
   openSheet(`<h2>مسودة ${esc(c.name)}</h2><div id="stmtbox" class="empty">جارٍ تجهيز المسودة…</div>`);
   const inv={draftMode:true,no:numOf(o.no)?String(o.no):(r?String(r):'—'),date:ldate(o.at),due:o.due||'',phone:dr.phone||c.phone,dest:dr.dest||'',shipper:dr.shipper||'',shipFee:dr.shipFee||'',pay:dr.pay||'',note:o.note||'',disc:dr.disc||0,items:(dr.items||[]).map(x=>({...x,code:codeOf(x)}))};
-  try{const cv=await Promise.race([drawInvoice(c,inv,{noPrice:true}),new Promise((_,j)=>setTimeout(()=>j(new Error('t')),15000))]);S.nextCtx={kind:'ord',id:o.id,printed:o.printed||null};outBox(cv,'مسودة '+inv.no+' '+c.name,'',np=>drawInvoice(c,inv,{noPrice:np}));S.outNP=true;const nb=$('#np-btn');if(nb)nb.textContent='👁 إظهار الأسعار والإجمالي'}catch(e){console.error(e);const bx=$('#stmtbox');if(bx)bx.textContent='تعذّر تجهيز المسودة.'}}
+  try{const cv=await Promise.race([drawInvoice(c,inv,{noPrice:true}),new Promise((_,j)=>setTimeout(()=>j(new Error('t')),15000))]);S.nextCtx={kind:'ord',id:o.id,printed:o.printed||null};const zq=zeroQtyItems(inv.items);outBox(cv,'مسودة '+inv.no+' '+c.name,zq.length?`<div class="note" style="order:-1;background:var(--debt-bg);color:var(--debt);border:2px solid var(--debt)"><b>⚠️ هالمسودة فيها ${zq.length} مادة بلا كمية:</b> ${zq.map(x=>esc(x.name||x.code)).join('، ')}<br>عدّلها قبل ما تبعتها.</div>`:'',np=>drawInvoice(c,inv,{noPrice:np}));S.outNP=true;const nb=$('#np-btn');if(nb)nb.textContent='👁 إظهار الأسعار والإجمالي'}catch(e){console.error(e);const bx=$('#stmtbox');if(bx)bx.textContent='تعذّر تجهيز المسودة.'}}
 /* printed mark: set only after the user confirms the paper came out of the printer */
 const prChip=p=>p&&p.n?`<span class="chip c-credit">🖨 طُبعت${p.n>1?' ×'+p.n:''}</span>`:'<span class="chip c-zero">لم تُطبع</span>';
 const prLine=p=>p&&p.n?`🖨 طُبعت ${p.n===1?'مرة وحدة':p.n===2?'مرتين':p.n+' مرات'} · آخر مرة <span class="num">${new Date(p.at).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>`:'🖨 لم تُطبع بعد';
@@ -2366,7 +2445,7 @@ $('#cityf').addEventListener('change',e=>{S.f.city=e.target.value;renderList()})
 $('#sortf').addEventListener('change',e=>{S.f.sort=e.target.value;renderList()});
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='rfile'&&t.files[0])readRestore(t.files[0]);if(t.id==='xfile'&&t.files[0])readImport(t.files[0]);if(t.id==='cxfile'&&t.files[0])readCustImport(t.files[0]);if(t.id==='m-photo'&&t.files[0])readPhoto(t.files[0],128).then(u=>{S.pphoto=u;const p=$('#m-prev');if(p)p.src=u}).catch(()=>toast('تعذّرت قراءة الصورة، جرّب صورة أخرى'))});
 $('#sheet').addEventListener('change',e=>{if(e.target.id==='e-photo'&&e.target.files[0]){cropOpen(e.target.files[0]);return}if(e.target.id==='cw'&&S.count){S.cw=e.target.value;S.count={};renderCount()}});
-['input','change'].forEach(ev=>document.addEventListener(ev,()=>{if(S.draft)wipSave()},true));document.addEventListener('click',()=>{if(S.draft)setTimeout(wipSave,0)});
+['input','change'].forEach(ev=>document.addEventListener(ev,e=>{if(S.draft)wipSave();const t=e.target;if(t&&t.dataset&&t.dataset.p==='qty'&&nv(t.value)>0){const row=t.closest('.it.qbad');if(row){row.classList.remove('qbad');row.style.outline='';row.style.background=''}}},true));document.addEventListener('click',()=>{if(S.draft)setTimeout(wipSave,0)});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')wipSaveNow()});window.addEventListener('pagehide',wipSaveNow);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scrim').hidden&&!S.draft&&!S.count&&!S.imp)closeSheet()});
 
@@ -2979,6 +3058,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-wip-no'){if(S.draft)wipClear(S.draft);S.wipOffer=null;const b2=$('#wipbar');if(b2)b2.remove();toast('انحذفت النسخة المؤقتة');return}
   if(a==='f-wip-back'){const x=$('#wipleave');if(x)x.remove();return}
   if(a==='f-wip-leave'){wipClear(S.draft);closeSheet();toast('طلعت بدون حفظ');return}
+  if(a==='f-prep-open'){S.prep=null;prepSheet();return}
+  if(a==='f-prep-t'){const P=S.prep;if(!P)return;P.sel.has(D.id)?P.sel.delete(D.id):P.sel.add(D.id);const st=$('#sheet').scrollTop;prepRender();$('#sheet').scrollTop=st;return}
+  if(a==='f-prep-sel'){const P=S.prep;if(!P)return;const L=prepPending(),T=today();P.sel=new Set(D.v==='all'?L.map(o=>o.id):D.v==='today'?L.filter(o=>o.due&&o.due<=T).map(o=>o.id):[]);prepRender();if(D.v==='today'&&!P.sel.size)toast('ما في طلبات تسليمها اليوم أو متأخرة');return}
+  if(a==='f-prep-k'){const P=S.prep;if(!P)return;P[D.k]=D.v==='true';const st=$('#sheet').scrollTop;prepRender();$('#sheet').scrollTop=st;return}
+  if(a==='f-prep-go'){b.disabled=true;prepGo().finally(()=>{b.disabled=false});return}
   if(a==='f-blt-zoom'){bltZoom(+D.i);return}
   if(a==='f-blt-open'){bulletinSheet();return}
   if(a==='f-blt'){const B=S.blt;if(!B)return;const m=$('#bl-m'),ph=$('#bl-ph'),ad=$('#bl-ad');if(m)B.margin=nv(m.value);if(ph)B.phone=ph.value;if(ad)B.addr=ad.value;B[D.k]=D.v==='true'?true:D.v==='false'?false:D.v;if(D.k==='kind')B.hideOut=D.v==='cust';bulletinSheet();return}
@@ -3368,7 +3452,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-1808';
+const BUILD='20261123-1835';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
