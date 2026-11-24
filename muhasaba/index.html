@@ -2180,7 +2180,7 @@ async function saveProdForm(f){const isNew=!f.dataset.code,code=(isNew?$('#m-cod
   const cc=nv(($('#m-cost')||{}).value),yy=nv(($('#m-cny')||{}).value);
   if(isNew){const q=nv($('#m-qty').value);if(q>0||cc>0||yy>0){const st={...S.stock};setW(st,code,($('#m-wh')||{}).value||'main',q);st[code].cost=cc;if(yy>0)st[code].cny=yy;await saveStock(st)}}
   else{const cur=S.stock[code]||{};if(cc!==nv(cur.cost)||yy!==nv(cur.cny)){const st={...S.stock};if(!st[code])setW(st,code,'main',0);else st[code]={...st[code]};st[code].cost=cc;if(yy>0)st[code].cny=yy;else delete st[code].cny;await saveStock(st)}}
-  if(S.pphoto){await S.db.doc('pimg/'+imgDocId(code)).set({list:[{c:code,d:S.pphoto}]});S.img[code]=S.pphoto}
+  if(S.pphoto){await S.db.doc('pimg/'+imgDocId(code)).set({list:[{c:code,d:S.pphoto}]});S.img[code]=S.pphoto;try{catImgPush({[code]:S.pphoto}).catch(()=>{})}catch(e){}}
   closeSheet();refresh();toast(isNew?'أُضيفت المادة':'حُفظت بيانات المادة')}
 
 /* ---------- customers: Excel import (with per-customer statements) ---------- */
@@ -3452,7 +3452,14 @@ document.addEventListener('submit',e=>{const f=e.target;if(f.id!=='chqform')retu
 /* ---------- 1) catalog prices follow the accounting prices (public price table, opt-in) ---------- */
 const catSync=()=>{const c=FM().catSync||{on:false,tier:'price'};return c.tier==='p2'?{...c,tier:'price'}:c};
 async function catPush(codes){const C=catSync();if(!C.on||!S.db||!S.db.table)return{ok:false};const P=S.products,L=(codes||Object.keys(P)).filter(k=>P[k]).map(k=>({code:k,price:r4(effP(P[k],C.tier))})).filter(x=>x.price>0);
-  for(let i=0;i<L.length;i+=400){await S.db.table('pub_prices','?on_conflict=code',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(L.slice(i,i+400))})}return{ok:true,n:L.length}}
+  for(let i=0;i<L.length;i+=400){await S.db.table('pub_prices','?on_conflict=code',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(L.slice(i,i+400))})}
+  try{const IT=(codes||Object.keys(P)).filter(k=>P[k]&&String(k).trim()).map(k=>({code:String(k).trim(),name:P[k].name||'',unit:P[k].unit||'',pack:String(P[k].pack||''),price:r4(effP(P[k],C.tier)),updated_at:new Date().toISOString()}));
+   for(let i=0;i<IT.length;i+=300){await S.db.table('pub_items','?on_conflict=code',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(IT.slice(i,i+300))})}}catch(e){}
+  return{ok:true,n:L.length}}
+const catNk=c=>String(c).trim().replace(/\s+/g,'/').toUpperCase();
+async function catImgPush(one){const C=catSync();if(!C.on||!S.db||!S.db.table)return 0;try{if(!one){await loadImgs();await S.imgP}}catch(e){}
+  const src=one||S.img||{},L=Object.keys(src).filter(k=>src[k]).map(k=>({code:catNk(k),img:String(src[k]).replace(/^data:image\/[a-z]+;base64,/,''),updated_at:new Date().toISOString()}));
+  for(let i=0;i<L.length;i+=25){await S.db.table('pub_imgs','?on_conflict=code',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(L.slice(i,i+25))})}return L.length}
 function catCard(){if(!isOwner()||!EXT)return'';const C=catSync();return`<div class="card"><b>🌐 أسعار موقع الكاتالوج</b><span class="muted small">لما تفعّلها، أي سعر بتغيّره بالمحاسبة بيتحدث لحاله على موقع الكاتالوج وتطبيق الزبائن، بدون ما تنشر من لوحة الإدارة.</span>
    <div class="field"><label>السعر اللي بيطلع للزبون بالموقع</label><div class="seg">${TIERS.slice().reverse().map(t=>`<button type="button" data-act="f-cat-tier" data-v="${t[0]}" aria-pressed="${C.tier===t[0]}">${t[1]}</button>`).join('')}</div></div>
    <div class="grid2"><button class="btn ${C.on?'':'primary'}" type="button" data-act="f-cat-on">${C.on?'⏸ إيقاف الربط':'▶︎ تفعيل الربط'}</button><button class="btn" type="button" data-act="f-cat-push" ${C.on?'':'disabled'}>🔄 مزامنة كل الأسعار الآن</button></div>
@@ -3538,8 +3545,8 @@ async function drawMonthly(m){try{await Promise.race([document.fonts.load('600 4
 /* ---------- pack 3 events ---------- */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]');if(!b)return;const a=b.dataset.act,D=b.dataset;
   if(a==='f-cat-tier'){fguard(async()=>{await finSave({catSync:{...catSync(),tier:D.v}});renderSettings();if(catSync().on){const r=await catPush();toast(r.ok?'انتقلت أسعار الموقع لـ«'+(TIERS.find(t=>t[0]===D.v)||[])[1]+'» ('+r.n+' مادة)':'')}});return}
-  if(a==='f-cat-on'){fguard(async()=>{const on=!catSync().on;await finSave({catSync:{...catSync(),on}});audit('cat',on?'تفعيل ربط أسعار الموقع':'إيقاف ربط أسعار الموقع',{});renderSettings();if(on){try{const r=await catPush();toast('تفعّل الربط وانرفعت أسعار '+r.n+' مادة للموقع')}catch(er){toast('تفعّل، بس ما قدرت أرفع الأسعار هلق. تأكد إن جدول أسعار الموقع موجود.')}}else{try{await S.db.table('pub_prices','?code=neq.__none__',{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(er){}toast('توقف الربط، والموقع رجع يعرض أسعار لوحة الإدارة')}});return}
-  if(a==='f-cat-push'){fguard(async()=>{try{const r=await catPush();toast('انرفعت أسعار '+r.n+' مادة للموقع')}catch(er){toast('تعذّر رفع الأسعار')}});return}
+  if(a==='f-cat-on'){fguard(async()=>{const on=!catSync().on;await finSave({catSync:{...catSync(),on}});audit('cat',on?'تفعيل ربط أسعار الموقع':'إيقاف ربط أسعار الموقع',{});renderSettings();if(on){try{const r=await catPush();let ni=0;try{ni=await catImgPush()}catch(e2){}toast('تفعّل الربط وانرفعت أسعار '+r.n+' مادة و'+ni+' صورة للموقع')}catch(er){toast('تفعّل، بس ما قدرت أرفع الأسعار هلق. تأكد إن جدول أسعار الموقع موجود.')}}else{try{await S.db.table('pub_prices','?code=neq.__none__',{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(er){}toast('توقف الربط، والموقع رجع يعرض أسعار لوحة الإدارة')}});return}
+  if(a==='f-cat-push'){fguard(async()=>{try{const r=await catPush();let ni=0;try{ni=await catImgPush()}catch(e2){}toast('انرفعت للموقع: أسعار '+r.n+' مادة، و'+ni+' صورة')}catch(er){toast('تعذّر رفع الأسعار')}});return}
   if(a==='f-ro'){roSheet();return}
   if(a==='f-ro-cfg'){fguard(async()=>{await finSave({reorder:{lead:Math.max(1,parseInt($('#ro-l').value)||60),cover:Math.max(0,parseInt($('#ro-c').value)||0)}});roSheet()});return}
   if(a==='f-ro-xlsx'){roXlsx();return}
@@ -3553,14 +3560,14 @@ document.addEventListener('submit',e=>{if(e.target.id!=='attform')return;e.preve
 document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.att){const id=t.dataset.att,g=k=>document.querySelector(`[data-att="${id}"][data-k="${k}"]`),h=$('#att-h-'+id);if(h)h.innerHTML=g('abs').checked?'<span class="chip c-debt">غياب</span>':attTxt(g('in').value,g('out').value)}});
 
 /* pack 3 hooks: catalog price push after any price change; attendance & monthly report entry points */
-{const _sp=saveProducts;saveProducts=async function(P){const prev=S.products||{};const r=await _sp(P);try{if(catSync().on){const ch=Object.keys(r).filter(k=>JSON.stringify(prev[k])!==JSON.stringify(r[k]));if(ch.length)catPush(ch).catch(()=>{})}}catch(e){}return r}}
+{const _sp=saveProducts;saveProducts=async function(P){const prev=S.products||{};const r=await _sp(P);try{if(catSync().on){const ch=Object.keys(r).filter(k=>JSON.stringify(prev[k])!==JSON.stringify(r[k]));if(ch.length)catPush(ch).catch(()=>{});const gone=Object.keys(prev).filter(k=>!r[k]);if(gone.length&&S.db&&S.db.table)S.db.table('pub_items','?code=in.('+gone.map(k=>encodeURIComponent('"'+String(k).trim().replace(/"/g,'')+'"')).join(',')+')',{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({show:false})}).catch(()=>{})}}catch(e){}return r}}
 {const _s=renderStaff;renderStaff=function(){_s();if(!isOwner())return;const el=$('#v-staff');if(el&&!el.querySelector('[data-act=f-att]'))el.insertAdjacentHTML('afterbegin','<button class="btn primary" type="button" data-act="f-att">🕘 دفتر الدوام اليوم</button>')}}
 {const _r=renderReports;renderReports=function(){_r();const el=$('#v-reports');if(el&&S.rep.inv&&!el.querySelector('[data-act=f-mrep]'))el.insertAdjacentHTML('afterbegin','<button class="btn primary" type="button" data-act="f-mrep">📑 التقرير الشهري لرئيس الشركة (صورة أو PDF)</button>')}}
 
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261123-2110';
+const BUILD='20261124-1125';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
