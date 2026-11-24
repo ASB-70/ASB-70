@@ -3567,7 +3567,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261124-1125';
+const BUILD='20261124-1135';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -3587,6 +3587,12 @@ if(EXT){window.addEventListener('popstate',onPop);
   new MutationObserver(()=>{if(!$('#scrim').hidden)navPush();navSync()}).observe($('#scrim'),{attributes:true,attributeFilter:['hidden']});
   new MutationObserver(navSync).observe($('#lock'),{attributes:true,attributeFilter:['hidden']});
   checkUpdate(true);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate(false)})}
+/* auto full sync of the catalog (prices + items + photos) at most once an hour while the link is on */
+let _catBusy=false;
+async function catAuto(){try{if(_catBusy||!EXT||!S.db||!S.db.table||!S.products||!Object.keys(S.products).length||!isOwner()||!catSync().on)return;
+ let last=0;try{last=+localStorage.getItem('thiqa-catauto')||0}catch(e){}if(Date.now()-last<3600000)return;_catBusy=true;
+ const r=await catPush();let ni=0;try{ni=await catImgPush()}catch(e){}try{localStorage.setItem('thiqa-catauto',String(Date.now()))}catch(e){}toast('تمت مزامنة الموقع: '+r.n+' سعر و'+ni+' صورة')}catch(e){}finally{_catBusy=false}}
+if(EXT){setTimeout(catAuto,20000);setInterval(catAuto,300000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(catAuto,3000)})}
 $('#locklogo').src=LOGO;if(EXT&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(LK.pin)lockShow();
 show('cash');
