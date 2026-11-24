@@ -59,7 +59,7 @@ button{font-family:inherit;cursor:pointer}
 <body>
 <div id="lg" class="box"></div>
 <div id="app" hidden>
-<div class="top"><b>🛠 لوحة إدارة الموقع</b><span id="stt" class="m" style="color:#dff"></span><button type="button" class="b2" id="vw">فتح الموقع</button><button type="button" class="b2" id="out">خروج</button></div>
+<div class="top"><b>🛠 لوحة إدارة الموقع</b><span id="stt" class="m" style="color:#dff"></span><button type="button" class="b2" id="vw">فتح الموقع</button><button type="button" class="b2" id="rf">🔄 تحديث</button><button type="button" class="b2" id="out">خروج</button></div>
 <div class="tabs" id="tabs"></div>
 <div id="view"></div>
 </div>
@@ -136,6 +136,10 @@ function loadAll(){
 function buildTabs(){var T=[["dash","📊 الرئيسية"],["prod","📦 المنتجات"],["cat","🗂 الأقسام"],["set","⚙ الإعدادات"],["stat","📈 الإحصائيات"],["ord","🧾 الطلبات"],["cus","👥 الزبائن"],["exp","📤 تصدير"],["pub","🚀 النشر"]];$("tabs").innerHTML=T.map(function(t){return'<button type="button" data-t="'+t[0]+'">'+t[1]+'</button>'}).join("");pubMark();$("stt").textContent=G.token?"● متصل":"○ بدون ربط";ordPoll(true);if(!OP)OP=setInterval(function(){ordPoll(false)},60000)}
 function go(t){TAB=t;var bs=$("tabs").children;for(var i=0;i<bs.length;i++)bs[i].className=bs[i].getAttribute("data-t")===t?"on":"";({dash:rDash,prod:rProd,cat:rCat,set:rSet,stat:rStat,exp:rExp,ord:rOrd,cus:rCus,pub:rPub})[t]();window.scrollTo(0,0)}
 $("tabs").addEventListener("click",function(e){var b=e.target.closest?e.target.closest("button"):null;if(b)go(b.getAttribute("data-t"))});
+function hardRefresh(){try{if(window.caches&&caches.keys){caches.keys().then(function(k){return Promise.all(k.map(function(x){return caches.delete(x)}))}).catch(function(){})}}catch(e){}
+ try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})}).catch(function(){})}}catch(e){}
+ setTimeout(function(){var u=location.pathname+"?v="+Date.now()+location.hash;location.replace(u)},350)}
+$("rf").onclick=function(){if(anyDirty()&&!this.getAttribute("w")){this.setAttribute("w","1");toast("عندك تعديلات غير منشورة. اضغط تحديث مرة ثانية للتجاهل");return}this.removeAttribute("w");toast("جاري التحديث…");hardRefresh()};
 $("out").onclick=function(){if(anyDirty()&&!this.getAttribute("w")){this.setAttribute("w","1");toast("عندك تعديلات غير منشورة. اضغط خروج مرة ثانية للتجاهل");return}this.removeAttribute("w");DT={site:false,imgs:false,stock:false};G=null;PW="";SJ=null;rmClear().then(showLogin)};
 $("vw").onclick=function(){window.open("./","_blank")};
 window.addEventListener("beforeunload",function(e){if(anyDirty()){e.preventDefault();e.returnValue=""}});

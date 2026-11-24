@@ -302,7 +302,7 @@ body.pb>*{visibility:hidden}
     <div class="hero-actions">
       <button type="button" class="pill" id="b-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>مشاركة</button>
       <button type="button" class="pill" id="b-look"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.4 3.4A2 2 0 0 1 12 22z"/><circle cx="7.5" cy="10.5" r="1.3"/><circle cx="12" cy="7" r="1.3"/><circle cx="16.5" cy="10.5" r="1.3"/></svg>المظهر</button>
-      <a class="pill" id="b-map" target="_blank" rel="noopener" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-7.8 7-13a7 7 0 0 0-14 0c0 5.2 7 13 7 13z"/><circle cx="12" cy="9" r="2.5"/></svg>موقعنا</a>
+      <a class="pill" id="b-map" target="_blank" rel="noopener" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-7.8 7-13a7 7 0 0 0-14 0c0 5.2 7 13 7 13z"/><circle cx="12" cy="9" r="2.5"/></svg>موقعنا</a><button type="button" class="pill" id="b-refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>تحديث</button>
       <a class="pill" id="pdl" href="price-list.pdf" download="قائمة_أسعار_الثقة.pdf" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/></svg>قائمة الأسعار PDF</a>
       <button type="button" class="pill" id="plb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z"/></svg>طباعة القائمة</button>
     </div>
@@ -592,6 +592,10 @@ $("scrim").onclick=closeSheet;
 document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("[data-close]"))closeSheet()});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){if(!$("pv").hidden)$("pv").hidden=true;else if(!$("pd2").hidden)$("pd2").hidden=true;else closeSheet()}});
 $("b-look").onclick=function(){openSheet("ss")};
+function hardRefresh(){try{if(window.caches&&caches.keys){caches.keys().then(function(k){return Promise.all(k.map(function(x){return caches.delete(x)}))}).catch(function(){})}}catch(e){}
+ try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})}).catch(function(){})}}catch(e){}
+ setTimeout(function(){var u=location.pathname+"?v="+Date.now()+location.hash;location.replace(u)},350)}
+$("b-refresh").onclick=function(){toast("جاري التحديث…");hardRefresh()};
 function copyT(t,m){try{navigator.clipboard.writeText(t).then(function(){toast(m)},function(){toast(t)})}catch(e){toast(t)}}
 $("b-share").onclick=function(){var u=location.href.split("#")[0];if(navigator.share){navigator.share({title:"كتالوج شركة الثقة – جملة فقط",url:u}).catch(function(){})}else copyT(u,"تم نسخ رابط الكتالوج")};
 /* ---------- cards ---------- */
