@@ -2796,7 +2796,9 @@ function ageCalc(tx){const T=today(),deb=[];let cr=0;for(const t of tx||[]){if(t
   return{b:b.map(r2),oldest}}
 /* ===== week alert: owes money and paid nothing for more than 7 days ===== */
 const STALE_D=7;
-const staleDays=c=>{if(!c||c.walkin||!(nv(c.balance)>0.005))return 0;if(c.lastPay)return Math.max(0,ddiff(today(),c.lastPay));return nv(c.age)};
+/* days without paying for the CURRENT debt: from the last payment, or from the invoice that opened the current debt if he had settled before it (whichever is more recent) */
+const staleSinceInv=c=>!c.lastPay||nv(c.age)<Math.max(0,ddiff(today(),c.lastPay));
+const staleDays=c=>{if(!c||c.walkin||!(nv(c.balance)>0.005))return 0;const a=nv(c.age);if(c.lastPay)return Math.min(Math.max(0,ddiff(today(),c.lastPay)),a);return a};
 const staleList=()=>S.customers.filter(c=>staleDays(c)>STALE_D).sort((a,b)=>staleDays(b)-staleDays(a)||nv(b.balance)-nv(a.balance));
 async function staleScan(){if(S.staleScanned||!S.db||!S.loaded)return;S.staleScanned=true;try{const sn=await S.db.collection('ledgers').get();let ch=0;
   for(const d of sn.docs){const c=cust(d.id);if(!c)continue;const cc=custCache(d.data().tx||[]);if((c.lastPay||'')!==cc.lastPay||nv(c.age)!==cc.age||Math.abs(nv(c.balance)-cc.balance)>0.005){Object.assign(c,cc);ch++;try{await S.db.doc('customers/'+c.id).update(cc)}catch(e){}}}
@@ -2804,7 +2806,7 @@ async function staleScan(){if(S.staleScanned||!S.db||!S.loaded)return;S.staleSca
 function staleBanner(){staleScan();const L=staleList();if(!L.length)return'';const t=r2(L.reduce((a,c)=>a+nv(c.balance),0));
   return`<button class="card duecard" type="button" data-act="f-stale" style="width:100%;text-align:right;flex-direction:row;align-items:center;gap:10px"><span style="font-size:22px">⚠️</span><span style="flex:1;min-width:0"><b>${L.length} زبون ما دفعوا من أكتر من أسبوع</b><br><span class="small">عليهم <b class="num">${money(t)}</b> · أقدمهم ${esc(L[0].name)} (${staleDays(L[0])} يوم)</span></span><span class="small">عرض ←</span></button>`}
 function staleSheet(){const L=staleList();openSheet(`<h2>⚠️ ما دفعوا من أكتر من أسبوع</h2><span class="small muted">زباين عليهم دين وما سجّلوا أي دفعة من أكتر من ${STALE_D} أيام (أو ما دفعوا أبداً من أول فاتورة مفتوحة).</span>
-  ${L.length?`<div class="list">${L.map(c=>`<div class="row" style="flex-wrap:wrap"><button type="button" data-open="${esc(c.id)}" style="all:unset;cursor:pointer;flex:1;min-width:0"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'')}</span><span class="chip ${staleDays(c)>30?'c-debt':'c-due'}">${c.lastPay?'آخر دفعة من '+staleDays(c)+' يوم':'ما دفع من '+staleDays(c)+' يوم'}</span></small></span></button><span class="amt"><b class="t-debt">${money(nv(c.balance))}</b></span>${waNum(c.phone)?`<button class="btn sm wa" type="button" data-act="rem-send" data-id="${esc(c.id)}" style="flex-basis:100%">📤 إرسال تذكير + كشف</button>`:''}</div>`).join('')}</div>`:'<div class="empty">✓ كل الزباين دافعين خلال آخر أسبوع.</div>'}
+  ${L.length?`<div class="list">${L.map(c=>`<div class="row" style="flex-wrap:wrap"><button type="button" data-open="${esc(c.id)}" style="all:unset;cursor:pointer;flex:1;min-width:0"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'')}</span><span class="chip ${staleDays(c)>30?'c-debt':'c-due'}">${staleSinceInv(c)?'ما دفع من فاتورة '+staleDays(c)+' يوم':'آخر دفعة من '+staleDays(c)+' يوم'}</span></small></span></button><span class="amt"><b class="t-debt">${money(nv(c.balance))}</b></span>${waNum(c.phone)?`<button class="btn sm wa" type="button" data-act="rem-send" data-id="${esc(c.id)}" style="flex-basis:100%">📤 إرسال تذكير + كشف</button>`:''}</div>`).join('')}</div>`:'<div class="empty">✓ كل الزباين دافعين خلال آخر أسبوع.</div>'}
   <button class="btn" type="button" data-act="close">إغلاق</button>`)}
 /* ===== customer ranking: profit + payment speed ===== */
 async function rankLoad(){S.F.rank={loading:true};refresh();try{
@@ -3594,7 +3596,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261124-1852';
+const BUILD='20261124-1858';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
