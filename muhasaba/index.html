@@ -1631,7 +1631,7 @@ function renderCash(){
   el.innerHTML=`${staleBanner()}${accStrip()}${lq?`<div class="sechead"><span class="small">سُجّلت: <b class="num ${lq.dir==='in'?'t-credit':'t-debt'}">${lq.dir==='in'?'+':'−'}${cm(lq.cur,lq.a)}</b> ${esc(lq.n||'')}</span><button class="btn sm danger" type="button" data-act="q-undo">تراجع</button></div>`:''}
    <div class="sechead"><button class="btn sm" type="button" data-act="cash-day" data-d="-1">→ السابق</button><b>${isToday?'اليوم · ':''}${arDay(S.cday)} ${dmy(S.cday)}</b>${isToday?'<span style="width:64px"></span>':'<button class="btn sm" type="button" data-act="cash-day" data-d="1">التالي ←</button>'}</div>
    ${isToday?'':'<button class="btn sm" type="button" data-act="cash-today">العودة إلى صندوق اليوم</button>'}
-   <div class="grid2"><label class="btn sm" style="position:relative;overflow:hidden">📅 اختر يوم<input type="date" id="cash-pick" value="${S.cday}" max="${today()}" aria-label="اختر يوم الصندوق" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label><button class="btn sm" type="button" data-act="f-cash-print">🖨 طباعة حركة هاليوم</button></div>
+   <div class="grid2"><button class="btn sm" type="button" data-act="f-cash-pick" style="position:relative">📅 اختر يوم<input type="date" id="cash-pick" value="${S.cday}" max="${today()}" aria-label="اختر يوم الصندوق" tabindex="-1" style="position:absolute;left:50%;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0"></button><button class="btn sm" type="button" data-act="f-cash-print">🖨 طباعة حركة هاليوم</button></div>
    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"><button class="btn sm" type="button" data-act="cash-new" data-dir="in">قبض من زبون</button><button class="btn sm" type="button" data-act="cash-new" data-dir="out">＋ مصروف (حدّد على حساب مين)</button><button class="btn sm" type="button" data-act="cash-new" data-dir="wd">سحب من الصندوق (ليس مصروفاً)</button><button class="btn sm" type="button" data-act="cash-fx">تصريف</button><button class="btn sm" type="button" data-act="cash-rate">سعر الصرف</button><button class="btn sm" type="button" data-act="fx-oldnew" style="grid-column:1/-1">🔁 محوّل الليرة القديمة ↔ الجديدة</button><button class="btn sm wa" type="button" data-act="sham-list" style="grid-column:1/-1">💳 دفعات شام كاش (ما بتدخل الصندوق)</button><button class="btn sm" type="button" data-act="f-wd-log" style="grid-column:1/-1">📤 سجل السحوبات (وين راح الدولار)</button></div>
    <div class="ctab"><span class="h"></span><span class="h">دولار</span><span class="h">ليرة سورية</span>
      <span class="l">رصيد أول اليوم</span><span class="n">${money(nv(v.open.usd))}</span><span class="n">${sy(nv(v.open.syp))}</span>
@@ -3234,6 +3234,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-wd-log'){wdLog();return}
   if(a==='f-wd-print'){wdPrint();return}
   if(a==='f-cash-print'){cashPrint();return}
+  if(a==='f-cash-pick'){const i=$('#cash-pick');if(!i)return;let ok=false;try{if(typeof i.showPicker==='function'){i.showPicker();ok=true}}catch(e){}
+    if(!ok){openSheet(`<h2>📅 اختر يوم الصندوق</h2><div class="field"><label for="cash-pick2">التاريخ</label><input type="date" id="cash-pick2" value="${S.cday}" max="${today()}"></div><div class="grid2"><button class="btn primary" type="button" data-act="f-cash-go">فتح هاليوم</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`)}return}
+  if(a==='f-cash-go'){const v=($('#cash-pick2')||{}).value;if(!v||!/^\d{4}-\d{2}-\d{2}$/.test(v)){toast('اختار التاريخ');return}if(v>today()){toast('ما فيك تختار يوم بالمستقبل');return}closeSheet();S.cday=v;loadCash();return}
   if(a==='f-wd-per'){if(S.wdl){S.wdl.per=D.v;wdRender()}return}
   if(a==='f-st-open'){storeSheet();return}
   if(a==='f-st-pub'){storePublish(b);return}
@@ -3644,7 +3647,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261124-1933';
+const BUILD='20261124-1942';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
