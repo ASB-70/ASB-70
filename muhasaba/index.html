@@ -540,6 +540,7 @@ function renderList(){
     (CS?`<div class="selbar" style="grid-template-columns:1fr auto auto"><b class="small">${CS.size} محدد · <span class="num">${money(csum)}</span></b><button class="btn sm" type="button" data-act="csel-debt">كل المدينين الظاهرين</button><button class="btn sm" type="button" data-act="csel-none">مسح</button></div><button class="btn wa" type="button" data-act="csel-make" ${CS.size?'':'disabled'} style="width:100%;margin-bottom:8px">📤 إنشاء قائمة المطالبة (${CS.size})</button>`:'')+
     `<div class="sechead" style="margin-bottom:8px"><small>${L.length} زبون</small><small>المجموع <b class="num">${money(sum)}</b></small></div>`+
     (L.length?`<div class="list">${L.map(c=>CS?`<button class="row" type="button" data-act="csel-toggle" data-id="${esc(c.id)}" aria-pressed="${CS.has(c.id)}"><span class="selbox${CS.has(c.id)?' on':''}" aria-hidden="true">${CS.has(c.id)?'✓':''}</span><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'—')}</span><span class="num" dir="ltr">${esc(c.phone||'')}</span></small></span><span class="amt"><b class="${typeOf(c.balance||0)==='debt'?'t-debt':''}">${money(Math.abs(c.balance||0))}</b></span></button>`:rowHTML(c,(c.dueAt&&!isDue(c)?`<span>تذكير ${new Date(c.dueAt).toLocaleDateString('ar-SY-u-nu-latn',{day:'numeric',month:'short'})}</span>`:'')+sentChip(c))).join('')}</div>`:'<div class="empty">لا يوجد زبون يطابق البحث</div>');
+  {const db=dupBanner();if(db)$('#clist').insertAdjacentHTML('afterbegin',db)}
 }
 function sendBlock(c){
   if(S.askSent===c.id)return `<div class="note">هل أرسلت الرسالة في واتساب؟</div><div class="grid2"><button class="btn primary" type="button" data-act="sent" data-id="${esc(c.id)}">نعم، أُرسلت</button><button class="btn" type="button" data-act="notsent">ليس بعد</button></div>`;
@@ -1568,6 +1569,24 @@ async function wkMigrate(g,target){const nm=Object.entries(g.names).sort((a,b)=>
   const days={};for(const t of mv)if(t.cash)(days[t.cash]=days[t.cash]||[]).push(t.id);
   for(const day in days){try{const {ref,v}=await cashDay(day,false);if(!v)continue;let ch=false;v.tx=v.tx.map(e=>days[day].includes(e.ltx)?(ch=true,{...e,cid:tid,cname:tc.name}):e);if(ch){await ref.set(v);if(S.cday===day)S.cash=v}}catch(e){}}
   audit('walkin-move','نقل فواتير مفرق لزبون',{name:tc.name,n:g.inv.map(x=>x.no).join('، '),a:r2(g.total)});return tc.name}
+/* ---------- merge duplicate customers (same phone) ---------- */
+function dupGroups(){const G={};for(const c of S.customers){if(c.walkin)continue;const p=waNum(c.phone);if(!p||p.length<9)continue;(G[p]=G[p]||[]).push(c)}return Object.entries(G).filter(([,L])=>L.length>1).map(([p,L])=>({p,L:L.slice().sort((a,b)=>Math.abs(nv(b.balance))-Math.abs(nv(a.balance)))}))}
+function dupBanner(){if(!isOwner()||!S.loaded)return'';const G=dupGroups();return G.length?`<button class="btn" type="button" data-act="f-dup" style="width:100%;margin-bottom:8px">🔗 دمج الزبائن المكررين (${G.length} ${G.length===1?'رقم':'أرقام'} مكرر)</button>`:''}
+function dupSheet(){S.dupK=S.dupK||{};const G=dupGroups();openSheet(`<h2>🔗 دمج الزبائن المكررين</h2><span class="small muted">زباين إلهم نفس رقم التلفون. اختار مين يضل، وكل كشف وفواتير ومسودات التاني بتنتقل لعنده. إذا هنن شخصين مختلفين، اتركهن.</span>
+  ${G.length?`<div class="list">${G.map((g,gi)=>{const keep=S.dupK[g.p]&&g.L.some(c=>c.id===S.dupK[g.p])?S.dupK[g.p]:g.L[0].id;return `<div class="card" style="gap:8px"><b class="num">📞 ${esc(g.L[0].phone||g.p)}</b>${g.L.map(c=>`<button class="row" type="button" data-act="f-dup-k" data-p="${esc(g.p)}" data-id="${esc(c.id)}" aria-pressed="${c.id===keep}"><span class="selbox${c.id===keep?' on':''}" aria-hidden="true">${c.id===keep?'✓':''}</span><span class="who"><b>${esc(c.name)}</b><small>${c.id===keep?'<span class="chip c-credit">هاد يضل</span>':'<span>بينضم للمختار</span>'}${c.city?`<span>${esc(c.city)}</span>`:''}</small></span><span class="amt"><b class="${nv(c.balance)>0.005?'t-debt':''}">${money(nv(c.balance))}</b></span></button>`).join('')}<button class="btn primary" type="button" data-act="f-dup-go" data-p="${esc(g.p)}">🔗 ادمجهن على «${esc((cust(keep)||{}).name||'')}»</button></div>`}).join('')}</div>`:'<div class="empty">✓ ما في زباين مكررين بنفس الرقم.</div>'}
+  <button class="btn" type="button" data-act="close">إغلاق</button>`)}
+async function custMerge(keepId,dropId){const K=cust(keepId),D=cust(dropId);if(!K||!D||K.walkin||D.walkin||keepId===dropId)throw new Error('bad');
+  const fk=await freshDoc('ledgers/'+keepId),fd=await freshDoc('ledgers/'+dropId);if(!fk.ok||!fd.ok)throw new Error('ledger');
+  const ktx=(fk.v&&fk.v.tx)||[],dtx=(fd.v&&fd.v.tx)||[],ids=new Set(ktx.map(t=>t.id));const all=ktx.concat(dtx.filter(t=>!ids.has(t.id)));
+  all.sort((a,b)=>String(a.d||'9').localeCompare(String(b.d||'9')));
+  await S.db.doc('ledgers/'+keepId).set({tx:all});const C=custCache(all),patch={...C};if(!K.phone&&D.phone)patch.phone=D.phone;if(!K.city&&D.city)patch.city=D.city;if(D.note&&!(K.note||'').includes(D.note))patch.note=((K.note||'')+(K.note?' · ':'')+D.note).slice(0,300);
+  await S.db.doc('customers/'+keepId).update(patch);Object.assign(K,patch);
+  try{const sn=await S.db.collection('invoices').get();for(const d of sn.docs){const v=d.data()||{};if(v.cid===dropId)await S.db.doc('invoices/'+d.id).update({cid:keepId,cname:K.name})}}catch(e){}
+  try{if((S.orders||[]).some(o=>o.cid===dropId))await ordSave(S.orders.map(o=>o.cid===dropId?{...o,cid:keepId,cname:K.name}:o))}catch(e){}
+  try{const sn=await S.db.collection('cash').limit(3000).get();for(const d of sn.docs){const v=d.data()||{};let ch=false;const tx=(v.tx||[]).map(e=>{if(e.cid===dropId||e.pcid===dropId){ch=true;return{...e,...(e.cid===dropId?{cid:keepId,cname:K.name}:{}),...(e.pcid===dropId?{pcid:keepId,pname:K.name}:{})}}return e});if(ch){await S.db.doc('cash/'+d.id).set({...v,tx});if(S.cday===d.id&&S.cash)S.cash={...S.cash,tx}}}}catch(e){}
+  audit('cust-merge','دمج زبون «'+D.name+'» على «'+K.name+'»',{name:D.name,ref:dropId,a:nv(D.balance),n:JSON.stringify({customer:D,tx:dtx}).slice(0,4000)});
+  await S.db.doc('ledgers/'+dropId).set({tx:[]});try{await S.db.doc('customers/'+dropId).delete()}catch(e){await S.db.doc('customers/'+dropId).update({balance:0,name:D.name+' (مدموج مع '+K.name+')'})}
+  S.customers=S.customers.filter(c=>c.id!==dropId);return K.name}
 function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getElementById('bltzoom');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='bltzoom';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','معاينة صفحة');
   ov.style.cssText='position:fixed;inset:0;z-index:9999;background:#000e;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)';
@@ -2394,6 +2413,7 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
   if(f.id==='cform')guard(async()=>{
     const data={name:$('#c-name').value.trim(),city:$('#c-city').value.trim(),phone:$('#c-phone').value.trim(),note:$('#c-note').value.trim(),limit:r2(nv(($('#c-limit')||{}).value)),src:($('#c-src')||{}).value||''};{const oc=f.dataset.id&&cust(f.dataset.id);if(oc&&nv(oc.limit)!==data.limit)audit('limit','سقف دين '+data.name,{old:nv(oc.limit),new:data.limit})}
     if(!data.name)return;
+    {const p=waNum(data.phone),o=p&&p.length>=9&&S.customers.find(x=>!x.walkin&&x.id!==f.dataset.id&&waNum(x.phone)===p);if(o&&S.phWarn!==o.id+p){S.phWarn=o.id+p;toast('⚠️ هالرقم موجود عند «'+o.name+'». إذا هو شخص تاني اكبس حفظ مرة تانية');return}S.phWarn=null}
     if(f.dataset.id){await S.db.doc('customers/'+f.dataset.id).update(data);closeSheet();toast('حُفظت بيانات الزبون')}
     else{const open=r2(parseFloat($('#c-open').value)||0),dir=$('#c-dir').value;const ref=S.db.collection('customers').doc();
       const tx=open>0?[{id:newId(),k:dir==='debt'?'inv':'pay',a:open,d:today(),ref:'',n:'رصيد سابق'}]:[];
@@ -3280,6 +3300,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-img-share'){b.disabled=true;imgShareAll(false).finally(()=>{b.disabled=false});return}
   if(a==='f-img-seq'){const n=b.closest('.note');if(n)n.remove();imgShareAll(true);return}
   if(a==='f-img-next'){imgSeqNext();return}
+  if(a==='f-dup'){S.dupK={};dupSheet();return}
+  if(a==='f-dup-k'){S.dupK=S.dupK||{};S.dupK[D.p]=D.id;S.armed=null;const st=$('#sheet').scrollTop;dupSheet();$('#sheet').scrollTop=st;return}
+  if(a==='f-dup-go'){const g=dupGroups().find(x=>x.p===D.p);if(!g)return;const keep=(S.dupK&&S.dupK[D.p]&&g.L.some(c=>c.id===S.dupK[D.p]))?S.dupK[D.p]:g.L[0].id,drops=g.L.filter(c=>c.id!==keep);
+    if(S.armed!=='dup'+D.p){S.armed='dup'+D.p;b.textContent='⚠️ اكبس مرة تانية: '+drops.map(c=>c.name).join('، ')+' ← '+(cust(keep)||{}).name;return}S.armed=null;b.disabled=true;
+    guard(async()=>{try{let nm='';for(const c of drops)nm=await custMerge(keep,c.id);toast('✔ اندمجوا على حساب '+nm);dupSheet();refresh()}catch(e){console.error(e);toast('تعذّر الدمج، جرّب مرة تانية');b.disabled=false}});return}
   if(a==='f-wk'){S.wkDec={key:D.k,v:D.v};const w=$('#wkask');if(w)w.remove();guard(()=>saveInvoice());return}
   if(a==='f-wkmig'){wkMigSheet();return}
   if(a==='f-wkm'){const g=(S.wkG||[])[+D.i];if(!g)return;if(S.armed!=='wkm'+D.i+D.v){S.armed='wkm'+D.i+D.v;b.textContent='اكبس مرة تانية للتأكيد ('+g.inv.length+' فاتورة)';return}S.armed=null;b.disabled=true;
@@ -3702,7 +3727,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261125-2020';
+const BUILD='20261125-2028';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
