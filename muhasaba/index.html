@@ -591,7 +591,7 @@ function renderDetail(){
   const tx=S.ledger;let run=0,inv=0,paid=0;
   const rows=(tx||[]).map(t=>{run=r2(run+eff(t));if(!t.void){if(t.k==='inv')inv+=t.a;else paid+=t.a}return{t,run}}).reverse();
   const stmt=tx?waLink(c,stmtMsg(c,tx)):'';
-  el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="new-inv" ${tx?'':'disabled'}>＋ فاتورة جديدة</button><button class="btn primary" type="button" data-act="new-tx" data-k="pay">＋ دفعة أو حركة</button></div>${c&&!c.walkin?`<button class="btn" type="button" data-act="f-ord-forcust" style="width:100%">📝 مسودة طلب جديدة (لدفتر الطلبات)</button>`:''}
+  el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="new-inv" ${tx?'':'disabled'}>＋ فاتورة جديدة</button><button class="btn primary" type="button" data-act="new-tx" data-k="pay">＋ دفعة أو حركة</button></div>${c&&!c.walkin?`<button class="btn" type="button" data-act="f-ord-forcust" style="width:100%">📝 مسودة طلب جديدة (لدفتر الطلبات)</button>`:''}${c&&c.walkin&&isOwner()?`<button class="btn" type="button" data-act="f-wkmig" style="width:100%">🔀 نقل فواتير المفرق لأصحابها</button>`:''}
    <div class="card ${isDue(c)?'duecard':''}"><div class="sechead"><h2>تذكير الدفع</h2><button class="btn sm" type="button" data-act="schedule">${c.dueAt?'تعديل الموعد':'تحديد موعد'}</button></div>
      <div class="small ${isDue(c)?'':'muted'}">${c.dueAt?(isDue(c)?'مستحق منذ ':'الموعد: ')+whenTxt(c.dueAt)+(c.repeat?` · يتكرر كل ${c.repeat} يوم`:''):'لا يوجد موعد محدد لهذا الزبون.'}${c.lastSent?`<br>${sentChip(c)} <span class="muted">${whenTxt(c.lastSent)}</span>`:''}</div>
      ${sendBlock(c)}
@@ -984,6 +984,7 @@ async function saveInvoice(){
   if(c.walkin&&!PAID.includes(d.pay)&&!(d.wname||'').trim()){toast('بيع آجل لزبون غير معروف: اكتب اسم الزبون حتى تعرف مين لازم يدفع');const e=$('#in-wname');if(e)e.focus();return}
   if(stockBlock(d,items))return;
   const total=invTotal({items,disc:d.disc});if(!(total>0)){toast('أدخل أسعار المواد');return}
+  if(c.walkin&&!d.id&&!S.batch){if(await walkinRoute(d,c))return}
   if(!lockGuard(d.date||today(),d.id&&S.curInv&&S.curInv.id===d.id?S.curInv.date:''))return;
   if(!c.walkin&&!PAID.includes(d.pay)&&nv(c.limit)>0){const oldA=d.id?r2((S.ledger||[]).filter(t=>t.inv===d.id&&!t.void).reduce((a,t)=>a+eff(t),0)):0,after=r2(nv(c.balance)-oldA+total),key=c.id+'|'+total;
     if(after>nv(c.limit)+0.005&&S.limOK!==key){S.limOK=key;toast('⚠️ سقف دين '+c.name+' هو '+money(nv(c.limit))+'، وبعد هالفاتورة بيصير رصيده '+money(after)+'. إذا موافق اكبس «تأكيد الحفظ».');const sb=document.querySelector('#iform button[type=submit]');if(sb){sb.textContent='⚠️ تأكيد الحفظ رغم تجاوز السقف';sb.style.background='var(--due)'}return}}
@@ -1532,6 +1533,41 @@ async function wdPrint(){if(!S.wdL)return;const per=S.wdl.per,T=today(),M=T.slic
     const rows=L.map(t=>({v:[arDay(t.day)+' '+dmy(t.day),t.t?hm(t.t):'',t.to||'بدون تحديد',t.n&&t.n!=='سحب ← '+(t.to||'')?t.n:'',t.cur!=='syp'?money(nv(t.a)):'',t.cur==='syp'?sy(nv(t.a)):'']}));
     const cv=await drawDoc({title:'سجل السحوبات · '+perL,sub:printedAt()+' · '+L.length+' سحبة',lbl:'سجل السحوبات · '+perL,sumHead:['وين راح المبلغ','دولار','ليرة سورية'],sumRows,cols:[{t:'اليوم والتاريخ',w:200},{t:'الساعة',w:80,n:1},{t:'وين راح',w:170},{t:'البيان',w:226},{t:'دولار',w:162,n:1,b:1},{t:'ليرة سورية',w:162,n:1,b:1}],rows,empty:'ما في سحوبات بهالفترة',foot:printedAt()});
     outBox(cv,'Withdrawals '+T,'')}catch(e){console.error(e);const bx=$('#stmtbox');if(bx)bx.textContent='تعذّر تجهيز الكشف.'}}
+/* ---------- walk-in buyers with a name become real customers ---------- */
+const WK_GENERIC=/^(مبيع\s*نقدي|نقدي|مفرق|زبون\s*مفرق|زبون|كاش)/;
+const wkKey=n=>String(n||'').replace(/\s+/g,' ').trim();
+async function custCreate({name,phone,city}){const id=S.db.collection('customers').doc().id;await S.db.doc('ledgers/'+id).set({tx:[]});
+  const rec={name:wkKey(name),city:city||'',phone:String(phone||'').trim(),note:'',balance:0,dueAt:null,repeat:0,lastSent:null,createdAt:new Date().toISOString()};
+  await S.db.doc('customers/'+id).set(rec);if(!S.customers.some(c=>c.id===id))S.customers.push({id,...rec});audit('cust-add','زبون جديد من فاتورة مفرق',{name:rec.name});return id}
+function wkMatch(nm,phone){const ph=waNum(phone);return (ph&&S.customers.find(x=>!x.walkin&&waNum(x.phone)===ph))||S.customers.find(x=>!x.walkin&&nrm(x.name)===nrm(nm))||null}
+async function walkinMoveTo(cid){const d0=JSON.parse(JSON.stringify(S.draft||{}));wipClear(S.draft);S.wkDec=null;show('detail',cid);let n=0;while(!(S.cid===cid&&S.ledger)&&n++<100)await sleep(100);if(!S.ledger){toast('ما قدرت أفتح حساب الزبون، جرّب مرة تانية');return}
+  invSheet();if(!S.draft)return;const keep=['date','no','nid','dest','phone','shipper','shipFee','pay','disc','note','seller','sypOn','sypRate','cashCur','cashRate','cashUsd','cashSyp','fromOrd','items'];for(const k of keep)if(d0[k]!==undefined)S.draft[k]=d0[k];
+  S.draft.wh=d0.wh||'main';S.draft.oldWh=d0.wh||'main';delete S.draft.wname;S.dupOK=true;S.stockOK=true;renderInv();await saveInvoice()}
+function wkAsk(d,html){const f=$('#iform');if(!f)return;let w=$('#wkask');if(w)w.remove();w=document.createElement('div');w.id='wkask';w.className='note';w.style.cssText='display:flex;flex-direction:column;gap:8px;border:2px solid var(--brand,#7aa2ff)';w.innerHTML=html;const sb=f.querySelector('button[type=submit]');(sb&&sb.parentElement?sb.parentElement:f).before(w);w.scrollIntoView({block:'center',behavior:'smooth'})}
+async function walkinRoute(d,c){const nm=wkKey(d.wname);if(!nm||WK_GENERIC.test(nm))return false;const key=nm+'|'+waNum(d.phone),credit=!PAID.includes(d.pay);
+  if(S.wkDec&&S.wkDec.key===key){const v=S.wkDec.v;S.wkDec=null;if(v==='keep')return false;if(v==='new'){const id=await custCreate({name:nm,phone:d.phone,city:d.dest});await walkinMoveTo(id);return true}if(v.startsWith('to:')){await walkinMoveTo(v.slice(3));return true}return false}
+  const ex=wkMatch(nm,d.phone);
+  if(ex){wkAsk(d,`<b>👤 «${esc(nm)}» ${waNum(d.phone)&&waNum(ex.phone)===waNum(d.phone)?'رقمه':'اسمه'} موجود بالزبائن: <span>${esc(ex.name)}</span>${ex.phone?' · '+esc(ex.phone):''}</b><span class="small">بدك تنزل الفاتورة على حسابه؟</span><div style="display:grid;grid-template-columns:repeat(${credit?2:3},1fr);gap:6px"><button class="btn primary sm" type="button" data-act="f-wk" data-v="to:${esc(ex.id)}" data-k="${esc(key)}">✅ على حساب ${esc(ex.name)}</button><button class="btn sm" type="button" data-act="f-wk" data-v="new" data-k="${esc(key)}">زبون جديد</button>${credit?'':`<button class="btn sm" type="button" data-act="f-wk" data-v="keep" data-k="${esc(key)}">خليها مفرق</button>`}</div>`);return true}
+  if(credit){toast('👤 انعمل حساب جديد لـ '+nm+' ونزلت الفاتورة على ذمته');const id=await custCreate({name:nm,phone:d.phone,city:d.dest});await walkinMoveTo(id);return true}
+  if(waNum(d.phone)){wkAsk(d,`<b>👤 ضيف «${esc(nm)}» للزبائن؟</b><span class="small">بيصير إلو حساب لحاله وبتنزل الفاتورة عليه، وبتلاقيه بقسم الزبائن.</span><div class="grid2"><button class="btn primary sm" type="button" data-act="f-wk" data-v="new" data-k="${esc(key)}">✅ نعم، ضيفه</button><button class="btn sm" type="button" data-act="f-wk" data-v="keep" data-k="${esc(key)}">لا، خليها مفرق</button></div>`);return true}
+  return false}
+/* move old walk-in invoices to their real owners */
+async function wkMigSheet(){openSheet('<h2>🔀 نقل فواتير المفرق لأصحابها</h2><div id="wkbox" class="empty">جارٍ جمع فواتير المفرق…</div><button class="btn" type="button" data-act="close">إغلاق</button>');
+  try{const sn=await S.db.collection('invoices').get(),G={};for(const d of sn.docs){const v=d.data()||{};if(v.cid!=='walkin'||v.void)continue;const nm=wkKey(v.cname);if(!nm||WK_GENERIC.test(nm))continue;const k=waNum(v.phone)||'n:'+nrm(nm);(G[k]=G[k]||{k,names:{},phone:'',inv:[],credit:0,total:0,city:''});const g=G[k];g.names[nm]=(g.names[nm]||0)+1;if(v.phone&&!g.phone)g.phone=v.phone;if(v.dest&&!g.city)g.city=v.dest;g.inv.push({id:d.id,no:v.no,date:v.date,total:nv(v.total),pay:v.pay});g.total+=nv(v.total);if(!PAID.includes(v.pay))g.credit+=nv(v.total)}
+    for(const g of Object.values(G)){if(!g.phone)continue;const nk='n:'+nrm(Object.keys(g.names)[0]);for(const g2 of Object.values(G))if(g2!==g&&!g2.phone&&Object.keys(g2.names).some(n=>Object.keys(g.names).some(m=>nrm(n)===nrm(m)))){for(const n in g2.names)g.names[n]=(g.names[n]||0)+g2.names[n];g.inv.push(...g2.inv);g.total+=g2.total;g.credit+=g2.credit;delete G[g2.k]}}
+    S.wkG=Object.values(G).sort((a,b)=>b.credit-a.credit||b.total-a.total);wkMigRender()}catch(e){console.error(e);const b=$('#wkbox');if(b)b.textContent='تعذّر جمع الفواتير. تحقق من الاتصال.'}}
+function wkMigRender(){const box=$('#wkbox');if(!box)return;const L=S.wkG||[];box.className='sec';
+  box.innerHTML=L.length?`<span class="small muted">فواتير المفرق يلي عليها اسم، مجموعة حسب الرقم أو الاسم. الآجل أولاً لأنو دين لازم يكون على اسم صاحبه.</span><div class="list">${L.map((g,i)=>{const nm=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0],ex=wkMatch(nm,g.phone);return `<div class="row" style="flex-wrap:wrap"><span class="who"><b>${esc(Object.keys(g.names).join(' / '))}</b><small>${g.phone?`<span class="num">${esc(g.phone)}</span>`:''}<span>${g.inv.length} فاتورة</span>${g.credit>0.005?`<span class="chip c-debt">آجل ${money(r2(g.credit))}</span>`:''}${ex?`<span class="chip c-zero">موجود: ${esc(ex.name)}</span>`:''}</small></span><span class="amt"><b>${money(r2(g.total))}</b></span><div style="flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap">${ex?`<button class="btn sm primary" type="button" data-act="f-wkm" data-i="${i}" data-v="to:${esc(ex.id)}">ضمّها لـ ${esc(ex.name)}</button>`:''}<button class="btn sm${ex?'':' primary'}" type="button" data-act="f-wkm" data-i="${i}" data-v="new">زبون جديد «${esc(nm)}»</button></div></div>`}).join('')}</div>`:'<div class="empty">✓ ما في فواتير مفرق بأسماء لازم تنتقل.</div>'}
+async function wkMigrate(g,target){const nm=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0];let tid=target;if(target==='new')tid=await custCreate({name:nm,phone:g.phone,city:g.city});const tc=cust(tid)||{name:nm};
+  const ids=new Set(g.inv.map(x=>x.id));const fw=await freshDoc('ledgers/walkin');if(!fw.ok||!fw.v)throw new Error('ledger');const wtx=fw.v.tx||[],mv=wtx.filter(t=>t.inv&&ids.has(t.inv));
+  const ft=await freshDoc('ledgers/'+tid);if(!ft.ok)throw new Error('ledger2');const ttx=((ft.v&&ft.v.tx)||[]).filter(t=>!mv.some(m=>m.id===t.id)).concat(mv.map(t=>({...t,n:(t.n||'').replace(/^[^·]*·\s*/,'')||t.n})));
+  ttx.sort((a,b)=>String(a.d||'9').localeCompare(String(b.d||'9')));
+  await S.db.doc('ledgers/'+tid).set({tx:ttx});const C1=custCache(ttx);await S.db.doc('customers/'+tid).update(C1);{const c1=cust(tid);if(c1)Object.assign(c1,C1)}
+  const rest=wtx.filter(t=>!(t.inv&&ids.has(t.inv)));await S.db.doc('ledgers/walkin').set({tx:rest});const C2=custCache(rest);try{await S.db.doc('customers/walkin').update(C2)}catch(e){}{const c2=cust('walkin');if(c2)Object.assign(c2,C2)}if(S.cid==='walkin')S.ledger=rest;
+  for(const x of g.inv){try{await S.db.doc('invoices/'+x.id).update({cid:tid,cname:tc.name})}catch(e){}}
+  const days={};for(const t of mv)if(t.cash)(days[t.cash]=days[t.cash]||[]).push(t.id);
+  for(const day in days){try{const {ref,v}=await cashDay(day,false);if(!v)continue;let ch=false;v.tx=v.tx.map(e=>days[day].includes(e.ltx)?(ch=true,{...e,cid:tid,cname:tc.name}):e);if(ch){await ref.set(v);if(S.cday===day)S.cash=v}}catch(e){}}
+  audit('walkin-move','نقل فواتير مفرق لزبون',{name:tc.name,n:g.inv.map(x=>x.no).join('، '),a:r2(g.total)});return tc.name}
 function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getElementById('bltzoom');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='bltzoom';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','معاينة صفحة');
   ov.style.cssText='position:fixed;inset:0;z-index:9999;background:#000e;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)';
@@ -3244,6 +3280,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-img-share'){b.disabled=true;imgShareAll(false).finally(()=>{b.disabled=false});return}
   if(a==='f-img-seq'){const n=b.closest('.note');if(n)n.remove();imgShareAll(true);return}
   if(a==='f-img-next'){imgSeqNext();return}
+  if(a==='f-wk'){S.wkDec={key:D.k,v:D.v};const w=$('#wkask');if(w)w.remove();guard(()=>saveInvoice());return}
+  if(a==='f-wkmig'){wkMigSheet();return}
+  if(a==='f-wkm'){const g=(S.wkG||[])[+D.i];if(!g)return;if(S.armed!=='wkm'+D.i+D.v){S.armed='wkm'+D.i+D.v;b.textContent='اكبس مرة تانية للتأكيد ('+g.inv.length+' فاتورة)';return}S.armed=null;b.disabled=true;
+    guard(async()=>{try{const nm=await wkMigrate(g,D.v);S.wkG.splice(+D.i,1);wkMigRender();toast('✔ انتقلت '+g.inv.length+' فاتورة لحساب '+nm)}catch(e){console.error(e);toast('تعذّر النقل، ما تغيّر شي. جرّب مرة تانية');b.disabled=false}});return}
   if(a==='f-itq-clear'){S.itq='';const q=$('#it-q');if(q){q.value='';q.focus()}itqApply();return}
   if(a==='f-ord-forcust'){const id=S.cid;if(!id||!cust(id))return;ordDraftOpen(id);return}
   if(a==='f-wd-log'){wdLog();return}
@@ -3662,7 +3702,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261125-1951';
+const BUILD='20261125-2011';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
