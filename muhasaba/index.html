@@ -1558,7 +1558,7 @@ async function wkMigSheet(){openSheet('<h2>🔀 نقل فواتير المفرق
     S.wkG=Object.values(G).sort((a,b)=>b.credit-a.credit||b.total-a.total);wkMigRender()}catch(e){console.error(e);const b=$('#wkbox');if(b)b.textContent='تعذّر جمع الفواتير. تحقق من الاتصال.'}}
 function wkMigRender(){const box=$('#wkbox');if(!box)return;const L=S.wkG||[];box.className='sec';
   box.innerHTML=L.length?`<span class="small muted">فواتير المفرق يلي عليها اسم، مجموعة حسب الرقم أو الاسم. الآجل أولاً لأنو دين لازم يكون على اسم صاحبه.</span><div class="list">${L.map((g,i)=>{const nm=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0],ex=wkMatch(nm,g.phone);return `<div class="row" style="flex-wrap:wrap"><span class="who"><b>${esc(Object.keys(g.names).join(' / '))}</b><small>${g.phone?`<span class="num">${esc(g.phone)}</span>`:''}<span>${g.inv.length} فاتورة</span>${g.credit>0.005?`<span class="chip c-debt">آجل ${money(r2(g.credit))}</span>`:''}${ex?`<span class="chip c-zero">موجود: ${esc(ex.name)}</span>`:''}</small></span><span class="amt"><b>${money(r2(g.total))}</b></span><div style="flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap">${ex?`<button class="btn sm primary" type="button" data-act="f-wkm" data-i="${i}" data-v="to:${esc(ex.id)}">ضمّها لـ ${esc(ex.name)}</button>`:''}<button class="btn sm${ex?'':' primary'}" type="button" data-act="f-wkm" data-i="${i}" data-v="new">زبون جديد «${esc(nm)}»</button></div></div>`}).join('')}</div>`:'<div class="empty">✓ ما في فواتير مفرق بأسماء لازم تنتقل.</div>'}
-async function wkMigrate(g,target){const nm=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0];let tid=target;if(target==='new')tid=await custCreate({name:nm,phone:g.phone,city:g.city});const tc=cust(tid)||{name:nm};
+async function wkMigrate(g,target){const nm=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0];let tid=String(target||'').replace(/^to:/,'');if(target==='new')tid=await custCreate({name:nm,phone:g.phone,city:g.city});const tc=cust(tid);if(!tc||tc.walkin)throw new Error('target');
   const ids=new Set(g.inv.map(x=>x.id));const fw=await freshDoc('ledgers/walkin');if(!fw.ok||!fw.v)throw new Error('ledger');const wtx=fw.v.tx||[],mv=wtx.filter(t=>t.inv&&ids.has(t.inv));
   const ft=await freshDoc('ledgers/'+tid);if(!ft.ok)throw new Error('ledger2');const ttx=((ft.v&&ft.v.tx)||[]).filter(t=>!mv.some(m=>m.id===t.id)).concat(mv.map(t=>({...t,n:(t.n||'').replace(/^[^·]*·\s*/,'')||t.n})));
   ttx.sort((a,b)=>String(a.d||'9').localeCompare(String(b.d||'9')));
@@ -3702,7 +3702,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261125-2011';
+const BUILD='20261125-2020';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
