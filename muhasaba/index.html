@@ -2048,25 +2048,30 @@ async function saveLog(){const f=S.lf,e=emp(S.eid);if(!f||!e)return;const l={id:
   await S.db.doc('staff/'+e.id).update({log:[...(e.log||[]),l]});
   if(l.cash){await cashAdd(l.cash,[{id:newId(),t:new Date().toISOString(),dir:'out',cur:l.cur,a:l.a,n:(f.type==='exp'?'مصروف ':'سلفة ')+e.name,ltx:l.id,staff:e.id}])}
   S.lf=null;closeSheet();toast(l.cash?'سُجّل وخرج من الصندوق':'سُجّلت')}
-function paySheet(){const e=emp(S.eid);if(!e)return;const ws=S.ews||wkStart(today()),r=weekCalc(e,ws);
-  openSheet(`<h2>دفع راتب ${esc(e.name)}</h2><span class="small muted">أسبوع <span class="num">${dmy(ws)}</span> إلى <span class="num">${dmy(addDays(ws,5))}</span>. المتبقي له: <b class="num">${money(r.rem.usd)}</b> و <b class="num">${sy(r.rem.syp)}</b>.</span>
-   <form id="payform"><div class="grid2"><div class="field"><label for="pay-u">المدفوع بالدولار ($)</label><input id="pay-u" type="number" step="any" min="0" inputmode="decimal" value="${r.rem.usd>0?r.rem.usd:''}"></div>
-   <div class="field"><label for="pay-s">المدفوع بالليرة (ل.س)</label><input id="pay-s" type="number" step="any" min="0" inputmode="decimal" value="${r.rem.syp>0?r.rem.syp:''}"></div></div>
-   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pay-conv" style="width:18px;height:18px"> ادفع الليرة بالدولار (على سعر الصرف)</label>
-   <div id="pay-cv" hidden><div class="grid2"><div class="field"><label for="pay-rate">سعر الصرف (ل.س لكل $1)</label><input id="pay-rate" type="number" step="any" min="0" inputmode="decimal" value="${curRate()||''}"></div>
-   <div class="field"><label for="pay-cu">المبلغ اللي سلّمته بالدولار بدل الليرة ($)</label><input id="pay-cu" type="number" step="any" min="0" inputmode="decimal"></div></div><span class="small muted" id="pay-cvh"></span></div>
-   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pay-cash" checked style="width:18px;height:18px"> يخرج من الصندوق اليومي كمصروف</label>
-   <div class="grid2"><button class="btn primary" type="submit">تأكيد الدفع</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`)}
-/* paying the lira part of a salary in dollars: the lira salary counts as fully paid, only dollars leave the cash box; any rounding up is on the company */
-function payConvCalc(force){const on=$('#pay-conv')&&$('#pay-conv').checked,box=$('#pay-cv');if(!box)return;box.hidden=!on;if(!on)return;const syp=nv($('#pay-s').value),rate=nv($('#pay-rate').value),cu=$('#pay-cu'),h=$('#pay-cvh');
-  const eq=rate>0?r2(syp/rate):0;if(force||!cu.dataset.ed)cu.value=eq>0?eq:'';h.innerHTML=syp>0&&rate>0?`<b class="num">${sy(syp)}</b> ÷ <span class="num">${rate}</span> = <b class="num">${money(eq)}</b>. إذا دوّرته لفوق، الفرق على الشركة.`:'اكتب المبلغ بالليرة وسعر الصرف'}
-async function savePay(){const e=emp(S.eid);if(!e)return;const usd=r2(nv($('#pay-u').value)),syp=r2(nv($('#pay-s').value));if(!(usd>0)&&!(syp>0)){toast('أدخل المبلغ المدفوع');return}
-  const conv=$('#pay-conv')&&$('#pay-conv').checked&&syp>0,rate=conv?nv($('#pay-rate').value):0,cu=conv?r2(nv($('#pay-cu').value)):0;
-  if(conv&&!(rate>0)){toast('أدخل سعر الصرف');return}if(conv&&!(cu>0)){toast('أدخل المبلغ اللي سلّمته بالدولار');return}
-  const day=today(),l={id:newId(),type:'pay',d:day,w:S.ews||wkStart(day),usd,syp,n:conv?`${sy(syp)} دُفعت ${money(cu)} على سعر ${rate}`:''};if(conv)l.conv={rate,usd:cu};if($('#pay-cash').checked)l.cash=day;
+function paySheet(){const e=emp(S.eid);if(!e)return;const ws=S.ews||wkStart(today()),r=weekCalc(e,ws);S.payRem=r.rem;
+  const owe=[r.rem.syp>0.005?`<b class="num">${sy(r.rem.syp)}</b>`:'',r.rem.usd>0.005?`<b class="num">${money(r.rem.usd)}</b>`:''].filter(Boolean).join(' و ')||'<b>ولا شي</b>';
+  openSheet(`<h2>دفع راتب ${esc(e.name)}</h2><span class="small muted">أسبوع <span class="num">${dmy(ws)}</span> إلى <span class="num">${dmy(addDays(ws,5))}</span></span>
+   <div class="card" style="font-size:17px;text-align:center"><span>إلو عندك: ${owe}</span></div>
+   <form id="payform"><div class="field"><label for="pay-u">سلّمته دولار ($)</label><input id="pay-u" type="number" step="any" min="0" inputmode="decimal" placeholder="0"></div>
+   <div class="field"><label for="pay-rate">سعر الصرف</label><input id="pay-rate" type="number" step="any" min="0" inputmode="decimal" value="${curRate()||''}"></div>
+   <div class="field"><label for="pay-s">سلّمته ليرة (ل.س)</label><input id="pay-s" type="number" step="any" min="0" inputmode="decimal" placeholder="0"></div>
+   <div class="card" id="pay-res" style="font-size:16px;text-align:center"></div>
+   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pay-cash" checked style="width:18px;height:18px"> يطلع من الصندوق</label>
+   <div class="grid2"><button class="btn primary" type="submit">تأكيد الدفع</button><button class="btn" type="button" data-act="close">إلغاء</button></div></form>`);payCalc()}
+/* what was handed (dollars + lira) is converted at the rate typed and taken off what the employee is owed */
+function payAlloc(gu,gs,rate,R){let cu=Math.min(gu,Math.max(0,R.usd)),xu=gu-cu,cs=gs+(rate>0?xu*rate:0);
+  if(cs>R.syp&&R.usd-cu>0.005&&rate>0){const over=cs-Math.max(0,R.syp),add=Math.min(R.usd-cu,over/rate);cu+=add;cs-=add*rate}
+  if(!(rate>0)&&xu>0.005)cu+=xu;return{usd:r2(cu),syp:r2(cs)}}
+function payCalc(){const b=$('#pay-res');if(!b)return;const R=S.payRem||{usd:0,syp:0},gu=nv($('#pay-u').value),gs=nv($('#pay-s').value),rate=nv($('#pay-rate').value);
+  const left=rate>0?r2(Math.max(0,R.syp)+Math.max(0,R.usd)*rate-gs-gu*rate):null;
+  b.innerHTML=(gu>0&&rate>0?`<div class="small muted"><span class="num">${money(gu)}</span> × <span class="num">${rate}</span> = <span class="num">${sy(r2(gu*rate))}</span></div>`:'')+
+    (left===null?'<span class="muted">اكتب سعر الصرف</span>':Math.abs(left)<0.5?'<b class="t-credit">الباقي إلو: 0 ✅</b>':left>0?`<b>الباقي إلو: <span class="num">${sy(left)}</span></b>`:`<b class="t-debt">دفعتلو زيادة: <span class="num">${sy(-left)}</span></b>`)}
+async function savePay(){const e=emp(S.eid);if(!e)return;const gu=r2(nv($('#pay-u').value)),gs=r2(nv($('#pay-s').value)),rate=nv($('#pay-rate').value);if(!(gu>0)&&!(gs>0)){toast('اكتب شو سلّمته');return}
+  const R=weekCalc(e,S.ews||wkStart(today())).rem,mix=(gu>0&&R.syp>0.005)||(gs>0&&R.usd>0.005);if(mix&&!(rate>0)){toast('اكتب سعر الصرف');return}
+  const A=payAlloc(gu,gs,rate,R),day=today(),l={id:newId(),type:'pay',d:day,w:S.ews||wkStart(day),usd:A.usd,syp:A.syp,n:mix?'سلّمته '+[gu>0?money(gu):'',gs>0?sy(gs):''].filter(Boolean).join(' + ')+' على سعر '+rate:''};if(mix)l.given={usd:gu,syp:gs,rate};if($('#pay-cash').checked)l.cash=day;
   await S.db.doc('staff/'+e.id).update({log:[...(e.log||[]),l]});
-  if(l.cash){const t=new Date().toISOString(),n='راتب '+e.name,L=[],ou=r2(usd+cu);if(ou>0)L.push({id:newId(),t,dir:'out',cur:'usd',a:ou,n:conv?n+' (منها '+money(cu)+' بدل '+sy(syp)+')':n,ltx:l.id,staff:e.id});if(syp>0&&!conv)L.push({id:newId(),t,dir:'out',cur:'syp',a:syp,n,ltx:l.id,staff:e.id});await cashAdd(day,L)}
-  closeSheet();toast(l.cash?'دُفع الراتب وخرج من الصندوق':'سُجّل دفع الراتب')}
+  if(l.cash){const t=new Date().toISOString(),n='راتب '+e.name,L=[];if(gu>0)L.push({id:newId(),t,dir:'out',cur:'usd',a:gu,n,ltx:l.id,staff:e.id});if(gs>0)L.push({id:newId(),t,dir:'out',cur:'syp',a:gs,n,ltx:l.id,staff:e.id});await cashAdd(day,L)}
+  closeSheet();toast(l.cash?'دُفع الراتب وطلع من الصندوق':'سُجّل دفع الراتب')}
 
 /* ---------- reports: sales, expenses, safe daily spending, invoice register ---------- */
 S.rep={inv:null,cash:null,per:'month',q:'',err:false,loading:false};
@@ -2239,7 +2244,7 @@ async function quickSale(){if(!S.db)return;let c=S.customers.find(x=>x.walkin||x
   const id=c.id;show('detail',id);let n=0;const t=setInterval(()=>{if(S.view!=='detail'||S.cid!==id){clearInterval(t);return}if(S.ledger||++n>40){clearInterval(t);if(S.ledger){invSheet();if(S.draft){Object.assign(S.draft,{pay:'نقدي',tier:'pt',dest:MYCITY,shipper:'',shipFee:''});renderInv()}}}},100)}
 function saleCustList(q){q=nrm(q||'');const L=S.customers.filter(c=>!c.walkin&&(!q||nrm(c.name).includes(q)||String(c.phone||'').includes(q))).slice(0,40);$('#sp-list').innerHTML=L.length?L.map(c=>`<button class="row" type="button" data-act="sale-cust" data-id="${esc(c.id)}"><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'—')}</span><span class="num" dir="ltr">${esc(c.phone||'')}</span></small></span></button>`).join(''):!S.loaded?'<div class="empty">جارٍ تحميل الزبائن…</div>':!S.customers.length?'<div class="empty"><b>لا يوجد أي زبون في هذه النسخة.</b><span>افتح تبويب «الزبائن»: إذا كان فارغاً فأنت على نسخة غير متصلة بدفترك (مثلاً نسخة Claude بدل الموقع/التطبيق). افتح الموقع أو التطبيق.</span></div>':'<div class="empty">لا يوجد زبون بهذا الاسم.</div>'}
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='sp-q')saleCustList(e.target.value)})
-document.addEventListener('input',e=>{const id=e.target&&e.target.id;if(id==='pay-cu')e.target.dataset.ed='1';if(id==='pay-s'||id==='pay-rate')payConvCalc()});document.addEventListener('change',e=>{if(e.target&&e.target.id==='pay-conv')payConvCalc(true)});;
+document.addEventListener('input',e=>{const id=e.target&&e.target.id;if(id==='pay-u'||id==='pay-s'||id==='pay-rate')payCalc()});;
 function repInvList(inv){return inv.length?`<div class="list">${inv.slice(0,60).map(v=>`<button class="row" type="button" data-act="rep-inv" data-id="${esc(v.id)}" data-cid="${esc(v.cid||'')}"><span class="who"><b>${v.void?'<s>':''}فاتورة <span class="num">#${esc(v.no)}</span> · ${esc(v.cname||'')}${v.void?'</s>':''}</b><small><span class="num">${dmy(v.date)}</span><span>${esc(v.pay||'')}</span>${v.void?'<span class="chip c-debt">ملغاة</span>':''}${(v.rets||[]).some(r=>!r.void)?'<span class="chip c-due">عليها مرتجع</span>':''}${prChip(v.printed)}</small></span><span class="amt"><b class="num">${money(nv(v.total))}</b></span></button>`).join('')}</div>${inv.length>60?'<span class="small muted">يظهر أحدث 60 فاتورة. اكتب في البحث لتضييق النتائج.</span>':''}`:'<div class="empty">لا توجد فواتير مطابقة.</div>'}
 
 /* ---------- backup, restore, PIN ---------- */
@@ -3866,7 +3871,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-1747';
+const BUILD='20261126-1832';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
