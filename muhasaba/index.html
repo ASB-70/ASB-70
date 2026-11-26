@@ -757,7 +757,10 @@ async function drawStatement(c,tx,lastN){tx=(tx||[]).filter(t=>!t.void);
 }
 const hiK=H=>H*3<=15000?3:H*2<=15000?2:1; // output sharpness: 3x when the canvas size allows
 /* cut a long document image into pages on row boundaries; multi-page invoices/drafts get a linking label on every page and the column headers repeated */
-function cutPages(cv,PH){const W=cv.width,K=W/1080,multi=cv.height>PH&&!!cv._lbl,TB=multi?Math.round(46*K):0,FB=multi?Math.round(42*K):0,TH=multi&&cv._th?Math.round(cv._th.h):0,s0=cv._rs,RH=cv._rh,re=cv._re||cv.height,cuts=[];let y=0;
+function cutPages(cv,PH){
+  /* a little too long for one page: shrink it slightly so it prints on a single sheet instead of wasting a second page */
+  if(cv.height>PH&&cv.height<=PH*1.22){const f=PH/cv.height,pc=document.createElement('canvas');pc.width=cv.width;pc.height=PH;const g=pc.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,pc.width,PH);const w=Math.round(cv.width*f);g.drawImage(cv,Math.round((cv.width-w)/2),0,w,PH);pc._multi=false;return[pc]}
+  const W=cv.width,K=W/1080,multi=cv.height>PH&&!!cv._lbl,TB=multi?Math.round(46*K):0,FB=multi?Math.round(42*K):0,TH=multi&&cv._th?Math.round(cv._th.h):0,s0=cv._rs,RH=cv._rh,re=cv._re||cv.height,cuts=[];let y=0;
   const cap=i=>PH-TB-FB-(i>0?TH:0);
   while(cv.height-y>cap(cuts.length)){let c=y+cap(cuts.length);if(c<re&&c>s0){if(cv._rb&&cv._rb.length){let bb=s0;for(const v of cv._rb){if(v<=c)bb=v;else break}c=bb}else if(RH>0)c=s0+Math.floor((c-s0)/RH)*RH}else if(y<re&&c>=re)c=re;if(c<=y)c=y+cap(cuts.length);cuts.push([y,c]);y=c}
   cuts.push([y,cv.height]);const N=cuts.length,dts=new Date().toLocaleDateString('en-GB'),BF='"IBM Plex Sans Arabic",Tahoma,sans-serif',DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif';
@@ -3772,7 +3775,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-0322';
+const BUILD='20261126-0914';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
