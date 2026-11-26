@@ -397,6 +397,7 @@ function fail(e){toast(e&&e.code==='quota_exceeded'?'امتلأت مساحة ا�
 
 /* ---------- views ---------- */
 function show(v,cid){
+  if(S.view==='customers')S.listY=window.scrollY;if(v==='detail'&&cid)S.lastCid=cid;
   if(S.unsubL&&!(v==='detail'&&cid===S.cid)){S.unsubL();S.unsubL=null;S.ledger=null}
   S.view=v;S.cid=v==='detail'?cid:null;S.askSent=null;S.armed=null;
   for(const k of['home','customers','due','settings','detail','stock','cash','staff','emp','reports','sales','exp'])$('#v-'+k).hidden=k!==v;
@@ -415,8 +416,11 @@ function show(v,cid){
   if(v==='detail'&&S.db&&!S.unsubL){
     S.unsubL=S.db.doc('ledgers/'+cid).onSnapshot(s=>{S.ledger=s.exists?(s.data().tx||[]).slice():[];if(S.cid===cid)renderDetail()},()=>{S.ledger=S.ledger||[];renderDetail()});
   }
-  refresh();window.scrollTo(0,0);if(v!=='home')navPush();navSync();
+  refresh();window.scrollTo(0,0);if(v==='customers'&&S.listY){S.pendY=S.listY;listScrollFix()}if(v!=='home')navPush();navSync();
 }
+function listScrollFix(){if(S.view!=='customers'||!S.pendY||!S.loaded)return;const y=S.pendY;S.pendY=0;requestAnimationFrame(()=>window.scrollTo(0,y))}
+function navSave(){try{LS.set('thiqa-nav',JSON.stringify({t:Date.now(),view:S.view,cid:S.cid,y:S.view==='customers'?window.scrollY:(S.listY||0),dy:S.view==='detail'?window.scrollY:0,f:S.f,last:S.lastCid||''}))}catch(e){}}
+function navRestore(){try{const n=JSON.parse(LS.get('thiqa-nav')||'null');if(!n||Date.now()-n.t>15*60000||!['customers','detail','due'].includes(n.view))return false;if(n.f)S.f={...S.f,...n.f};S.listY=n.y||0;S.lastCid=n.last||'';show(n.view,n.cid||undefined);if(n.view==='customers'){S.pendY=n.y||0;listScrollFix()}else if(n.dy){S.pendDY=n.dy;setTimeout(()=>{if(S.pendDY){window.scrollTo(0,S.pendDY);S.pendDY=0}},900)}return true}catch(e){return false}}
 function refresh(){
   const due=S.customers.filter(isDue).length;const b=$('#duebadge');b.hidden=!due;b.textContent=due;
   renderCover();
@@ -541,6 +545,8 @@ function renderList(){
     `<div class="sechead" style="margin-bottom:8px"><small>${L.length} زبون</small><small>المجموع <b class="num">${money(sum)}</b></small></div>`+
     (L.length?`<div class="list">${L.map(c=>CS?`<button class="row" type="button" data-act="csel-toggle" data-id="${esc(c.id)}" aria-pressed="${CS.has(c.id)}"><span class="selbox${CS.has(c.id)?' on':''}" aria-hidden="true">${CS.has(c.id)?'✓':''}</span><span class="who"><b>${esc(c.name)}</b><small><span>${esc(c.city||'—')}</span><span class="num" dir="ltr">${esc(c.phone||'')}</span></small></span><span class="amt"><b class="${typeOf(c.balance||0)==='debt'?'t-debt':''}">${money(Math.abs(c.balance||0))}</b></span></button>`:rowHTML(c,(c.dueAt&&!isDue(c)?`<span>تذكير ${new Date(c.dueAt).toLocaleDateString('ar-SY-u-nu-latn',{day:'numeric',month:'short'})}</span>`:'')+sentChip(c))).join('')}</div>`:'<div class="empty">لا يوجد زبون يطابق البحث</div>');
   {const db=dupBanner();if(db)$('#clist').insertAdjacentHTML('afterbegin',db)}
+  if(S.lastCid){const r=document.querySelector('#clist [data-open="'+CSS.escape(S.lastCid)+'"]');if(r){r.style.outline='2px solid var(--brand,#7aa2ff)';r.style.borderRadius='10px';r.style.background='var(--sunk,#7aa2ff22)'}}
+  listScrollFix();
 }
 function sendBlock(c){
   if(S.askSent===c.id)return `<div class="note">هل أرسلت الرسالة في واتساب؟</div><div class="grid2"><button class="btn primary" type="button" data-act="sent" data-id="${esc(c.id)}">نعم، أُرسلت</button><button class="btn" type="button" data-act="notsent">ليس بعد</button></div>`;
@@ -592,7 +598,7 @@ function renderDetail(){
   const tx=S.ledger;let run=0,inv=0,paid=0;
   const rows=(tx||[]).map(t=>{run=r2(run+eff(t));if(!t.void){if(t.k==='inv')inv+=t.a;else paid+=t.a}return{t,run}}).reverse();
   const stmt=tx?waLink(c,stmtMsg(c,tx)):'';
-  el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="new-inv" ${tx?'':'disabled'}>＋ فاتورة جديدة</button><button class="btn primary" type="button" data-act="new-tx" data-k="pay">＋ دفعة أو حركة</button></div>${c&&!c.walkin?`<button class="btn" type="button" data-act="f-ord-forcust" style="width:100%">📝 مسودة طلب جديدة (لدفتر الطلبات)</button>`:''}${c&&c.walkin&&isOwner()?`<button class="btn" type="button" data-act="f-wkmig" style="width:100%">🔀 نقل فواتير المفرق لأصحابها</button>`:''}
+  el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="new-inv" ${tx?'':'disabled'}>＋ فاتورة جديدة</button><button class="btn primary" type="button" data-act="new-tx" data-k="pay">＋ دفعة أو حركة</button></div>${c&&!c.walkin?`<button class="btn" type="button" data-act="f-ord-forcust" style="width:100%">📝 مسودة طلب جديدة (لدفتر الطلبات)</button>`:''}${(()=>{const L=S.clist||[],ix=L.findIndex(x=>x.id===c.id),nx=ix>=0?L[ix+1]:null;return nx?`<button class="btn" type="button" data-act="f-next-cust" data-id="${esc(nx.id)}" style="width:100%">الزبون التالي ← ${esc(nx.name)}${Math.abs(nv(nx.balance))>0.005?' · '+money(Math.abs(nv(nx.balance))):''} <small class="muted">(${ix+2} من ${L.length})</small></button>`:''})()}${c&&c.walkin&&isOwner()?`<button class="btn" type="button" data-act="f-wkmig" style="width:100%">🔀 نقل فواتير المفرق لأصحابها</button>`:''}
    <div class="card ${isDue(c)?'duecard':''}"><div class="sechead"><h2>تذكير الدفع</h2><button class="btn sm" type="button" data-act="schedule">${c.dueAt?'تعديل الموعد':'تحديد موعد'}</button></div>
      <div class="small ${isDue(c)?'':'muted'}">${c.dueAt?(isDue(c)?'مستحق منذ ':'الموعد: ')+whenTxt(c.dueAt)+(c.repeat?` · يتكرر كل ${c.repeat} يوم`:''):'لا يوجد موعد محدد لهذا الزبون.'}${c.lastSent?`<br>${sentChip(c)} <span class="muted">${whenTxt(c.lastSent)}</span>`:''}</div>
      ${sendBlock(c)}
@@ -3309,6 +3315,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-img-share'){b.disabled=true;imgShareAll(false).finally(()=>{b.disabled=false});return}
   if(a==='f-img-seq'){const n=b.closest('.note');if(n)n.remove();imgShareAll(true);return}
   if(a==='f-img-next'){imgSeqNext();return}
+  if(a==='f-next-cust'){if(cust(D.id))show('detail',D.id);return}
   if(a==='f-dup'){S.dupK={};dupSheet();return}
   if(a==='f-dup-k'){S.dupK=S.dupK||{};S.dupK[D.p]=D.id;S.armed=null;const st=$('#sheet').scrollTop;dupSheet();$('#sheet').scrollTop=st;return}
   if(a==='f-dup-go'){const g=dupGroups().find(x=>x.p===D.p);if(!g)return;const keep=(S.dupK&&S.dupK[D.p]&&g.L.some(c=>c.id===S.dupK[D.p]))?S.dupK[D.p]:g.L[0].id,drops=g.L.filter(c=>c.id!==keep);
@@ -3736,7 +3743,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-0157';
+const BUILD='20261126-0207';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -3764,7 +3771,7 @@ async function catAuto(){try{if(_catBusy||!EXT||!S.db||!S.db.table||!S.products|
 if(EXT){setTimeout(catAuto,20000);setInterval(catAuto,300000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(catAuto,3000)})}
 $('#locklogo').src=LOGO;if(EXT&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(LK.pin)lockShow();
-show('cash');
+if(!navRestore())show('cash');document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')navSave()});window.addEventListener('pagehide',navSave);
 (async()=>{
   const use=n=>window.claude&&window.claude.use?window.claude.use(n).catch(()=>null):Promise.resolve(null);
   let db,dl;const notice=$('#notice');
@@ -3777,6 +3784,7 @@ show('cash');
   if(!db){if(LK.pin)lockShow();else lockHide();}
   if(!db){S.loaded=true;notice.textContent='تعذّر فتح الدفتر في هذا العرض. افتح الصفحة من حسابك في Claude.';notice.hidden=false;refresh();return}
   $('#fab').hidden=!(S.view==='home'||S.view==='customers');
+  if(S.view==='detail'&&S.cid&&!S.unsubL){const c0=S.cid,dy=S.pendDY;show('detail',c0);if(dy){S.pendDY=dy;setTimeout(()=>{if(S.pendDY){window.scrollTo(0,S.pendDY);S.pendDY=0}},1200)}}
   if(S.view==='cash'){if(!S.cday)S.cday=today();loadCash()}
   const timer=setTimeout(()=>{notice.textContent=S.loaded?'قد لا تكون البيانات محدّثة. تحقق من الاتصال.':'لم نصل إلى الدفتر بعد. تحقق من الاتصال.';notice.hidden=false},10000);
   db.collection('customers').limit(1000).onSnapshot(s=>{
