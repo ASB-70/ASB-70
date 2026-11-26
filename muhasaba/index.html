@@ -1594,14 +1594,14 @@ function dupSheet(){S.dupK=S.dupK||{};const G=dupGroups();openSheet(`<h2>🔗 د
   <button class="btn" type="button" data-act="close">إغلاق</button>`)}
 async function custMerge(keepId,dropId){const K=cust(keepId),D=cust(dropId);if(!K||!D||K.walkin||D.walkin||keepId===dropId)throw new Error('bad');
   const fk=await freshDoc('ledgers/'+keepId),fd=await freshDoc('ledgers/'+dropId);if(!fk.ok||!fd.ok)throw new Error('ledger');
-  const ktx=(fk.v&&fk.v.tx)||[],dtx=(fd.v&&fd.v.tx)||[],ids=new Set(ktx.map(t=>t.id));const all=ktx.concat(dtx.filter(t=>!ids.has(t.id)));
+  const ktx=(fk.v&&fk.v.tx)||[],dtx=(fd.v&&fd.v.tx)||[],ids=new Set(ktx.map(t=>t.id));const all=ktx.concat(dtx.map(t=>ids.has(t.id)?{...t,id:newId()}:t));
   all.sort((a,b)=>String(a.d||'9').localeCompare(String(b.d||'9')));
   await S.db.doc('ledgers/'+keepId).set({tx:all});const C=custCache(all),patch={...C};if(!K.phone&&D.phone)patch.phone=D.phone;if(!K.city&&D.city)patch.city=D.city;if(D.note&&!(K.note||'').includes(D.note))patch.note=((K.note||'')+(K.note?' · ':'')+D.note).slice(0,300);
   await S.db.doc('customers/'+keepId).update(patch);Object.assign(K,patch);
   try{const sn=await S.db.collection('invoices').get();for(const d of sn.docs){const v=d.data()||{};if(v.cid===dropId)await S.db.doc('invoices/'+d.id).update({cid:keepId,cname:K.name})}}catch(e){}
   try{if((S.orders||[]).some(o=>o.cid===dropId))await ordSave(S.orders.map(o=>o.cid===dropId?{...o,cid:keepId,cname:K.name}:o))}catch(e){}
   try{const sn=await S.db.collection('cash').limit(3000).get();for(const d of sn.docs){const v=d.data()||{};let ch=false;const tx=(v.tx||[]).map(e=>{if(e.cid===dropId||e.pcid===dropId){ch=true;return{...e,...(e.cid===dropId?{cid:keepId,cname:K.name}:{}),...(e.pcid===dropId?{pcid:keepId,pname:K.name}:{})}}return e});if(ch){await S.db.doc('cash/'+d.id).set({...v,tx});if(S.cday===d.id&&S.cash)S.cash={...S.cash,tx}}}}catch(e){}
-  audit('cust-merge','دمج زبون «'+D.name+'» على «'+K.name+'»',{name:D.name,ref:dropId,a:nv(D.balance),n:JSON.stringify({customer:D,tx:dtx}).slice(0,4000)});
+  audit('cust-merge','دمج زبون «'+D.name+'» على «'+K.name+'»',{name:D.name,ref:dropId,a:nv(D.balance),n:JSON.stringify({customer:D,tx:dtx}).slice(0,60000)});
   await S.db.doc('ledgers/'+dropId).set({tx:[]});try{await S.db.doc('customers/'+dropId).delete()}catch(e){await S.db.doc('customers/'+dropId).update({balance:0,name:D.name+' (مدموج مع '+K.name+')'})}
   S.customers=S.customers.filter(c=>c.id!==dropId);return K.name}
 function bltZoom(i){const U=S.bltUrls||[];if(!U[i])return;let ov=document.getElementById('bltzoom');if(ov)ov.remove();
@@ -3747,7 +3747,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-0215';
+const BUILD='20261126-0253';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
