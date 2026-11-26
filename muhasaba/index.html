@@ -831,7 +831,20 @@ const invDisc=d=>r2(invSub(d)*discPct(d)/100);
 const invTotal=d=>r2(invSub(d)-invDisc(d));
 const invCart=d=>(d.items||[]).reduce((s,it)=>s+lineCart(it),0);
 const pr=n=>'$'+nv(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4});
-function loadImgs(){if(!S.imgP)S.imgP=S.db.collection('pimg').get().then(s=>{const rk=id=>id[0]==='m'?3:id[0]==='u'?2:1;for(const d of [...s.docs].sort((a,b)=>rk(a.id)-rk(b.id)||(a.id<b.id?-1:1)))for(const e of (d.data().list||[]))S.img[e.c]=e.d}).catch(()=>{S.imgP=null});return S.imgP}
+/* product photos: shown at once from the copy saved on this device, then only the photo groups that changed are downloaded in the background */
+const imgRk=id=>id[0]==='m'?3:id[0]==='u'?2:1;
+function imgApply(docs){for(const id of Object.keys(docs).sort((a,b)=>imgRk(a)-imgRk(b)||(a<b?-1:1)))for(const e of (docs[id].list||[]))S.img[e.c]=e.d}
+function loadImgs(){if(S.imgP)return S.imgP;
+  if(!EXT||!S.db||!S.db.table){S.imgP=S.db.collection('pimg').get().then(s=>{const D={};for(const d of s.docs)D[d.id]={list:d.data().list||[]};imgApply(D)}).catch(()=>{S.imgP=null});return S.imgP}
+  const sync=async C=>{const meta=await S.db.table('acc_docs','?col=eq.pimg&select=path,updated_at'),D={...(C||{})},seen=new Set();let ch=false;
+    for(const m of meta||[]){const id=m.path.slice(m.path.lastIndexOf('/')+1);seen.add(id);if(D[id]&&D[id].u===m.updated_at)continue;
+      try{const a=await S.db.table('acc_docs','?path=eq.'+encodeURIComponent(m.path)+'&select=data');D[id]={u:m.updated_at,list:((a&&a[0]&&a[0].data)||{}).list||[]};ch=true;if(C)await KV.set('imgc',D)}catch(e){if(!C&&!D[id])continue}}
+    for(const id of Object.keys(D))if(!seen.has(id)){delete D[id];ch=true}
+    if(ch||!C){await KV.set('imgc',D);imgApply(D)}return ch};
+  S.imgP=KV.get('imgc').catch(()=>null).then(async C=>{
+    if(C&&Object.keys(C).length){imgApply(C);sync(C).then(ch=>{if(ch)refresh()}).catch(()=>{});return}
+    await sync(null)}).catch(()=>{S.imgP=null});
+  return S.imgP}
 const f1=n=>(Math.round(n*10)/10).toLocaleString('en-US',{maximumFractionDigits:1});
 /* one global invoice sequence for ALL customers (walk-in included) + numbers reserved by drafts in the order book */
 const numOf=v=>{v=String(v==null?'':v).trim();return /^\d+$/.test(v)?+v:0};
@@ -3838,7 +3851,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-1331';
+const BUILD='20261126-1337';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
