@@ -368,13 +368,13 @@ function makeSbDb(stat){stat=stat||(()=>{});
 const browserDl={save({filename,data}){const b=data instanceof Blob?data:new Blob([data]),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),8000);return Promise.resolve({status:'saved'})}};
 function loginShow(){return new Promise(res=>{$('#lock').hidden=false;$('#lockmsg').textContent='سجّل الدخول إلى حسابات الشركة';$('#lockform').hidden=true;$('#lockbio').hidden=true;$('#lockhelp').hidden=true;$('#loginform').hidden=false;$('#lockerr').textContent='';S.loginRes=res})}
 function syncHTML(short){if(!EXT)return'';const N=S.net,st=N.on===false?'off':(N.sync||N.busy>0||N.pend>0)?'sync':'ok',pn=N.pend?' ('+N.pend+')':'';
-  const txt=st==='off'?(short?'غير متصل'+pn:'غير متصل · التعديلات تُحفظ على الجهاز'+pn):st==='sync'?(N.pend&&!N.sync&&!N.busy?'بانتظار الرفع'+pn:short?'مزامنة…':'جارٍ المزامنة مع الموقع…'):(short?'متصل':'متصل'+(N.last?' · آخر مزامنة '+new Date(N.last).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''));
+  const txt=st==='off'?(short?'غير متصل'+pn:'غير متصل · التعديلات تُحفظ على الجهاز'+pn):st==='sync'?(N.pend&&!N.sync&&!N.busy?(short?'لسا ما انرفع'+pn:'في '+N.pend+' تعديلات لسا ما انرفعت'):short?'مزامنة…':'جارٍ المزامنة مع الموقع…'):(short?'متصل':'متصل'+(N.last?' · آخر مزامنة '+new Date(N.last).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''));
   return `<span class="syncpill s-${st}" data-short="${short?1:''}"><i></i>${txt}</span>`}
 function paintSync(){document.querySelectorAll('.syncpill').forEach(el=>{el.outerHTML=syncHTML(!!el.dataset.short)})}
-function netStat(ev,n){const N=S.net,was=N.on;if(ev==='ok'){N.on=true;N.last=Date.now()}else if(ev==='off')N.on=false;else if(ev==='w+')N.busy++;else if(ev==='w-')N.busy=Math.max(0,N.busy-1);else if(ev==='q')N.pend=n||0;
+function netStat(ev,n){const N=S.net,was=N.on;if(ev==='ok'){N.on=true;N.last=Date.now()}else if(ev==='off')N.on=false;else if(ev==='w+')N.busy++;else if(ev==='w-')N.busy=Math.max(0,N.busy-1);else if(ev==='q'){if(N.pend>0&&!n&&N.on!==false)setTimeout(offRenum,3000);N.pend=n||0}
   if(was===false&&N.on===true)reconnected();else if(was!==false&&N.on===false)toast('انقطع الاتصال بالإنترنت. تقدر تكمل شغلك، وتعديلاتك تُحفظ على الجهاز وتُرفع تلقائياً عند عودته.');
   paintSync()}
-async function reconnected(){const N=S.net;if(N.sync)return;N.sync=true;paintSync();toast('عاد الاتصال، جارٍ المزامنة مع الموقع…');try{await S.db.flush()}catch(e){}try{await S.db.resync()}catch(e){}N.sync=false;paintSync();
+async function reconnected(){const N=S.net;if(N.sync)return;N.sync=true;paintSync();toast('عاد الاتصال، جارٍ المزامنة مع الموقع…');try{await S.db.flush()}catch(e){}try{await S.db.resync()}catch(e){}N.sync=false;paintSync();setTimeout(()=>{offRenum();autoLocalBackup()},3000);
   if(N.on){toast('تمت المزامنة مع الموقع');if(S.view==='cash')loadCash();else if($('#scrim').hidden)refresh()}}
 const typeOf=b=>b>0.005?'debt':b<-0.005?'credit':'zero';
 const typeChip=b=>{const t=typeOf(b);return `<span class="chip c-${t}">${t==='debt'?'مدين':t==='credit'?'له عندنا':'مسدَّد'}</span>`};
@@ -632,7 +632,7 @@ function renderSettings(){
     <div class="field"><label for="s-tpl">نص رسالة التذكير</label><textarea id="s-tpl" required>${esc(S.settings.template)}</textarea>
       <span class="small muted">تُستبدل تلقائياً: {الاسم} باسم الزبون، {المبلغ} برصيده، {الشركة} باسم الشركة.</span></div>
     <button class="btn primary" type="submit">حفظ الإعدادات</button></form>
-   <div class="card"><b>النسخة الاحتياطية الكاملة</b><span class="muted small">ملف واحد فيه كل شيء: الزبائن والكشوف والفواتير والمخزون والصندوق والموظفون. نزّله كل أسبوع واحفظه خارج الموبايل. ${S.settings.lastBackup?'آخر نسخة: '+dmy(S.settings.lastBackup):'لم تُنزَّل أي نسخة بعد.'}</span>
+   <div class="card"><b>النسخة الاحتياطية الكاملة</b><span class="muted small">ملف واحد فيه كل شيء: الزبائن والكشوف والفواتير والمخزون والصندوق والموظفون. نزّله كل أسبوع واحفظه خارج الموبايل. ${S.settings.lastBackup?'آخر نسخة: '+dmy(S.settings.lastBackup):'لم تُنزَّل أي نسخة بعد.'}</span>${EXT&&!window.Android&&/Windows/i.test(navigator.userAgent)?`<span class="small">💾 نسخة يومية تلقائية على هالكمبيوتر: ${LS.get('thiqa-autobk-off')?'<b>موقّفة</b>':'شغّالة'+(LS.get('thiqa-autobk')?' · آخر وحدة '+dmy(LS.get('thiqa-autobk')):'')} <button class="btn sm" type="button" data-act="f-abk-tog">${LS.get('thiqa-autobk-off')?'تشغيل':'إيقاف'}</button></span>`:''}
      <button class="btn" type="button" data-act="dup-scan">🔎 فحص الفواتير المكررة</button><div id="dupbox"></div>
      <button class="btn primary" type="button" data-act="backup-xlsx" ${S.dl?'':'disabled'}>📊 تنزيل نسخة احتياطية إكسل (كل البيانات)</button>
      <button class="btn" type="button" data-act="backup" ${S.dl?'':'disabled'}>تنزيل نسخة احتياطية للاسترجاع (ملف JSON)</button>
@@ -834,6 +834,28 @@ function localMax(){let m=S.gmax||0;for(const v of S.rep.inv||[])m=Math.max(m,nu
 async function allInvs(){const sn=await S.db.collection('invoices').get();return sn.docs.map(d=>({id:d.id,no:String((d.data()||{}).no||'').trim()}))}
 async function gMax(){let m=0;try{for(const v of await allInvs())m=Math.max(m,numOf(v.no));S.gmax=Math.max(S.gmax||0,m)}catch(e){}const r=await ordFresh();if(r)for(const o of r)m=Math.max(m,numOf(o.no),numOf(o.invNo));return Math.max(m,localMax())}
 function nextNo(){return String(localMax()+1)}
+/* invoices saved without internet: after reconnecting, give a new number to any whose number was also used by another device */
+const offGet=()=>{try{return JSON.parse(LS.get('thiqa-offinv')||'[]')}catch(e){return[]}},offSet=L=>LS.set('thiqa-offinv',L.length?JSON.stringify(L):null);
+const offInvAdd=(id,cid)=>{const L=offGet();if(!L.some(x=>x.id===id))L.push({id,cid});offSet(L)};
+async function offRenum(){let L=offGet();if(!L.length||S.renBusy||!S.db||S.net.on===false||S.net.pend>0)return;S.renBusy=true;
+  try{const all=await allInvs(),ords=await ordFresh()||S.orders||[],msgs=[];
+    for(const it of L.slice()){const v=all.find(x=>x.id===it.id);let done=true;
+      if(v&&v.no){const no=v.no,clash=all.some(x=>x.id!==it.id&&x.no===no)||ords.some(o=>o.invId!==it.id&&(String(o.no||'').trim()===no||String(o.invNo||'').trim()===no));
+        if(clash){try{const nn=String(await gMax()+1);S.gmax=Math.max(S.gmax||0,+nn);
+          await S.db.doc('invoices/'+it.id).update({no:nn,oldNo:no});
+          const f=await freshDoc('ledgers/'+it.cid);if(f.ok&&f.v){const tx=(f.v.tx||[]).map(t=>t.inv===it.id&&String(t.ref||'')===no?{...t,ref:nn}:t);await S.db.doc('ledgers/'+it.cid).set({...f.v,tx});if(S.cid===it.cid&&S.ledger)S.ledger=tx}
+          const o=ords.find(o=>o.invId===it.id);if(o)await ordPatch(o.id,{invNo:nn,...(String(o.no||'')===no?{no:nn}:{})});
+          all.find(x=>x.id===it.id).no=nn;audit('inv-renum','رقم فاتورة مكرر بعد العمل بدون نت: '+no+' ← '+nn,{no:nn,old:no});msgs.push(no+' ← '+nn)}catch(e){done=false}}}
+      if(done)L=L.filter(x=>x.id!==it.id)}
+    offSet(L);if(msgs.length){S.invStats=null;markDirty();refresh();setTimeout(()=>toast('⚠️ فواتير انعملت بدون نت وطلع رقمها مكرر، فأخدت رقم جديد: '+msgs.join(' · ')+'. إذا بعتّ صورتها لحدا، ابعتلو الصورة الجديدة.'),1500)}}
+  catch(e){}finally{S.renBusy=false}}
+/* daily local backup file on the Windows computer */
+const abkOn=()=>EXT&&!window.Android&&/Windows/i.test(navigator.userAgent)&&!LS.get('thiqa-autobk-off');
+async function autoLocalBackup(){if(!abkOn()||LS.get('thiqa-autobk')===today()||S.abkRun||!S.db||S.net.on===false)return;S.abkRun=true;
+  try{const out={app:'thiqa-accounting',v:1,at:new Date().toISOString(),auto:true,data:{},truncated:[]};
+    for(const c of BCOLS){const sn=await S.db.collection(c).limit(1000).get();out.data[c]=sn.docs.map(d=>({id:d.id,d:d.data()}));if(sn.docs.length>=1000)out.truncated.push(c)}
+    await browserDl.save({filename:'نسخة يومية محاسبة الثقة '+today()+'.json',data:JSON.stringify(out)});LS.set('thiqa-autobk',today());toast('💾 انحفظت نسخة اليوم الاحتياطية على هالكمبيوتر (مجلد التنزيلات)')}
+  catch(e){}finally{S.abkRun=false}}
 async function ensureOrdNo(o){if(!o||numOf(o.no))return o;const no=o.invNo&&numOf(o.invNo)?String(o.invNo):String(await gMax()+1);await ordPatch(o.id,{no});const x=(S.orders||[]).find(y=>y.id===o.id);if(x)x.no=no;o.no=no;return o}
 async function ordNoBackfill(){if(S.ordNoRun)return;const miss=(S.orders||[]).filter(o=>!numOf(o.no)).sort((a,b)=>(a.at||'').localeCompare(b.at||''));if(!miss.length)return;S.ordNoRun=true;
   try{let m=await gMax();const map={};for(const o of miss)map[o.id]=o.invNo&&numOf(o.invNo)?String(o.invNo):String(++m);
@@ -1023,6 +1045,7 @@ async function saveInvoice(){
      const bx=document.querySelector('#iform');if(bx&&!$('#simwarn')){const w=document.createElement('div');w.id='simwarn';w.className='note';w.innerHTML='⚠️ في فاتورة رقم <b class="num">'+esc(sim.ref||'—')+'</b> بنفس المبلغ <b class="num">'+money(total)+'</b> ونفس التاريخ لهالزبون. إذا هي فاتورة جديدة فعلاً اكبس «تأكيد الحفظ».';const sb2=bx.querySelector('button[type=submit]');(sb2&&sb2.parentElement?sb2.parentElement:bx).before(w)}return}}
   const nmShown=(c.walkin&&(d.wname||'').trim())||c.name;
   await ref.set({no,cid:c.id,cname:nmShown,phone:(d.phone||c.phone||'').trim(),date:d.date||today(),dest:(d.dest||'').trim(),shipper:d.dest===MYCITY?'':(d.shipper||'').trim(),shipFee:d.dest===MYCITY?'':(d.shipFee||'').trim(),pay:d.pay,seller:d.seller||'',sypRate:d.sypOn?nv(d.sypRate):0,cashCur:d.pay==='نقدي'?(d.cashCur||'usd'):'usd',cashRate:nv(d.cashRate)||0,cashUsd:nv(d.cashUsd)||0,cashSyp:nv(d.cashSyp)||0,note:(d.note||'').trim(),items,total,sub:invSub({items}),disc:discPct(d),discAmt:invDisc({items,disc:d.disc}),cartons:r2(invCart({items})),stk:true,wh:d.wh||'main',...(pf=>({profit:pf.profit,costTotal:pf.cost,noCost:pf.noCost}))(draftProfit({items,disc:d.disc})),createdAt:d.createdAt||new Date().toISOString()});
+  const wasOff=!S.curInv&&EXT&&(S.net.on===false||navigator.onLine===false);if(wasOff)offInvAdd(id,c.id);
   d.id=id;
   const lines=[{id:newId(),k:'inv',a:total,d:d.date||today(),ref:no,n:(c.walkin&&(d.wname||'').trim()?(d.wname||'').trim()+' · ':'')+items.length+' مادة',inv:id}],oldCash=S.ledger.filter(t=>t.inv===id&&t.cash);
   if(PAID.includes(d.pay))lines.push({id:newId(),k:'pay',a:total,d:d.date||today(),ref:no,n:d.pay,inv:id,...(d.pay==='نقدي'?{cash:d.date||today()}:{}),...(d.pay==='شام كاش'?{via:'sham'}:{})});
@@ -1045,7 +1068,7 @@ async function saveInvoice(){
   if(d.pay==='شام كاش'){try{if(wasSham)await maccVoidLink('inv:'+id,'تعديل الفاتورة');await maccAdd({acc:'sham',date:d.date||today(),dir:'in',cur:'usd',a:total,n:'فاتورة '+no+' · '+nmShown,link:'inv:'+id})}catch(e){}}else if(wasSham){try{await maccVoidLink('inv:'+id,'تغيّرت طريقة الدفع')}catch(e){}}
   if(d.seller)LS.set('thiqa-seller',d.seller);
   audit(S.curInv&&S.curInv.id===id?'inv-edit':'inv-add',(S.curInv&&S.curInv.id===id?'تعديل':'فاتورة')+' رقم '+no,{no,c:nmShown,total,pay:d.pay});S.limOK=null;
-  wipClear(d);S.draft=null;S.lpx=null;if(S.batch){S.batchOk={id,no,total};return}toast('حُفظت الفاتورة: أُضيفت إلى الذمة ونزلت من المخزون');invView(id);
+  wipClear(d);S.draft=null;S.lpx=null;if(S.batch){S.batchOk={id,no,total};return}toast(wasOff?'حُفظت الفاتورة على جهازك (بدون نت). إذا طلع رقمها '+no+' مكرر مع جهاز تاني، البرنامج بيعطيها رقم جديد لحاله لما يرجع النت':'حُفظت الفاتورة: أُضيفت إلى الذمة ونزلت من المخزون');invView(id);
 }
 async function invView(id){
   const c=cust(S.cid);if(!c)return;S.armed=null;
@@ -1801,7 +1824,8 @@ function fxHint(){const h=$('#fxhint'),f=S.fx;if(h&&f)h.textContent=`يخرج م
 async function saveFx(){const f=S.fx,a=r2(nv(f.a)),r=nv(f.rate),o=fxOut(f);if(!(a>0)||!(r>0)){toast('أدخل المبلغ وسعر التصريف');return}if(!lockGuard(S.cday))return;
   const pair=newId(),t=new Date().toISOString(),to=f.from==='usd'?'syp':'usd',n='تصريف على سعر '+r.toLocaleString('en-US');
   await cashAdd(S.cday,[{id:newId(),t,dir:'out',cur:f.from,a,n,pair},{id:newId(),t,dir:'in',cur:to,a:o,n,pair}]);S.fx=null;closeSheet();toast('سُجّل التصريف')}
-function closeSheetCash(){const b=cashBal(S.cash);S.armed=null;
+function closeSheetCash(){if(EXT&&S.net.on===false){toast('ما في نت هلق. ما فيك تسكّر الصندوق لحتى يرجع النت، لأنو ممكن في حركات من أجهزة تانية ما وصلت');return}if(EXT&&S.net.pend>0){toast('في '+S.net.pend+' تعديلات على هالجهاز لسا ما انرفعت. استنى لحتى ينرفعوا (الشارة بتصير «متصل») وبعدين سكّر الصندوق');return}
+  const b=cashBal(S.cash);S.armed=null;
   openSheet(`<h2>تسليم الكاش · ${dmy(S.cday)}</h2><span class="small muted">عُدّ الكاش الموجود فعلياً واكتبه. المفروض حسب الحركات: <b class="num">${money(b.usd)}</b> و <b class="num">${sy(b.syp)}</b>.</span>
    <form id="closeform"><div class="grid2"><div class="field"><label for="cl-u">الدولار المعدود ($)</label><input id="cl-u" type="number" step="any" min="0" inputmode="decimal" required></div>
    <div class="field"><label for="cl-s">الليرة المعدودة (ل.س)</label><input id="cl-s" type="number" step="any" min="0" inputmode="decimal" required></div></div>
@@ -3334,6 +3358,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-wd-log'){wdLog();return}
   if(a==='f-wd-print'){wdPrint();return}
   if(a==='f-cash-print'){cashPrint();return}
+  if(a==='f-abk-tog'){if(LS.get('thiqa-autobk-off'))LS.set('thiqa-autobk-off',null);else LS.set('thiqa-autobk-off','1');renderSettings();toast(LS.get('thiqa-autobk-off')?'وقّفت النسخة اليومية التلقائية':'شغّلت النسخة اليومية التلقائية');return}
   if(a==='f-cash-pick'){const i=$('#cash-pick');if(!i)return;let ok=false;try{if(typeof i.showPicker==='function'){i.showPicker();ok=true}}catch(e){}
     if(!ok){openSheet(`<h2>📅 اختر يوم الصندوق</h2><div class="field"><label for="cash-pick2">التاريخ</label><input type="date" id="cash-pick2" value="${S.cday}" max="${today()}"></div><div class="grid2"><button class="btn primary" type="button" data-act="f-cash-go">فتح هاليوم</button><button class="btn" type="button" data-act="close">إلغاء</button></div>`)}return}
   if(a==='f-cash-go'){const v=($('#cash-pick2')||{}).value;if(!v||!/^\d{4}-\d{2}-\d{2}$/.test(v)){toast('اختار التاريخ');return}if(v>today()){toast('ما فيك تختار يوم بالمستقبل');return}closeSheet();S.cday=v;loadCash();return}
@@ -3747,7 +3772,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-0253';
+const BUILD='20261126-0322';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
@@ -3787,7 +3812,7 @@ if(!navRestore())show('cash');document.addEventListener('visibilitychange',()=>{
   else{[db,dl]=await Promise.all([use('db'),use('downloads')]);S.db=db;S.dl=dl}
   if(!db){if(LK.pin)lockShow();else lockHide();}
   if(!db){S.loaded=true;notice.textContent='تعذّر فتح الدفتر في هذا العرض. افتح الصفحة من حسابك في Claude.';notice.hidden=false;refresh();return}
-  $('#fab').hidden=!(S.view==='home'||S.view==='customers');
+  $('#fab').hidden=!(S.view==='home'||S.view==='customers');setTimeout(offRenum,12000);setTimeout(autoLocalBackup,20000);
   if(S.view==='detail'&&S.cid&&!S.unsubL){const c0=S.cid,dy=S.pendDY;show('detail',c0);if(dy){S.pendDY=dy;setTimeout(()=>{if(S.pendDY){window.scrollTo(0,S.pendDY);S.pendDY=0}},1200)}}
   if(S.view==='cash'){if(!S.cday)S.cday=today();loadCash()}
   const timer=setTimeout(()=>{notice.textContent=S.loaded?'قد لا تكون البيانات محدّثة. تحقق من الاتصال.':'لم نصل إلى الدفتر بعد. تحقق من الاتصال.';notice.hidden=false},10000);
