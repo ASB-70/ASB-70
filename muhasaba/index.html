@@ -530,6 +530,8 @@ function renderList(){
   const sel=$('#cityf');const cs=[...new Set(S.customers.map(c=>c.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
   const want='<option value="">كل المحافظات</option>'+cs.map(c=>`<option>${esc(c)}</option>`).join('');
   if(sel.dataset.sig!==cs.join('|')){sel.innerHTML=want;sel.dataset.sig=cs.join('|');sel.value=S.f.city}
+  /* keep the search box and filter buttons showing the filters actually applied (e.g. after the app restores the last screen) */
+  {const qi=$('#q');if(qi&&document.activeElement!==qi&&qi.value!==S.f.q)qi.value=S.f.q;const so=$('#sortf');if(so&&so.value!==S.f.sort)so.value=S.f.sort;if(sel.value!==S.f.city)sel.value=S.f.city;document.querySelectorAll('#typeseg button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.type===S.f.type))}
   const q=S.f.q.trim();let L=S.customers.filter(c=>{
     if(c.walkin&&Math.abs(c.balance||0)<0.005)return false;
     if(S.f.type!=='all'&&typeOf(c.balance||0)!==S.f.type)return false;
@@ -3775,7 +3777,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-0914';
+const BUILD='20261126-0922';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
