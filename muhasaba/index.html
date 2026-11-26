@@ -523,7 +523,9 @@ function renderHome(){
    +`<div class="sec"><div class="sechead"><h2>أعلى الذمم</h2><small>أكبر ٥ أرصدة</small></div><div class="list">${top.map(c=>rowHTML(c)).join('')||'<div class="row muted">لا توجد ذمم مفتوحة</div>'}</div></div>`
    +(cities.length?`<div class="sec"><div class="sechead"><h2>الذمم حسب المحافظة</h2><small>بالدولار</small></div><div class="bars">${cities.map(([n,v])=>`<div class="bar"><span>${esc(n)}</span><span class="track"><i style="width:${Math.max(2,v/max*100)}%"></i></span><b class="num">${money(r2(v))}</b></div>`).join('')}</div></div>`:'');
 }
-function sentChip(c){if(!c.lastSent)return'';const d=new Date(c.lastSent),n=new Date(),same=d.toDateString()===n.toDateString();return `<span class="chip c-credit">✓ أُرسل التذكير ${same?'اليوم':d.toLocaleDateString('ar-SY-u-nu-latn',{day:'numeric',month:'short'})}</span>`}
+const sentTime=d=>d.toLocaleTimeString('ar-SY-u-nu-latn',{hour:'numeric',minute:'2-digit'});
+const sentToday=c=>!!c.lastSent&&new Date(c.lastSent).toDateString()===new Date().toDateString();
+function sentChip(c){if(!c.lastSent)return'';const d=new Date(c.lastSent),n=new Date(),same=d.toDateString()===n.toDateString();return `<span class="chip c-credit">✓ أُرسل التذكير ${same?'اليوم '+sentTime(d):d.toLocaleDateString('ar-SY-u-nu-latn',{day:'numeric',month:'short'})}</span>`}
 function renderList(){
   const sel=$('#cityf');const cs=[...new Set(S.customers.map(c=>c.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
   const want='<option value="">كل المحافظات</option>'+cs.map(c=>`<option>${esc(c)}</option>`).join('');
@@ -2677,7 +2679,9 @@ document.addEventListener('click',e=>{
   else if(a==='clear-due')guard(async()=>{await S.db.doc('customers/'+S.cid).update({dueAt:null,repeat:0});closeSheet();toast('أُلغي التذكير')});
   else if(a==='wa'){S.askSent=b.dataset.id;setTimeout(refresh,400)}
   else if(a==='notsent'){S.askSent=null;refresh()}
-  else if(a==='rem-send'){const c=cust(b.dataset.id);if(c)remSend(c,b);}
+  else if(a==='rem-send'){const c=cust(b.dataset.id);if(!c)return;
+    if(sentToday(c)&&!b.dataset.again){openSheet(`<h3>⚠️ انتبه</h3><p style="font-size:16px;line-height:1.8">بعتّ تذكير لـ <b>${esc(c.name)}</b> اليوم الساعة <b>${sentTime(new Date(c.lastSent))}</b>.<br>أكيد بدك تبعتلو مرة تانية؟</p><div style="display:flex;gap:8px"><button class="btn" type="button" data-act="close" style="flex:1">لا</button><button class="btn primary" type="button" data-act="rem-send" data-id="${esc(c.id)}" data-again="1" style="flex:1">ابعت</button></div>`);return}
+    if(b.dataset.again)closeSheet();remSend(c,b);}
   else if(a==='sent')guard(async()=>{const c=cust(b.dataset.id);if(!c)return;const now=new Date();let next=null;
     if(c.repeat>0){const d=new Date(c.dueAt||now);do{d.setDate(d.getDate()+c.repeat)}while(d<=now);next=localISO(d)}
     await S.db.doc('customers/'+c.id).update({dueAt:next,lastSent:now.toISOString()});S.askSent=null;toast(next?'سُجّل الإرسال، والتذكير القادم مجدول':'سُجّل الإرسال');refresh()});
@@ -3743,7 +3747,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-0211';
+const BUILD='20261126-0215';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
