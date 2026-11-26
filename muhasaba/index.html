@@ -1,4 +1,4 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://ecvzyptrpekgsouhgbdb.supabase.co https://api.github.com data: blob:; worker-src 'self'; manifest-src 'self'; media-src 'self' data: blob:; frame-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'self'"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#13265C"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://ecvzyptrpekgsouhgbdb.supabase.co https://o4512499923746816.ingest.de.sentry.io https://api.github.com data: blob:; worker-src 'self'; manifest-src 'self'; media-src 'self' data: blob:; frame-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'self'"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#13265C"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
 <title>محاسبة شركة الثقة</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
@@ -235,6 +235,37 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);background:var(--surface);b
 
 <script>
 document.documentElement.lang='ar';
+/* ---------- تقرير الأخطاء إلى Sentry: نوع الخطأ والشاشة والجهاز فقط، بدون أي بيانات زبائن أو مبالغ ---------- */
+const ERR=(()=>{
+  const KEY='37ca6e91a5faa64a7625935c5668a2ed',HOST='o4512499923746816.ingest.de.sentry.io',PID='4512499933904976';
+  const URL_='https://'+HOST+'/api/'+PID+'/envelope/?sentry_key='+KEY+'&sentry_version=7',QK='thiqa-errq',seen={};let n=0;
+  const off=location.hostname==='localhost'||location.protocol==='file:';
+  const clean=t=>String(t==null?'':t).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g,'[email]').replace(/\d{6,}/g,'#').slice(0,800);
+  const net=m=>/failed to fetch|networkerror|load failed|network request failed|the internet connection|offline/i.test(m);
+  const q={get(){try{return JSON.parse(localStorage.getItem(QK)||'[]')}catch(e){return[]}},set(L){try{localStorage.setItem(QK,JSON.stringify(L.slice(-20)))}catch(e){}}};
+  function frames(st){const F=[];for(const ln of String(st||'').split('\n').slice(0,30)){const m=ln.match(/at (?:(.+?) \()?(.*?):(\d+):(\d+)\)?\s*$/)||ln.match(/^(.*?)@(.*?):(\d+):(\d+)$/);if(m)F.push({function:clean(m[1]||'?'),filename:clean((m[2]||'').replace(location.origin,'')),lineno:+m[3],colno:+m[4],in_app:!/^https?:\/\/(?!asb-70)/.test(m[2]||'')})}return F.reverse()}
+  function send(ev){if(off)return;const body=JSON.stringify({event_id:ev.event_id,sent_at:new Date().toISOString()})+'\n'+JSON.stringify({type:'event'})+'\n'+JSON.stringify(ev);
+    return fetch(URL_,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=UTF-8'},keepalive:body.length<60000}).then(r=>{if(!r.ok&&r.status>=500)throw 0}).catch(()=>{const L=q.get();L.push(ev);q.set(L)})}
+  function flush(){if(!navigator.onLine)return;const L=q.get();if(!L.length)return;q.set([]);for(const ev of L)send(ev)}
+  function report(err,how){try{
+    const type=(err&&err.name)||'Error',msg=clean(err&&err.message!=null?err.message:err);
+    if(!msg||net(msg)||msg==='Script error.')return;const sig=type+msg;if(seen[sig]||n>=15)return;seen[sig]=1;n++;
+    let who='';try{who=(localStorage.getItem('thiqa-email')||'').split('@')[0]}catch(e){}
+    const ev={event_id:crypto.randomUUID?crypto.randomUUID().replace(/-/g,''):(Date.now().toString(16)+Math.random().toString(16).slice(2)).padEnd(32,'0').slice(0,32),
+      timestamp:Date.now()/1000,platform:'javascript',level:'error',logger:how,
+      release:typeof BUILD!=='undefined'?'muhasaba@'+BUILD:undefined,environment:'production',
+      tags:{screen:(typeof S!=='undefined'&&S&&S.view)||'start',online:String(navigator.onLine),app:/wv|Muhasaba/i.test(navigator.userAgent)?'installed':(matchMedia('(display-mode: standalone)').matches?'installed':'browser')},
+      user:who?{username:who}:undefined,
+      request:{url:location.origin+location.pathname,headers:{'User-Agent':navigator.userAgent}},
+      exception:{values:[{type:clean(type),value:msg,stacktrace:{frames:frames(err&&err.stack)}}]}};
+    if(navigator.onLine)send(ev);else{const L=q.get();L.push(ev);q.set(L)}
+  }catch(e){}}
+  addEventListener('error',e=>{if(e&&e.error)report(e.error,'onerror');else if(e&&e.message)report({name:'Error',message:e.message},'onerror')});
+  addEventListener('unhandledrejection',e=>report(e&&e.reason,'promise'));
+  addEventListener('online',flush);setTimeout(flush,8000);
+  if(location.hash==='#sentry-test')setTimeout(()=>report({name:'TestError',message:'تجربة: التقارير واصلة إلى Sentry'},'test'),1500);
+  return{report};
+})();
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>(n<0?'−':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -393,7 +424,7 @@ function stmtMsg(c,tx){
   const last=tx.filter(t=>!t.void).slice(-6).map(t=>`${dmy(t.d)} · ${KIND[t.k]}${t.ref?' '+t.ref:''}: ${t.k==='inv'?'+':'−'}${money(t.a)}`).join('\n');
   return `كشف حساب مختصر — ${S.settings.company}\nالسيد ${c.name}\n\nآخر الحركات:\n${last||'لا توجد حركات'}\n\nالرصيد الحالي: ${money(c.balance||0)} ${typeOf(c.balance||0)==='credit'?'(لكم)':'(عليكم)'}`}
 let toastT;function toast(m){S.lastToast=m;const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200)}
-function fail(e){toast(e&&e.code==='quota_exceeded'?'امتلأت مساحة التخزين. احذف بيانات قديمة ثم حاول.':e&&e.code==='unavailable'&&EXT?'أنت غير متصل بالإنترنت. التعديل لم يُحفظ، أعده عند عودة الاتصال.':'لم يُحفظ التغيير. تحقق من الاتصال وحاول مرة ثانية.')}
+function fail(e){if(!(e&&(e.code==='quota_exceeded'||e.code==='unavailable')))ERR.report(e,'save');toast(e&&e.code==='quota_exceeded'?'امتلأت مساحة التخزين. احذف بيانات قديمة ثم حاول.':e&&e.code==='unavailable'&&EXT?'أنت غير متصل بالإنترنت. التعديل لم يُحفظ، أعده عند عودة الاتصال.':'لم يُحفظ التغيير. تحقق من الاتصال وحاول مرة ثانية.')}
 
 /* ---------- views ---------- */
 function show(v,cid){
@@ -3871,7 +3902,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-1832';
+const BUILD='20261126-2330';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
