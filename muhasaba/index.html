@@ -2959,7 +2959,7 @@ function rankCard(){const R=S.F.rank;const head=`<div class="sechead"><b>🏆 ت
    ${L.length?`<div class="list">${L.map((r,i)=>`<button class="row" type="button" data-open="${esc(r.c.id)}"><span class="chip c-zero num" style="flex:none;min-width:30px;text-align:center">${i+1}</span><span class="who"><b>${esc(r.c.name)}</b><small><span>${r.n} فاتورة</span><span>بيدفع خلال <b class="num">${r.avg}</b> يوم</span>${r.tags.map(t=>`<span class="chip ${t[1]}">${t[0]}</span>`).join('')}</small></span><span class="amt"><b class="num t-credit">${pc(money(r.profit))}</b><small>ربح · مبيع <span class="num">${money(r.sales)}</span></small></span></button>`).join('')}</div>`:'<div class="empty">ما في فواتير بعد.</div>'}
    ${R.rows.length>15?`<button class="btn sm" type="button" data-act="f-rank-all">${S.F.rankAll?'عرض أول 15 بس':'عرض الكل ('+R.rows.length+')'}</button>`:''}</div>`}
 function custCache(tx){const bal=r2((tx||[]).reduce((s,t)=>s+eff(t),0));let lp='';for(const t of tx||[])if(!t.void&&t.k!=='inv'&&(t.d||'')>lp)lp=t.d||'';return{balance:bal,age:bal>0.005?ageCalc(tx).oldest:0,lastPay:lp}}
-const ageChip=c=>{const b=nv(c.balance);if(!(b>0.005))return'';const a=nv(c.age),lim=nv(c.limit);let h='';if(a>90)h+=`<span class="chip c-debt">متأخر +90 يوم</span>`;else if(a>60)h+=`<span class="chip c-due">+60 يوم</span>`;if(lim>0&&b>lim+0.005)h+=`<span class="chip c-debt">تجاوز السقف</span>`;return h};
+const ageChip=c=>{const b=nv(c.balance);if(!(b>0.005))return'';const a=staleDays(c),lim=nv(c.limit);let h='';if(a>90)h+=`<span class="chip c-debt">ما دفع من +90 يوم</span>`;else if(a>60)h+=`<span class="chip c-due">ما دفع من +60 يوم</span>`;if(lim>0&&b>lim+0.005)h+=`<span class="chip c-debt">تجاوز السقف</span>`;return h};
 async function agingLoad(){S.F.aging={loading:true};refresh();try{const sn=await S.db.collection('ledgers').get(),rows=[],tot=[0,0,0,0];
     for(const d of sn.docs){const c=cust(d.id);if(!c||c.walkin)continue;const tx=d.data().tx||[],cc=custCache(tx);if(!(cc.balance>0.005))continue;const a=ageCalc(tx);a.b.forEach((v,i)=>tot[i]+=v);rows.push({c,bal:cc.balance,...a});
       if(nv(c.age)!==cc.age||Math.abs(nv(c.balance)-cc.balance)>0.005||(c.lastPay||'')!==cc.lastPay){try{await S.db.doc('customers/'+c.id).update(cc);Object.assign(c,cc)}catch(e){}}}
@@ -3743,7 +3743,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-0207';
+const BUILD='20261126-0211';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
