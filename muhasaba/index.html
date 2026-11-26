@@ -911,7 +911,7 @@ const ck=it=>codeCanon(it.code);
 const nrm2=x=>nrm(x).replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي');
 function pmatch(k,p,q){q=nrm2(q);if(!q)return true;const h=nrm2(k+' '+((p&&p.name)||'')+' '+((p&&p.bc)||''));return q.split(' ').every(w=>h.includes(w))}
 /* price search: "6.5" or "$6.5" = that exact price, "5-7" = price range (selling tiers of the product) */
-const pxQ=q=>{q=String(q||'').trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g,'.').replace(/\s+/g,'');let m=q.match(/^\$?(\d+(?:\.\d+)?)\$?$/);if(m)return{lo:+m[1],hi:+m[1],ex:true};m=q.match(/^\$?(\d+(?:\.\d+)?)\$?-\$?(\d+(?:\.\d+)?)\$?$/);if(m){const a=+m[1],b=+m[2];return{lo:Math.min(a,b),hi:Math.max(a,b)}}return null};
+const pxQ=q=>{q=String(q||'').trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[٫,،]/g,'.').replace(/\s+/g,'');const N='(\\d*\\.\\d+|\\d+)';let m=q.match(new RegExp('^\\$?'+N+'\\$?$'));if(m)return{lo:+m[1],hi:+m[1],ex:true};m=q.match(new RegExp('^\\$?'+N+'\\$?-\\$?'+N+'\\$?$'));if(m){const a=+m[1],b=+m[2];return{lo:Math.min(a,b),hi:Math.max(a,b)}}return null};
 const pxOf=p=>['price','pt','p2'].map(t=>effP(p,t)).filter(v=>v>0);
 const pxHit=(p,R)=>!!R&&pxOf(p).some(v=>v>=R.lo-0.005&&v<=R.hi+0.005);
 const pxMin=p=>Math.min(...pxOf(p),1e9);
@@ -1018,8 +1018,9 @@ function renderPick(){const box=$('#plistbox');if(!box||!S.picking)return;const 
   box.className='list';box.innerHTML=L.map(([k,p])=>`<button class="row" type="button" data-act="pick" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="48" height="48" loading="lazy" style="border-radius:8px;object-fit:cover;flex:none">`:''}<span class="who"><b>${esc(p.name)}</b><small><span class="num">${esc(k)}</span><span>الطرد ${f1(nv(p.pack))} ${esc(p.unit||'')}</span><span class="chip ${wq(k,(S.draft||{}).wh||'main')>0?'c-credit':'c-zero'}">المتوفر ${f1(wq(k,(S.draft||{}).wh||'main'))}${nv(p.pack)>0?` (${f1(wq(k,(S.draft||{}).wh||'main')/nv(p.pack))} طرد)`:''}</span>${S.wh.length>1?`<span class="chip c-zero">كل المستودعات ${f1(wq(k,'all'))}</span>`:''}${p.min?`<span>${esc(p.min)}</span>`:''}</small></span><span class="amt"><b>${pr(p.price)}</b></span></button>`).join('')||'<div class="row muted">لا توجد مادة مطابقة</div>'}
 function sugFor(t){const kind=t.dataset.sug;if(!kind)return;document.querySelectorAll('.sug').forEach(b=>b.innerHTML='');
   const box=t.dataset.i!==undefined?$('#sg-'+t.dataset.i):$(t.id==='c-city'?'#sug-c':'#sug-h');if(!box)return;const q=t.value.trim();
-  if(kind==='code'){const R=pxQ(q),L=q?Object.entries(S.products).filter(([k,p])=>!p.off&&(pmatch(k,p,q)||pxHit(p,R))).sort((a,b)=>(R&&!R.ex?pxMin(a[1])-pxMin(b[1]):0)||prank(a[0],q)-prank(b[0],q)).slice(0,8):[];
-    box.innerHTML=L.map(([k,p])=>`<button type="button" data-act="sug-code" data-i="${t.dataset.i}" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="36" height="36" style="border-radius:6px;object-fit:cover;flex:none">`:''}<span><b class="num">${esc(k)}</b> · ${esc(p.name||'')} · <span class="num">${pr(defP(p)||p.price)}</span> · المتوفر <b class="num">${f1(wq(k,(S.draft||{}).wh||'main'))}</b>${nv(p.pack)>0?` (${f1(wq(k,(S.draft||{}).wh||'main')/nv(p.pack))} طرد)`:''}</span></button>`).join('')}
+  if(kind==='code'){const R=pxQ(q),L=q?Object.entries(S.products).filter(([k,p])=>!p.off&&(pmatch(k,p,q)||pxHit(p,R))).sort((a,b)=>(R&&!R.ex?pxMin(a[1])-pxMin(b[1]):0)||(R?(pxHit(b[1],R)-pxHit(a[1],R)):0)||prank(a[0],q)-prank(b[0],q)).slice(0,R?40:8):[];
+    const nPx=R?Object.values(S.products).filter(p=>!p.off&&pxHit(p,R)).length:0;box.style.maxHeight=R&&L.length>8?'55vh':'';box.style.overflowY=R&&L.length>8?'auto':'';
+    box.innerHTML=(R&&nPx?`<div class="small muted" style="padding:2px 6px">${nPx} مادة ${R.ex?'بسعر '+pr(R.lo):'سعرها بين '+pr(R.lo)+' و'+pr(R.hi)}</div>`:'')+L.map(([k,p])=>`<button type="button" data-act="sug-code" data-i="${t.dataset.i}" data-code="${esc(k)}">${S.img[k]?`<img src="${S.img[k]}" alt="" width="36" height="36" style="border-radius:6px;object-fit:cover;flex:none">`:''}<span><b class="num">${esc(k)}</b> · ${esc(p.name||'')} · <span class="num">${R&&pxHit(p,R)?pxOf(p).map(pr).join(' / '):pr(defP(p)||p.price)}</span> · المتوفر <b class="num">${f1(wq(k,(S.draft||{}).wh||'main'))}</b>${nv(p.pack)>0?` (${f1(wq(k,(S.draft||{}).wh||'main')/nv(p.pack))} طرد)`:''}</span></button>`).join('')}
   else if(kind==='cust'){const L=q?S.customers.filter(c=>(c.name||'').includes(q)).slice(0,6):[];
     box.innerHTML=L.map(c=>`<button type="button" data-act="sug-cust" data-id="${esc(c.id)}"><span><b>${esc(c.name)}</b> · ${esc(c.city||'')} · <span class="num">${money(c.balance||0)}</span></span></button>`).join('')}
   else{const src=kind==='city'?[...new Set([...CITIES,...S.customers.map(x=>x.city).filter(Boolean)])]:SHIPPERS,L=(kind==='city'&&!q)?[]:src.filter(v=>v!==q&&(!q||v.includes(q))).slice(0,8);
@@ -3856,7 +3857,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-1424';
+const BUILD='20261126-1431';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
