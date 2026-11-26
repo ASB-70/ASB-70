@@ -704,7 +704,16 @@ async function drawStatement(c,tx,lastN){tx=(tx||[]).filter(t=>!t.void);
   if(!lastN&&all.length>240)lastN=240;
   let rows=all,open=null;
   if(lastN&&all.length>lastN){open=all[all.length-lastN-1].run;rows=all.slice(-lastN)}
-  const n=rows.length+(open!==null?1:0),H=headH+thH+Math.max(n,1)*RH+footH;
+  const BF0='"IBM Plex Sans Arabic",Tahoma,sans-serif',mx=document.createElement('canvas').getContext('2d'),DW=288;
+  const descOf=t=>(KIND[t.k]||'')+(t.ref?' '+t.ref:'')+(t.n?' · '+t.n:'');
+  const layD=s=>{s=String(s||'').replace(/\s+/g,' ').trim();const wd=(q,f)=>{mx.font=f;return mx.measureText(q).width},fo=z=>'400 '+z+'px '+BF0;
+    if(wd(s,fo(25))<=DW)return{h:RH,sz:25,L:[s]};
+    const wrap=f=>{const L=[''];for(const z of s.split(' ')){const c2=L[L.length-1]?L[L.length-1]+' '+z:z;if(wd(c2,f)<=DW||!L[L.length-1])L[L.length-1]=c2;else L.push(z)}return L};
+    for(const z of [23,21]){const L=wrap(fo(z));if(L.length<=2&&L.every(l=>wd(l,fo(z))<=DW))return{h:80,sz:z,L}}
+    for(const z of [21,19]){const L=wrap(fo(z));if(L.length<=3&&L.every(l=>wd(l,fo(z))<=DW))return{h:104,sz:z,L}}
+    const L=wrap(fo(19));return{h:104,sz:19,L:[L[0],L[1],L.slice(2).join(' ')],cut:1}};
+  const LAY=rows.map(o=>layD(descOf(o.t)));
+  const n=rows.length+(open!==null?1:0),H=headH+thH+(n?LAY.reduce((a,l)=>a+l.h,0)+(open!==null?RH:0):RH)+footH;
   const cv=document.createElement('canvas');const K=hiK(H);cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);
   const DF='"Readex Pro","IBM Plex Sans Arabic",Tahoma,sans-serif',BF='"IBM Plex Sans Arabic",Tahoma,sans-serif';
   const ar=(s,px,py,font,col)=>{x.direction='rtl';x.textAlign='right';x.font=font;x.fillStyle=col;x.fillText(s,px,py)};
@@ -721,12 +730,12 @@ async function drawStatement(c,tx,lastN){tx=(tx||[]).filter(t=>!t.void);
   const xD=W-P,xS=xD-170,xI=xS-304,xP=xI-170,xB=xP-170;
   let y=headH;x.fillStyle='#E3E8F1';x.fillRect(0,y,W,thH);
   const th='600 24px '+BF;ar('التاريخ',xD-8,y+41,th,'#101B33');ar('البيان',xS-8,y+41,th,'#101B33');ar('فاتورة',xI-8,y+41,th,'#101B33');ar('مدفوع',xP-8,y+41,th,'#101B33');ar('الرصيد',xB-8,y+41,th,'#101B33');
-  y+=thH;const tf='400 25px '+BF,nf='500 25px '+DF;let i=0;
-  const line=(date,desc,a,b,bal)=>{if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,RH)}
-    nu(date,xD-8,y+38,nf,'#5A6684');ar(fit(desc,288,tf),xS-8,y+38,tf,'#101B33');
-    if(a)nu(a,xI-8,y+38,nf,'#B3261E');if(b)nu(b,xP-8,y+38,nf,'#0B7447');nu(bal,xB-8,y+38,'600 25px '+DF,'#101B33');y+=RH;i++};
-  if(open!==null)line('','رصيد سابق','','',money(open));
-  for(const {t,run} of rows)line(t.d?dmy(t.d):'—',(KIND[t.k]||'')+(t.ref?' '+t.ref:'')+(t.n?' · '+t.n:''),t.k==='inv'?money(t.a):'',t.k==='inv'?'':money(t.a),money(run));
+  cv._th={y:y*K,h:thH*K};cv._lbl='كشف حساب · '+c.name;y+=thH;const tf='400 25px '+BF,nf='500 25px '+DF;let i=0;const rb=[];
+  const line=(date,lay,a,b,bal)=>{const rh=lay.h,ty=rh/2+9;if(i%2){x.fillStyle='#F4F6FB';x.fillRect(0,y,W,rh)}
+    nu(date,xD-8,y+ty,nf,'#5A6684');{const f='400 '+lay.sz+'px '+BF,lh=Math.round(lay.sz*1.22),nL=lay.L.length,y0=y+rh/2-(nL-1)*lh/2+lay.sz*0.36;lay.L.forEach((q,j)=>ar(j===nL-1&&lay.cut?fit(q,DW,f):q,xS-8,y0+j*lh,f,'#101B33'))}
+    if(a)nu(a,xI-8,y+ty,nf,'#B3261E');if(b)nu(b,xP-8,y+ty,nf,'#0B7447');nu(bal,xB-8,y+ty,'600 25px '+DF,'#101B33');y+=rh;rb.push(y*K);i++};
+  if(open!==null)line('',{h:RH,sz:25,L:['رصيد سابق']},'','',money(open));
+  rows.forEach(({t,run},ri)=>line(t.d?dmy(t.d):'—',LAY[ri],t.k==='inv'?money(t.a):'',t.k==='inv'?'':money(t.a),money(run)));cv._rb=rb;
   if(!n){ar('لا توجد حركات',W-P,y+38,tf,'#5A6684');y+=RH}
   cv._rs=(headH+thH)*K;cv._rh=RH*K;cv._re=y*K;
   x.fillStyle='#13265C';x.fillRect(P,y+18,W-2*P,3);
@@ -3727,7 +3736,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261125-2028';
+const BUILD='20261126-0157';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
