@@ -47,6 +47,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--sky);outline-offset
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
 .col h3{font-size:15px;margin:0 0 6px;color:var(--mut)}.col ul{margin:0;padding-inline-start:18px}.col li{margin-bottom:4px}
 .empty{color:var(--mut);font-size:14px}
+.say{background:var(--bg);border-radius:14px;padding:12px 14px;margin:0 0 12px;font-size:16px;border-inline-start:4px solid var(--blue)}
 .login{max-width:380px;margin:20px auto;display:flex;flex-direction:column;gap:12px}
 .login input{font:16px Cairo,sans-serif;min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 12px}
 .msg{font-size:14px;min-height:1.3em;margin:0}.err{color:var(--warn)}
@@ -59,7 +60,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--sky);outline-offset
  <div class="top">
   <div>
    <h1>مكتب شركة الثقة</h1>
-   <div class="chips"><span class="chip">٤ موظفين</span><span class="chip"><span class="dot" id="dot"></span><span id="state">عم يفتح…</span></span></div>
+   <div class="chips"><span class="chip">٧ موظفين + المؤسس</span><span class="chip"><span class="dot" id="dot"></span><span id="state">عم يفتح…</span></span></div>
   </div>
   <div class="row"><button id="run" hidden>ابدأ اجتماع الصبح هلق</button></div>
  </div>
@@ -76,19 +77,20 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--sky);outline-offset
 
  <div id="app" hidden>
  <div class="scene">
-  <svg viewBox="0 0 900 520" role="group" aria-label="المكتب: اكبس على أي موظف">
+  <svg viewBox="0 0 900 890" role="group" aria-label="المكتب: اكبس على أي موظف">
    <defs>
     <pattern id="wood" width="900" height="36" patternUnits="userSpaceOnUse"><rect width="900" height="36" fill="var(--floor)"/><rect y="34" width="900" height="2" fill="var(--plank)"/><rect x="180" width="2" height="36" fill="var(--plank)"/><rect x="610" width="2" height="36" fill="var(--plank)"/></pattern>
     <g id="dk"><ellipse cx="0" cy="66" rx="98" ry="12" fill="#000" opacity=".1"/><rect x="-90" y="10" width="180" height="56" rx="10" fill="#c99c6b"/><rect x="-90" y="10" width="180" height="10" rx="5" fill="#ddb787"/><rect x="-34" y="-30" width="68" height="42" rx="5" fill="#1b2a40"/><rect x="-29" y="-25" width="58" height="31" rx="3" fill="#3fa9f5" opacity=".85"/><rect x="-6" y="12" width="12" height="5" fill="#1b2a40"/></g>
+    <g id="dkf"><ellipse cx="0" cy="70" rx="130" ry="13" fill="#000" opacity=".12"/><rect x="-122" y="10" width="244" height="60" rx="12" fill="#8b5a2b"/><rect x="-122" y="10" width="244" height="12" rx="6" fill="#a8703a"/><rect x="-40" y="-32" width="80" height="46" rx="5" fill="#1b2a40"/><rect x="-35" y="-27" width="70" height="35" rx="3" fill="#ffd36b" opacity=".9"/><rect x="-6" y="14" width="12" height="5" fill="#1b2a40"/></g>
     <g id="pl"><rect x="-12" y="-4" width="24" height="26" rx="5" fill="#b9805a"/><circle cx="0" cy="-16" r="16" fill="#2f9e5b"/><circle cx="-10" cy="-8" r="10" fill="#38b46a"/><circle cx="10" cy="-6" r="10" fill="#2b8f52"/></g>
    </defs>
-   <rect width="900" height="520" fill="url(#wood)"/>
+   <rect width="900" height="890" fill="url(#wood)"/>
    <rect width="900" height="86" fill="var(--wall)"/>
    <g fill="#bfe3fb" stroke="#9fb8cc" stroke-width="3"><rect x="40" y="12" width="150" height="60" rx="4"/><rect x="230" y="12" width="150" height="60" rx="4"/><rect x="520" y="12" width="150" height="60" rx="4"/><rect x="710" y="12" width="150" height="60" rx="4"/></g>
    <g stroke="#9fb8cc" stroke-width="3"><path d="M115 12v60M305 12v60M595 12v60M785 12v60"/></g>
    <text x="450" y="52" text-anchor="middle" font-family="Cairo,sans-serif" font-weight="800" font-size="22" fill="var(--blue)">شركة الثقة</text>
-   <use href="#pl" x="30" y="120"/><use href="#pl" x="870" y="120"/><use href="#pl" x="30" y="480"/><use href="#pl" x="870" y="480"/>
-   <g transform="translate(450 280)"><ellipse cx="0" cy="44" rx="120" ry="16" fill="#000" opacity=".1"/><ellipse cx="0" cy="18" rx="112" ry="44" fill="#ddb787"/><ellipse cx="0" cy="12" rx="112" ry="40" fill="#e8c79d"/><text y="20" text-anchor="middle" font-family="Cairo,sans-serif" font-size="20" font-weight="700" fill="#7a5532">طاولة الاجتماع</text></g>
+   <use href="#pl" x="40" y="140"/><use href="#pl" x="860" y="140"/><use href="#pl" x="270" y="160"/><use href="#pl" x="630" y="160"/><use href="#pl" x="420" y="790"/><use href="#pl" x="480" y="800"/><use href="#pl" x="40" y="870"/><use href="#pl" x="860" y="870"/>
+   <g transform="translate(450 590)"><ellipse cx="0" cy="44" rx="120" ry="16" fill="#000" opacity=".1"/><ellipse cx="0" cy="18" rx="112" ry="44" fill="#ddb787"/><ellipse cx="0" cy="12" rx="112" ry="40" fill="#e8c79d"/><text y="20" text-anchor="middle" font-family="Cairo,sans-serif" font-size="20" font-weight="700" fill="#7a5532">طاولة الاجتماع</text></g>
    <g id="desks"></g>
   </svg>
  </div>
@@ -120,23 +122,27 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--sky);outline-offset
 const SB={url:'https://ecvzyptrpekgsouhgbdb.supabase.co',key:'sb_publishable_UpaManLT8I-L0lcQi53BaQ_Y52DzNpt'};
 const PROJECT='ecvzyptrpekgsouhgbdb',TRIG='trig_015rp7dfYK3ehfXaGggnGbV6',RT='thiqa-office-rt';
 const TEAM=[
- {k:'manager',n:'مازن',r:'مدير المكتب',c:'#1f5fbf',x:200,y:160},
- {k:'sales',n:'سامر',r:'مبيعات وذمم',c:'#7b4fd0',x:700,y:160},
- {k:'orders',n:'رامي',r:'طلبيات وشحن',c:'#1aa36f',x:200,y:385},
- {k:'marketing',n:'لينا',r:'تسويق وإنستغرام',c:'#f08a24',x:700,y:385}];
+ {k:'founder',n:'عبد السلام',r:'المؤسس',c:'#b8860b',x:450,y:155,f:1},
+ {k:'accountant',n:'خالد',r:'المحاسب',c:'#7b4fd0',x:150,y:355},
+ {k:'gm',n:'مازن',r:'المدير العام',c:'#1f5fbf',x:450,y:355},
+ {k:'sales',n:'سامر',r:'مدير المبيعات',c:'#d6455d',x:750,y:355},
+ {k:'warehouse',n:'عمر',r:'أمين المستودع',c:'#8a6a3b',x:150,y:555},
+ {k:'marketing',n:'لينا',r:'التسويق والترويج',c:'#f08a24',x:750,y:555},
+ {k:'driver',n:'أبو علي',r:'السائق',c:'#3c7d8f',x:150,y:755},
+ {k:'pr',n:'ريم',r:'العلاقات العامة',c:'#1aa36f',x:750,y:755}];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:1});
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
-let REP=null,SEL='manager',mcp=null;
+let REP=null,SEL='gm',mcp=null;
 
 $('desks').innerHTML=TEAM.map(t=>`<g class="desk" data-k="${t.k}" tabindex="0" role="button" aria-label="${esc(t.n+' – '+t.r)}" transform="translate(${t.x} ${t.y})">
  <circle cx="0" cy="-58" r="17" fill="#f2c7a2"/><path d="M-17 -62a17 17 0 0 1 34 0q-5-12-17-12t-17 12z" fill="#3b2a20"/>
  <rect x="-24" y="-40" width="48" height="44" rx="18" fill="${t.c}"/>
- <use href="#dk"/>
+ <use href="${t.f?'#dkf':'#dk'}"/>
  <circle id="lamp-${t.k}" cx="40" cy="-70" r="7" fill="#93a4bb"/>
- <rect class="tag" x="-120" y="74" width="240" height="44" rx="22" fill="var(--wall)" stroke="var(--line)"/>
- <text y="104" text-anchor="middle" font-family="Cairo,sans-serif" font-size="22" fill="var(--ink)"><tspan font-weight="800">${esc(t.n)}</tspan> · ${esc(t.r)}</text></g>`).join('');
+ <rect class="tag" x="-125" y="78" width="250" height="44" rx="22" fill="${t.f?'#fff4d6':'var(--wall)'}" stroke="${t.f?'#d9a441':'var(--line)'}"/>
+ <text y="108" fill-opacity="1" text-anchor="middle" font-family="Cairo,sans-serif" font-size="22" fill="${t.f?'#5a3d00':'var(--ink)'}"><tspan font-weight="800">${esc(t.n)}</tspan> · ${esc(t.r)}</text></g>`).join('');
 document.querySelectorAll('.desk').forEach(g=>{const f=()=>{SEL=g.dataset.k;renderEmp();$('emp').scrollIntoView({behavior:'smooth',block:'start'})};g.addEventListener('click',f);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}})});
 
 const arr=v=>Array.isArray(v)?v:[];
@@ -148,22 +154,24 @@ function render(){
  $('when').textContent='آخر اجتماع: '+t.toLocaleString('ar-SY',{weekday:'long',day:'numeric',month:'numeric',hour:'numeric',minute:'2-digit'});
  $('sum').textContent=r.summary||'';
  const s=r.stats||{},st=(v,l,w)=>`<div class="st${w?' w':''}"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
- $('stats').innerHTML=st('$'+num(Math.round(s.owed||0)),'ديون عند '+num(s.debtors)+' زبون')+st(num(s.inv_n)+' / $'+num(s.inv_sum),'فواتير آخر يوم')+st(num(s.due),'لازم يتذكّروا',s.due>0)+st(num(s.road),'بضاعة بالطريق +3 أيام',s.road>0);
+ $('stats').innerHTML=st('$'+num(Math.round(s.owed||0)),'ديون عند '+num(s.debtors)+' زبون')+st(num(s.inv_n)+' / $'+num(s.inv_sum),'فواتير آخر يوم')+st('$'+num(s.cash_usd_in||0)+(s.cash_syp_in?' + '+num(s.cash_syp_in)+' ل.س':''),'دخل الصندوق آخر يوم')+st(num(s.stale!=null?s.stale:s.due),'متأخرين +30 يوم',(s.stale||s.due)>0);
  $('cal').innerHTML=arr(r.calendar).map(c=>`<li><time>${esc(c.time)}</time><span>${esc(c.title)}</span></li>`).join('');
  const A=r.agents||{},list=[];
  TEAM.forEach(m=>arr(A[m.k]&&A[m.k].approve).forEach(a=>list.push({m,a})));
  $('apn').textContent=list.length?'('+list.length+')':'';
  $('aps').innerHTML=list.length?list.map(({m,a},i)=>{const w=waNum(a.phone);return`<div class="ap"><div class="who">${esc(m.n)} · ${esc(m.r)}${a.to?' ← '+esc(a.to):''}</div><div class="t">${esc(a.title)}</div>${a.msg?`<pre>${esc(a.msg)}</pre>`:''}<div class="row">${w&&a.msg?`<a class="btn wa" href="https://wa.me/${w}?text=${encodeURIComponent(a.msg)}" target="_blank" rel="noopener">موافق، افتح بالواتساب</a>`:''}${a.msg?`<button class="ghost" data-copy="${i}">نسخ</button>`:''}</div></div>`}).join(''):'<p class="empty">ما في شي بدو موافقتك هلق.</p>';
  $('aps').querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>copy(list[+b.dataset.copy].a.msg,b)));
- TEAM.forEach(m=>{const a=A[m.k]||{},l=$('lamp-'+m.k);if(l)l.setAttribute('fill',arr(a.issues).length?'#f08a24':'#1aa36f')});
+ TEAM.forEach(m=>{const a=A[m.k]||{},l=$('lamp-'+m.k);if(l)l.setAttribute('fill',m.f?(list.length?'#f08a24':'#1aa36f'):arr(a.issues).length?'#f08a24':'#1aa36f')});
  renderEmp();
 }
 function renderEmp(){
  document.querySelectorAll('.desk').forEach(g=>g.classList.toggle('sel',g.dataset.k===SEL));
- const m=TEAM.find(t=>t.k===SEL),a=(REP&&REP.data&&REP.data.agents||{})[SEL]||{};
+ const m=TEAM.find(t=>t.k===SEL),A=(REP&&REP.data&&REP.data.agents)||{},a=A[SEL]||{};
+ const head=`<div class="emp-head"><div class="av" style="background:${m.c}">${esc(m.n[0])}</div><div><h2 style="margin:0">${esc(m.n)}</h2><div class="meta" style="margin:0">${esc(m.r)}</div></div></div>`;
+ if(m.f){let n=0;TEAM.forEach(t=>n+=arr(A[t.k]&&A[t.k].approve).length);
+  $('emp').innerHTML=head+`<p class="sum" style="margin:0 0 8px">هاد مكتبك. الفريق بيشتغل، والقرار إلك.</p><p class="meta">${REP?(n?`عندك ${n} شي بدهن قرارك، تحت «بدو موافقتك».`:'ما في شي بدو قرارك هلق.'):'بس يصير أول اجتماع بتطلع قراراتك هون.'}</p>${REP&&REP.data.summary?`<div class="say">«${esc(REP.data.summary)}» <span class="meta">— مازن</span></div>`:''}`;return}
  const col=(h,v)=>`<div class="col"><h3>${h}</h3>${arr(v).length?'<ul>'+arr(v).map(x=>`<li>${esc(typeof x==='string'?x:x.title||JSON.stringify(x))}</li>`).join('')+'</ul>':'<p class="empty">ما في</p>'}</div>`;
- $('emp').innerHTML=`<div class="emp-head"><div class="av" style="background:${m.c}">${esc(m.n[0])}</div><div><h2 style="margin:0">${esc(m.n)}</h2><div class="meta" style="margin:0">${esc(m.r)}</div></div></div>`+
-  (REP?`<div class="cols">${col('شو عمل مبارح',a.done)}${col('شو لازم ينعمل اليوم',a.today)}${col('المشاكل',a.issues)}</div>${a.plan?`<h3 style="font-size:15px;margin:14px 0 6px;color:var(--mut)">خطة الأسبوع</h3><pre style="white-space:pre-wrap;font:15px/1.6 Cairo,sans-serif;margin:0">${esc(a.plan)}</pre>`:''}`:'<p class="empty">بس يصير أول اجتماع بيطلع هون شو عمل وشو المطلوب.</p>');
+ $('emp').innerHTML=head+(REP&&A[SEL]?`${a.say?`<div class="say">«${esc(a.say)}»</div>`:''}<div class="cols">${col('شو عملت مبارح',a.done)}${col('شو لازم ينعمل اليوم',a.today)}${col('المشاكل',a.issues)}</div>${a.plan?`<h3 style="font-size:15px;margin:14px 0 6px;color:var(--mut)">خطة الأسبوع</h3><pre style="white-space:pre-wrap;font:15px/1.6 Cairo,sans-serif;margin:0">${esc(a.plan)}</pre>`:''}`:'<p class="empty">بيطلع شغله هون من أول اجتماع للفريق الجديد.</p>');
 }
 async function copy(t,b){try{await navigator.clipboard.writeText(t)}catch(e){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();try{document.execCommand('copy')}catch(_){}x.remove()}const o=b.textContent;b.textContent='انتسخ ✓';setTimeout(()=>b.textContent=o,1500)}
 function ok(t){$('dot').classList.add('on');$('state').textContent=t}
