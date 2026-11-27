@@ -47,6 +47,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--sky);outline-offset
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
 .col h3{font-size:15px;margin:0 0 6px;color:var(--mut)}.col ul{margin:0;padding-inline-start:18px}.col li{margin-bottom:4px}
 .empty{color:var(--mut);font-size:14px}
+.badge{display:inline-block;font-size:13px;border-radius:99px;padding:2px 10px;font-weight:700}.badge.ok{background:#e3f6ee;color:#11724c}.badge.wait{background:#fff1e0;color:#a85a0c}.badge.no{background:#fde7ea;color:#a3283c}.res{font-size:14px;overflow-wrap:anywhere}
 .say{background:var(--bg);border-radius:14px;padding:12px 14px;margin:0 0 12px;font-size:16px;border-inline-start:4px solid var(--blue)}
 .login{max-width:380px;margin:20px auto;display:flex;flex-direction:column;gap:12px}
 .login input{font:16px Cairo,sans-serif;min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 12px}
@@ -134,7 +135,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:1});
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
-let REP=null,SEL='gm',mcp=null;
+let REP=null,SEL='gm',mcp=null,ACTS=[];const EXEC='trig_01S7krAy6W87bgMt9yDMTTgS';
 
 $('desks').innerHTML=TEAM.map(t=>`<g class="desk" data-k="${t.k}" tabindex="0" role="button" aria-label="${esc(t.n+' – '+t.r)}" transform="translate(${t.x} ${t.y})">
  <circle cx="0" cy="-58" r="17" fill="#f2c7a2"/><path d="M-17 -62a17 17 0 0 1 34 0q-5-12-17-12t-17 12z" fill="#3b2a20"/>
@@ -147,6 +148,13 @@ document.querySelectorAll('.desk').forEach(g=>{const f=()=>{SEL=g.dataset.k;rend
 
 const arr=v=>Array.isArray(v)?v:[];
 const waNum=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);if(d.startsWith('0'))d='963'+d.slice(1);else if(d.length===9&&d.startsWith('9'))d='963'+d;return d.length>=11?d:''};
+const kind=a=>{const t=String(a.type||'').toLowerCase();if(['whatsapp','calendar','post','ad','task'].includes(t))return t;if(a.phone||a.to)return 'whatsapp';const x=String(a.title||'');if(/بوست|ستوري|منشور/.test(x))return 'post';if(/إعلان|اعلان/.test(x))return 'ad';return 'task'};
+const linkify=t=>esc(t).replace(/https:\/\/[^\s<"']+/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+let SAVE=null;
+async function decide(x,dec){if(!REP)return;const ty=kind(x.a),rec={report_id:REP.id,agent:x.m.k,idx:x.idx,item:Object.assign({},x.a,{type:ty}),decision:dec,status:(dec==='approved'&&ty!=='whatsapp'&&ty!=='task')?'pending':'manual'};
+ ACTS.push(Object.assign({},rec,{result:''}));render();
+ try{await SAVE(rec);$('runMsg').textContent=rec.status==='pending'?(mcp?'وصلت موافقتك، والموظف عم ينفّذ هلق. بيوصلك إشعار لما يخلص.':'وصلت موافقتك، والموظف بينفّذها خلال ساعة بالدوام.'):dec==='approved'?'انحفظت موافقتك.':'انحفظ رفضك، وما رح يعيدوا يقترحوه.'}
+ catch(e){ACTS=ACTS.filter(y=>!(y.agent===rec.agent&&+y.idx===rec.idx));render();$('runMsg').textContent='ما انحفظ القرار، جرّب كمان مرة.'}}
 function render(){
  const r=REP&&REP.data||{};
  if(!REP){$('when').textContent='لسا ما صار ولا اجتماع. أول اجتماع بيصير الصبح الساعة 8:47.';$('sum').textContent='';$('stats').innerHTML='';$('cal').innerHTML='';$('aps').innerHTML='<p class="empty">ما في شي هلق.</p>';$('apn').textContent='';renderEmp();return}
@@ -157,11 +165,18 @@ function render(){
  $('stats').innerHTML=st('$'+num(Math.round(s.owed||0)),'ديون عند '+num(s.debtors)+' زبون')+st(num(s.inv_n)+' / $'+num(s.inv_sum),'فواتير آخر يوم')+st('$'+num(s.cash_usd_in||0)+(s.cash_syp_in?' + '+num(s.cash_syp_in)+' ل.س':''),'دخل الصندوق آخر يوم')+st(num(s.stale!=null?s.stale:s.due),'متأخرين +30 يوم',(s.stale||s.due)>0);
  $('cal').innerHTML=arr(r.calendar).map(c=>`<li><time>${esc(c.time)}</time><span>${esc(c.title)}</span></li>`).join('');
  const A=r.agents||{},list=[];
- TEAM.forEach(m=>arr(A[m.k]&&A[m.k].approve).forEach(a=>list.push({m,a})));
+ TEAM.forEach(m=>arr(A[m.k]&&A[m.k].approve).forEach((a,idx)=>list.push({m,a,idx})));
  $('apn').textContent=list.length?'('+list.length+')':'';
- $('aps').innerHTML=list.length?list.map(({m,a},i)=>{const w=waNum(a.phone);return`<div class="ap"><div class="who">${esc(m.n)} · ${esc(m.r)}${a.to?' ← '+esc(a.to):''}</div><div class="t">${esc(a.title)}</div>${a.msg?`<pre>${esc(a.msg)}</pre>`:''}<div class="row">${w&&a.msg?`<a class="btn wa" href="https://wa.me/${w}?text=${encodeURIComponent(a.msg)}" target="_blank" rel="noopener">موافق، افتح بالواتساب</a>`:''}${a.msg?`<button class="ghost" data-copy="${i}">نسخ</button>`:''}</div></div>`}).join(''):'<p class="empty">ما في شي بدو موافقتك هلق.</p>';
+ $('aps').innerHTML=list.length?list.map(({m,a,idx},i)=>{const w=waNum(a.phone),ty=kind(a),act=ACTS.find(x=>x.agent===m.k&&+x.idx===idx);
+  const lab={whatsapp:'رسالة واتساب',calendar:'موعد بالكالندر',post:'بوست',ad:'إعلان (تجهيز بس)',task:'مهمة إلك'}[ty];
+  let st='';if(act){st=act.decision==='rejected'?'<span class="badge no">رفضت</span>':act.status==='pending'?'<span class="badge wait">وافقت · عم يتنفّذ…</span>':act.status==='failed'?'<span class="badge no">ما زبط</span>':'<span class="badge ok">وافقت ✓</span>';if(act.result)st+=`<div class="res">${linkify(act.result)}</div>`}
+  const btns=act?(act.decision==='approved'&&ty==='whatsapp'&&w&&a.msg?`<a class="btn wa" href="https://wa.me/${w}?text=${encodeURIComponent(a.msg)}" target="_blank" rel="noopener">افتح بالواتساب</a>`:''):
+   `${ty==='whatsapp'&&w&&a.msg?`<a class="btn wa" data-ok="${i}" href="https://wa.me/${w}?text=${encodeURIComponent(a.msg)}" target="_blank" rel="noopener">موافق، افتح بالواتساب</a>`:`<button data-ok="${i}">موافق</button>`}<button class="ghost" data-no="${i}">رفض</button>`;
+  return`<div class="ap"><div class="who">${esc(m.n)} · ${esc(m.r)} · ${lab}${a.to?' ← '+esc(a.to):''}</div><div class="t">${esc(a.title)}</div>${a.msg?`<pre>${esc(a.msg)}</pre>`:''}${st}<div class="row">${btns}${a.msg?`<button class="ghost" data-copy="${i}">نسخ</button>`:''}</div></div>`}).join(''):'<p class="empty">ما في شي بدو موافقتك هلق.</p>';
+ $('aps').querySelectorAll('[data-ok]').forEach(b=>b.addEventListener('click',()=>decide(list[+b.dataset.ok],'approved')));
+ $('aps').querySelectorAll('[data-no]').forEach(b=>b.addEventListener('click',()=>decide(list[+b.dataset.no],'rejected')));
  $('aps').querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>copy(list[+b.dataset.copy].a.msg,b)));
- TEAM.forEach(m=>{const a=A[m.k]||{},l=$('lamp-'+m.k);if(l)l.setAttribute('fill',(m.f?list.length:arr(a.approve).length)?'#f08a24':'#1aa36f')});
+ const open=x=>!ACTS.find(y=>y.agent===x.m.k&&+y.idx===x.idx);TEAM.forEach(m=>{const l=$('lamp-'+m.k);if(l)l.setAttribute('fill',list.some(x=>open(x)&&(m.f||x.m.k===m.k))?'#f08a24':'#1aa36f')});$('apn').textContent=list.filter(open).length?'('+list.filter(open).length+' ناطرين)':'';
  renderEmp();
 }
 function renderEmp(){
@@ -182,9 +197,12 @@ function parseSql(p){const txt=typeof p==='string'?p:(p&&p.result)||JSON.stringi
 const fmtT=t=>t?new Date(t).toLocaleString('ar-SY',{weekday:'short',hour:'numeric',minute:'2-digit'}):'';
 function startClaude(){
  $('app').hidden=false;$('run').hidden=false;
- const q='select id, created_at, data from office_reports order by created_at desc limit 1';
- const load=()=>mcp.callTool('Supabase','execute_sql',{project_id:PROJECT,query:q}).then(res=>{const rows=parseSql(res.payload);REP=rows[0]||null;render();ok('متصل بالمكتب')}).catch(()=>bad('ما قدرت إقرا التقارير هلق'));
+ const q="select r.id, r.created_at, r.data, coalesce((select json_agg(json_build_object('agent',a.agent,'idx',a.idx,'decision',a.decision,'status',a.status,'result',a.result)) from office_actions a where a.report_id=r.id),'[]'::json) acts from office_reports r order by r.created_at desc limit 1";
+ const load=()=>mcp.callTool('Supabase','execute_sql',{project_id:PROJECT,query:q}).then(res=>{const rows=parseSql(res.payload);REP=rows[0]||null;ACTS=REP?arr(REP.acts):[];render();ok('متصل بالمكتب')}).catch(()=>bad('ما قدرت إقرا التقارير هلق'));
  load();$('ref').onclick=load;
+ SAVE=async rec=>{const j=JSON.stringify(rec.item).split('$act$').join('');const sql=`insert into public.office_actions (report_id,agent,idx,item,decision,status) values (${+rec.report_id},'${rec.agent.replace(/[^a-z]/g,'')}',${+rec.idx},$act$${j}$act$::jsonb,'${rec.decision==='approved'?'approved':'rejected'}','${rec.status==='pending'?'pending':'manual'}') on conflict do nothing`;
+  await mcp.callTool('Supabase','execute_sql',{project_id:PROJECT,query:sql});
+  if(rec.status==='pending'){try{await mcp.callTool('Claude Code Remote','fire_trigger',{trigger_id:EXEC})}catch(e){}setTimeout(load,90000);setTimeout(load,180000)}};
  mcp.watchTool('Claude Code Remote','list_triggers',{limit:50},ev=>{
   if(ev.type!=='data')return;const t=arr(ev.result.payload&&ev.result.payload.data).find(x=>x.id===TRIG);if(!t)return;
   const lr=t.last_run,run=lr&&/RUN|PEND|QUEUE/.test(lr.status||'');
@@ -205,10 +223,11 @@ async function webLoad(){
  $('state').textContent='عم يجيب التقرير…';
  try{const t=await token();const r=await fetch(SB.url+'/rest/v1/office_reports?select=id,created_at,data&order=created_at.desc&limit=1',{headers:{apikey:SB.key,Authorization:'Bearer '+t}});
   if(r.status===401||r.status===403)throw Object.assign(new Error('auth'),{code:'auth'});if(!r.ok)throw Object.assign(new Error('net'),{code:'net'});
-  const rows=await r.json();REP=rows[0]||null;$('login').hidden=true;$('app').hidden=false;render();ok('متصل · '+new Date().toLocaleTimeString('ar-SY',{hour:'numeric',minute:'2-digit'}))}
+  const rows=await r.json();REP=rows[0]||null;ACTS=[];if(REP){const r2=await fetch(SB.url+'/rest/v1/office_actions?select=agent,idx,decision,status,result&report_id=eq.'+REP.id,{headers:{apikey:SB.key,Authorization:'Bearer '+t}});if(r2.ok)ACTS=await r2.json()}$('login').hidden=true;$('app').hidden=false;render();ok('متصل · '+new Date().toLocaleTimeString('ar-SY',{hour:'numeric',minute:'2-digit'}))}
  catch(e){if(e.code==='auth'){LS.set(RT,null);tok=null;showLogin()}else{bad('ما في إنترنت هلق');if(!LS.get(RT))showLogin()}}
 }
 function startWeb(){
+ SAVE=async rec=>{const t=await token();const r=await fetch(SB.url+'/rest/v1/office_actions',{method:'POST',headers:{apikey:SB.key,Authorization:'Bearer '+t,'Content-Type':'application/json',Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(rec)});if(!r.ok&&r.status!==409)throw new Error('save')};
  $('toClaude').hidden=false;$('out').hidden=false;$('ref').onclick=webLoad;
  $('login').addEventListener('submit',async ev=>{ev.preventDefault();const b=$('go');b.disabled=true;$('lerr').textContent='';
   try{await auth({email:$('em').value.trim(),password:$('pw').value},'password');$('pw').value='';await webLoad()}
