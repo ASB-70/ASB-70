@@ -2179,7 +2179,7 @@ function renderReports(){const el=$('#v-reports'),R=S.rep;
      <div class="row"><span class="who"><b>اليوم</b><small>ربح ${money(r2(td.profit))} · مصاريف ${money(r2(td.expTot))}</small></span><span class="amt"><b class="${r2(avgP-td.expTot)<0?'t-debt':'t-credit'}">${money(r2(avgP-td.expTot))}</b><small>المتبقي من الحد</small></span></div></div>
     <span class="small muted">الحساب: متوسط الربح اليومي من فواتير آخر 30 يوماً (السبت إلى الخميس) حسب تكلفة المواد المسجلة بالمخزون. يتحسن كلما زادت الفواتير المسجلة.</span>`
     :`<div class="empty">لا توجد فواتير بربح معروف في آخر 30 يوم. سجّل تكلفة المواد في المخزون وأنشئ فواتير ليظهر الحساب.</div>`}</div>
-   ${plCard()}${bsCard()}${agingCard()}${rankCard()}${assetsCard()}
+   ${discCard()}${plCard()}${bsCard()}${agingCard()}${rankCard()}${assetsCard()}
    <div class="sec"><div class="sechead"><h2>سجل الفواتير</h2><small id="repcnt">${inv.length}</small></div>
     <div class="field"><label for="rep-q">بحث برقم الفاتورة أو اسم الزبون أو المبلغ</label><input id="rep-q" type="search" value="${esc(R.q)}" inputmode="search" autocomplete="off"></div>
     <div id="replist">${repInvList(inv)}</div></div>`}
@@ -3141,6 +3141,25 @@ async function agingLoad(){S.F.aging={loading:true};refresh();try{const sn=await
     for(const d of sn.docs){const c=cust(d.id);if(!c||c.walkin)continue;const tx=d.data().tx||[],cc=custCache(tx);if(!(cc.balance>0.005))continue;const a=ageCalc(tx);a.b.forEach((v,i)=>tot[i]+=v);rows.push({c,bal:cc.balance,...a});
       if(nv(c.age)!==cc.age||Math.abs(nv(c.balance)-cc.balance)>0.005||(c.lastPay||'')!==cc.lastPay){try{await S.db.doc('customers/'+c.id).update(cc);Object.assign(c,cc)}catch(e){}}}
     rows.sort((a,b)=>b.b[3]-a.b[3]||b.oldest-a.oldest);S.F.aging={rows,tot:tot.map(r2)}}catch(e){S.F.aging={err:true}}refresh()}
+/* discounts report: account allowances (سماح), whole-invoice discounts and per-item discounts, by period and by customer */
+async function discLoad(){S.F.disc={per:'month',...(S.F.disc||{}),loading:true};try{const sn=await S.db.collection('ledgers').get(),A=[];
+    for(const d of sn.docs)for(const t of (d.data().tx||[]))if(t.k==='disc'&&!t.void&&nv(t.a)>0)A.push({cid:d.id,a:nv(t.a),d:/^\d{4}-\d{2}-\d{2}$/.test(t.d||'')?t.d:''});
+    S.F.disc={...S.F.disc,loading:false,acc:A,at:Date.now()}}catch(e){S.F.disc={...S.F.disc,loading:false,err:true}}if(S.view==='reports')renderReports()}
+function discCard(){const F=S.F.disc||(S.F.disc={per:'month'});if(!F.acc&&!F.loading&&!F.err&&S.db)setTimeout(discLoad,0);
+  const T=today(),per={month:'هالشهر',q:'آخر 3 أشهر',year:'هالسنة',all:'الكل'},inP=d=>F.per==='all'?true:!d?false:F.per==='month'?d.startsWith(T.slice(0,7)):F.per==='year'?d.startsWith(T.slice(0,4)):d>=addDays(T,-90);
+  const seg=`<div class="seg" role="group" aria-label="فترة الحسومات" style="margin:6px 0">${Object.keys(per).map(k=>`<button type="button" data-act="f-disc-per" data-p="${k}" aria-pressed="${F.per===k}">${per[k]}</button>`).join('')}</div>`;
+  if(F.err)return`<div class="card"><b>🏷️ الحسومات</b><span class="small muted">تعذّر الحساب. تحقق من الاتصال.</span><button class="btn sm" type="button" data-act="f-disc-reload">إعادة المحاولة</button></div>`;
+  if(!F.acc)return`<div class="card"><b>🏷️ الحسومات</b><span class="small muted">جارٍ جمع الحسومات…</span></div>`;
+  const by={},add=(cid,k,a)=>{const o=by[cid]||(by[cid]={acc:0,inv:0,line:0,n:0});o[k]=r2(o[k]+a);o.n++};let tA=0,tI=0,tL=0,nA=0,nI=0,nL=0;
+  for(const x of F.acc)if(inP(x.d)){tA+=x.a;nA++;add(x.cid,'acc',x.a)}
+  for(const v of (S.rep.inv||[])){if(v.void||!inP(v.date||''))continue;const di=nv(v.discAmt)||(nv(v.disc)>0?invDisc(v):0);if(di>0){tI+=di;nI++;add(v.cid,'inv',di)}const dl=lineDiscSum(v);if(dl>0){tL+=dl;nL++;add(v.cid,'line',dl)}}
+  tA=r2(tA);tI=r2(tI);tL=r2(tL);const tot=r2(tA+tI+tL),rows=Object.entries(by).map(([cid,o])=>({cid,o,t:r2(o.acc+o.inv+o.line)})).filter(r=>r.t>0).sort((a,b)=>b.t-a.t);
+  const kind=(l,n,a,c)=>`<div class="sechead"><span class="small">${l} <span class="muted">(${n})</span></span><b class="num pv" style="color:${c}">${money(a)}</b></div>`;
+  return `<div class="card" style="gap:6px;border:1.5px solid var(--brand)"><div class="sechead"><b style="font-size:17px">🏷️ الحسومات</b><button class="btn sm" type="button" data-act="f-disc-reload">تحديث</button></div>${seg}
+   <div style="text-align:center;padding:6px 0"><div class="small muted">مجموع الحسومات · ${per[F.per]}</div><b class="num pv" style="font-size:32px;color:var(--debt)">${money(tot)}</b></div>
+   ${kind('سماح على الحساب',nA,tA,'var(--ink)')}${kind('حسم على الفاتورة كلها',nI,tI,'var(--ink)')}${kind('حسم على مواد بالفاتورة',nL,tL,'var(--ink)')}
+   ${F.per!=='all'&&F.acc.some(x=>!x.d)?'<span class="small muted">في «سماح» قديمة بدون تاريخ، بتطلع بـ«الكل» بس.</span>':''}
+   ${rows.length?`<div class="small" style="font-weight:700;margin-top:6px">الزبائن من الأكتر حسماً (${rows.length})</div><div class="list" style="max-height:50vh;overflow-y:auto">${rows.slice(0,100).map(r=>{const c=cust(r.cid);return `<button class="row" type="button" ${c?`data-open="${esc(r.cid)}"`:'disabled'} style="padding:8px 10px"><span class="who"><b>${esc(c?c.name:'زبون محذوف')}</b><small>${[r.o.acc?'سماح '+money(r.o.acc):'',r.o.inv?'فواتير '+money(r.o.inv):'',r.o.line?'مواد '+money(r.o.line):''].filter(Boolean).join(' · ')} · ${r.o.n} مرة</small></span><span class="amt"><b class="num pv">${money(r.t)}</b></span></button>`}).join('')}</div>`:'<span class="small muted">ما في حسومات بهالفترة.</span>'}</div>`}
 function agingCard(){const A=S.F.aging;if(!A)return`<div class="card"><div class="sechead"><b>⏳ أعمار الديون</b><button class="btn sm" type="button" data-act="f-aging">احسب</button></div><span class="small muted">بتعرف مين صرلو الدين عليه أكتر من شهر أو شهرين أو تلاتة. الدفعات بتسدد أقدم فاتورة أولاً.</span></div>`;
   if(A.loading)return'<div class="card"><b>⏳ أعمار الديون</b><span class="small muted">جارٍ الحساب…</span></div>';if(A.err)return'<div class="card"><b>⏳ أعمار الديون</b><span class="note">تعذّر الحساب. تحقق من الاتصال.</span><button class="btn sm" type="button" data-act="f-aging">إعادة</button></div>';
   const L=['0 – 30 يوم','31 – 60 يوم','61 – 90 يوم','أكتر من 90 يوم'],col=['var(--credit)','var(--brand)','var(--due)','var(--debt)'],T=r2(A.tot.reduce((a,b)=>a+b,0));
@@ -3484,6 +3503,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="f-"]
   if(a==='f-fixed-del'){if(S.armed!=='fxd'){S.armed='fxd';b.textContent='اكبس للتأكيد';return}fguard(async()=>{await finSave({fixed:fixedList().filter(x=>x.id!==D.id)});S.armed=null;fixedSheet();finPaint()});return}
   if(a==='f-fixed-pay'){fixedPay(D.id);return}
   if(a==='f-aging'){agingLoad();return}
+  if(a==='f-disc-per'){S.F.disc.per=D.p;renderReports();return}
+  if(a==='f-disc-reload'){S.F.disc={per:(S.F.disc||{}).per||'month'};discLoad();return}
   if(a==='f-poff'){const c=D.code;if(!S.products[c])return;fguard(async()=>{const P={...S.products},q={...P[c]};if(q.off)delete q.off;else q.off=1;P[c]=q;await saveProducts(P);toast(q.off?'🙈 انخفت المادة':'👁 رجعت المادة');refresh();prodSheet(c)});return}
   if(a==='f-wip-yes'){const r=S.wipOffer,d=S.draft;if(!r||!d)return;const nd={...r.d};if(!d.id&&!d.ord&&d.no)nd.no=d.no;nd.old=d.old;nd.oldWh=d.oldWh;S.draft=nd;S.wipD=nd;S.wip0=S.wip0;S.wipOffer=null;renderInv();toast('↩️ رجعت الفاتورة متل ما تركتها');return}
   if(a==='f-wip-no'){if(S.draft)wipClear(S.draft);S.wipOffer=null;const b2=$('#wipbar');if(b2)b2.remove();toast('انحذفت النسخة المؤقتة');return}
@@ -3925,7 +3946,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261127-1237';
+const BUILD='20261127-1242';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
