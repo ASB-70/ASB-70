@@ -1974,7 +1974,7 @@ const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Str
 const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return isoD(d)};
 const wkStart=s=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+1)%7));return isoD(d)};
 const emp=id=>S.staff.find(e=>e.id===id);
-const ROLES={head:'رئيس الشركة',mgr:'المدير',asst:'معاون مدير',emp:'موظف'},ROLE_RK={head:0,mgr:1,asst:2,emp:3},roleOf=e=>ROLES[(e||{}).role]?e.role:'emp',ownerRole=e=>roleOf(e)==='head'||roleOf(e)==='mgr';
+const ROLES={head:'مؤسس الشركة',mgr:'المدير',asst:'معاون مدير',emp:'موظف'},ROLE_RK={head:0,mgr:1,asst:2,emp:3},roleOf=e=>ROLES[(e||{}).role]?e.role:'emp',ownerRole=e=>roleOf(e)==='head'||roleOf(e)==='mgr';
 const empActive=e=>!e.end||e.end>=today();
 /* service medal: big number + unit (years, else months, else days) in a gold ring */
 function svcMedal(e,big){if(!e||!e.start)return'';const to=e.end&&e.end<today()?e.end:today();if(e.start>to)return'';const [a,b,c]=e.start.split('-').map(Number),[x,y,z]=to.split('-').map(Number);
@@ -2164,7 +2164,7 @@ function renderReports(){const el=$('#v-reports'),R=S.rep;
     <span class="l">· رواتب الموظفين</span><span class="n">${money(r2(c.exp.sal))}</span>
     <span class="l">· مسحوبات الإدارة</span><span class="n">${money(r2(c.exp.own))}</span>
     <span class="l">· مصاريف أخرى</span><span class="n">${money(r2(c.exp.oth))}</span>
-    ${c.pt.staff>0?`<span class="l">· منها على حساب موظفين</span><span class="n">${money(r2(c.pt.staff))}</span>`:''}${c.pt.cust>0?`<span class="l">· منها على حساب زبائن</span><span class="n">${money(r2(c.pt.cust))}</span>`:''}${c.pt.owner>0?`<span class="l">· منها على حساب رئيس الشركة</span><span class="n">${money(r2(c.pt.owner))}</span>`:''}
+    ${c.pt.staff>0?`<span class="l">· منها على حساب موظفين</span><span class="n">${money(r2(c.pt.staff))}</span>`:''}${c.pt.cust>0?`<span class="l">· منها على حساب زبائن</span><span class="n">${money(r2(c.pt.cust))}</span>`:''}${c.pt.owner>0?`<span class="l">· منها على حساب مؤسس الشركة</span><span class="n">${money(r2(c.pt.owner))}</span>`:''}
     ${c.wd>0?`<span class="l">سحوبات من الصندوق (ليست مصروفاً)</span><span class="n">${money(r2(c.wd))}</span>`:''}
     <span class="l t">الصافي (الربح − المصاريف)</span><span class="n t ${net<0?'t-debt':'t-credit'}">${money(net)}</span></div>
    <span class="small muted">المصاريف تؤخذ من الصندوق اليومي (الليرة تُحوَّل بسعر صرف اليوم). السلف المدفوعة للموظفين (${money(r2(c.exp.adv))}) لا تُحسب مصروفاً لأنها تُخصم لاحقاً. التصريف وما يخص الزبائن لا يُحسب.${c.noCost?` ${c.noCost} فاتورة بلا تكلفة معروفة لا تدخل في الربح.`:''}${c.noRate?' بعض مصاريف الليرة بلا سعر صرف فلم تُحسب.':''}</span>
@@ -3918,12 +3918,12 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* pack 3 hooks: catalog price push after any price change; attendance & monthly report entry points */
 {const _sp=saveProducts;saveProducts=async function(P){const prev=S.products||{};const r=await _sp(P);try{if(catSync().on){const ch=Object.keys(r).filter(k=>JSON.stringify(prev[k])!==JSON.stringify(r[k]));if(ch.length)catPush(ch).catch(()=>{});const gone=Object.keys(prev).filter(k=>!r[k]);if(gone.length&&S.db&&S.db.table)S.db.table('pub_items','?code=in.('+gone.map(k=>encodeURIComponent('"'+String(k).trim().replace(/"/g,'')+'"')).join(',')+')',{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({show:false})}).catch(()=>{})}}catch(e){}return r}}
 {const _s=renderStaff;renderStaff=function(){_s();if(!isOwner())return;const el=$('#v-staff');if(el&&!el.querySelector('[data-act=f-att]'))el.insertAdjacentHTML('afterbegin','<button class="btn primary" type="button" data-act="f-att">🕘 دفتر الدوام اليوم</button>')}}
-{const _r=renderReports;renderReports=function(){_r();const el=$('#v-reports');if(el&&S.rep.inv&&!el.querySelector('[data-act=f-mrep]'))el.insertAdjacentHTML('afterbegin','<button class="btn primary" type="button" data-act="f-mrep">📑 التقرير الشهري لرئيس الشركة (صورة أو PDF)</button>')}}
+{const _r=renderReports;renderReports=function(){_r();const el=$('#v-reports');if(el&&S.rep.inv&&!el.querySelector('[data-act=f-mrep]'))el.insertAdjacentHTML('afterbegin','<button class="btn primary" type="button" data-act="f-mrep">📑 التقرير الشهري لمؤسس الشركة (صورة أو PDF)</button>')}}
 
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261127-0502';
+const BUILD='20261127-0506';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
