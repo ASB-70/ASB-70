@@ -5,208 +5,217 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>مكتب الثقة</title>
-<link rel="icon" href="../muhasaba/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 /* VOICE: زميل بالمحل، واضح وهادي
-   IDEA: أرضية مكتب حقيقي من فوق، كل موظف على طاولته
-   PICTURE: مشهد SVG لمكتب فيه 3 طاولات وموظفين، ضو الحالة فوق كل واحد
-   COLOUR and TYPE: أزرق الثقة الغامق + سماوي + برتقالي للتنبيه، خط Cairo
-   LAYOUT: عنوان صغير، المشهد، تحته بطاقات الموظفين بأرقام حية */
-:root{color-scheme:light dark;--bg:light-dark(#eef3fa,#0b1626);--ink:light-dark(#0e1e33,#e8eef7);--mut:light-dark(#53647c,#93a4bb);--card:light-dark(#fff,#13233a);--line:light-dark(#d6e0ee,#22364f);--blue:#1f5fbf;--sky:#3fa9f5;--warn:#f08a24;--ok:#1aa36f;--floor:light-dark(#dfe8f4,#102037);--tile:light-dark(#d2deee,#152a46)}
+   IDEA: مكتب حقيقي من فوق متل bimbly، كل موظف على طاولته باسمه ووظيفته
+   PICTURE: أرضية خشب وشبابيك، طاولة اجتماع بالنص و4 طاولات، بتكبس على الموظف
+   COLOUR and TYPE: أزرق الثقة + خشب دافي + أخضر للحالة، خط Cairo
+   LAYOUT: عنوان وزر الاجتماع، المشهد، اجتماع الصبح، بدو موافقتك، تفاصيل الموظف */
+:root{color-scheme:light dark;--bg:light-dark(#eef3fa,#0b1626);--ink:light-dark(#0e1e33,#e8eef7);--mut:light-dark(#53647c,#93a4bb);--card:light-dark(#fff,#13233a);--line:light-dark(#d6e0ee,#22364f);--blue:#1f5fbf;--sky:#3fa9f5;--warn:#f08a24;--ok:#1aa36f;--floor:light-dark(#f3e6d3,#2a2219);--plank:light-dark(#e8d6bd,#332a1f);--wall:light-dark(#ffffff,#16263d)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Cairo,Tahoma,sans-serif;overflow-x:clip}
-.band{padding:clamp(20px,4vw,48px) max(5vw,16px);max-width:1240px;margin:auto}
-h1{font-size:clamp(28px,5vw,44px);line-height:1.1;margin:0 0 4px;font-weight:800;text-wrap:balance}
-.sub{color:var(--mut);margin:0}
-.top{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between;margin-bottom:16px}
-.live{font-size:14px;color:var(--mut);display:flex;gap:8px;align-items:center}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--mut);display:inline-block;flex:none}
-.dot.on{background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 25%,transparent)}
+.band{padding:clamp(16px,4vw,40px) max(4vw,14px);max-width:1100px;margin:auto}
+h1{font-size:clamp(26px,5vw,40px);line-height:1.1;margin:0;font-weight:800}
+h2{font-size:20px;margin:0 0 10px}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:14px;color:var(--mut)}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px 12px;display:inline-flex;gap:6px;align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mut);display:inline-block;flex:none}.dot.on{background:var(--ok)}
 .scene{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}
 .scene svg{display:block;width:100%;height:auto}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;margin-top:16px}
-.emp{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px}
-.head{display:flex;gap:12px;align-items:center}
-.av{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;flex:none}
-.av svg{width:32px;height:32px}
-.name{font-weight:800;font-size:18px;line-height:1.2}
-.when{font-size:14px;color:var(--mut)}
-.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.st{background:var(--bg);border-radius:12px;padding:10px 12px}
-.st b{display:block;font-size:22px;line-height:1.2;white-space:nowrap}
-.st span{font-size:13px;color:var(--mut)}
-.st.warn b{color:var(--warn)}
-.list{margin:0;padding:0;list-style:none;font-size:14px}
-.list li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)}
-.list li:last-child{border:0}
-.list .q{white-space:nowrap;font-weight:600}
-.state{font-size:14px;display:flex;gap:8px;align-items:center;color:var(--mut)}
-button{font:600 16px Cairo,sans-serif;min-height:44px;border-radius:12px;border:0;background:var(--blue);color:#fff;cursor:pointer;padding:0 16px;margin-top:auto}
-button:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
-button:disabled{opacity:.6;cursor:default}
-.msg{font-size:14px;min-height:1.4em;margin:0}
-.note{font-size:13px;color:var(--mut);margin-top:20px;line-height:1.7}
-.err{color:var(--warn)}
-@media (prefers-reduced-motion:no-preference){.blink{animation:b 2.4s ease-in-out infinite}@keyframes b{50%{opacity:.35}}}
-
-.login{max-width:380px;margin:24px auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:12px}
-.login h2{margin:0;font-size:22px}
+.desk{cursor:pointer;outline:none}.desk:focus-visible .tag,.desk.sel .tag{stroke:var(--blue);stroke-width:3}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:14px}
+.meta{font-size:14px;color:var(--mut);margin:0 0 8px}
+.sum{font-size:17px;margin:0 0 12px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.st{background:var(--bg);border-radius:12px;padding:10px 12px}.st b{display:block;font-size:21px;white-space:nowrap}.st span{font-size:13px;color:var(--mut)}.st.w b{color:var(--warn)}
+.cal{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px}
+.cal li{display:flex;gap:10px;align-items:baseline}.cal time{font-weight:800;color:var(--blue);white-space:nowrap;min-width:3.6em}
+.ap{border-top:1px solid var(--line);padding:12px 0;display:grid;gap:8px}.ap:first-of-type{border-top:0;padding-top:0}
+.ap .who{font-size:13px;color:var(--mut)}.ap .t{font-weight:700}
+.ap pre{white-space:pre-wrap;font:15px/1.6 Cairo,sans-serif;background:var(--bg);border-radius:12px;padding:10px 12px;margin:0}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button,a.btn{font:600 15px Cairo,sans-serif;min-height:44px;border-radius:12px;border:0;background:var(--blue);color:#fff;cursor:pointer;padding:0 16px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button.ghost,a.ghost{background:var(--bg);color:var(--blue);border:1px solid var(--line)}
+a.wa{background:#1aa36f}
+button:focus-visible,a:focus-visible{outline:3px solid var(--sky);outline-offset:2px}button:disabled{opacity:.6}
+.emp-head{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.av{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-weight:800;font-size:20px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
+.col h3{font-size:15px;margin:0 0 6px;color:var(--mut)}.col ul{margin:0;padding-inline-start:18px}.col li{margin-bottom:4px}
+.empty{color:var(--mut);font-size:14px}
+.login{max-width:380px;margin:20px auto;display:flex;flex-direction:column;gap:12px}
 .login input{font:16px Cairo,sans-serif;min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 12px}
-.login input:focus-visible{outline:3px solid var(--sky);outline-offset:1px}
-.out{background:transparent;color:var(--mut);border:1px solid var(--line);min-height:40px;font-size:14px}
-a.btn{display:inline-flex;align-items:center;justify-content:center;font:600 15px Cairo,sans-serif;min-height:44px;border-radius:12px;background:var(--bg);color:var(--blue);border:1px solid var(--line);text-decoration:none;padding:0 14px;margin-top:auto}
+.msg{font-size:14px;min-height:1.3em;margin:0}.err{color:var(--warn)}
 [hidden]{display:none!important}
+.foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
 </style>
 </head>
 <body>
 <main class="band">
-  <div class="top">
-    <div>
-      <h1>مكتب شركة الثقة</h1>
-      <p class="sub">٣ موظفين بيشتغلوا كل صبح وبيبعتولك التقارير. هالصفحة بتقرا بس، ما بتعدّل شي.</p>
-    </div>
-    <div class="live"><span class="dot" id="liveDot"></span><span id="liveTxt">سجّل دخول لتشوف الأرقام</span></div>
+ <div class="top">
+  <div>
+   <h1>مكتب شركة الثقة</h1>
+   <div class="chips"><span class="chip">٤ موظفين</span><span class="chip"><span class="dot" id="dot"></span><span id="state">عم يفتح…</span></span></div>
   </div>
+  <div class="row"><button id="run" hidden>ابدأ اجتماع الصبح هلق</button></div>
+ </div>
+ <p class="msg" id="runMsg" aria-live="polite"></p>
 
-  <form class="login" id="login" hidden>
-    <h2>تسجيل الدخول</h2>
-    <p class="sub" style="font-size:14px">نفس الإيميل وكلمة السر تبع برنامج المحاسبة.</p>
-    <input id="em" type="email" autocomplete="username" placeholder="الإيميل" dir="ltr" required>
-    <input id="pw" type="password" autocomplete="current-password" placeholder="كلمة السر" dir="ltr" required>
-    <button id="go" type="submit">دخول</button>
-    <p class="msg err" id="lerr" aria-live="polite"></p>
-  </form>
+ <form class="card login" id="login" hidden>
+  <h2>تسجيل الدخول</h2>
+  <p class="meta">نفس الإيميل وكلمة السر تبع برنامج المحاسبة.</p>
+  <input id="em" type="email" autocomplete="username" placeholder="الإيميل" dir="ltr" required>
+  <input id="pw" type="password" autocomplete="current-password" placeholder="كلمة السر" dir="ltr" required>
+  <button id="go" type="submit">دخول</button>
+  <p class="msg err" id="lerr" aria-live="polite"></p>
+ </form>
 
-  <div id="app" hidden>
-<div class="scene" aria-label="مشهد المكتب">
-    <svg viewBox="0 0 900 340" role="img">
-      <defs>
-        <pattern id="tiles" width="60" height="60" patternUnits="userSpaceOnUse"><rect width="60" height="60" fill="var(--floor)"/><path d="M60 0H0V60" fill="none" stroke="var(--tile)" stroke-width="2"/></pattern>
-        <g id="desk">
-          <ellipse cx="0" cy="96" rx="120" ry="14" fill="#000" opacity=".12"/>
-          <rect x="-110" y="40" width="220" height="50" rx="10" fill="#c8a378"/>
-          <rect x="-110" y="40" width="220" height="10" rx="5" fill="#e0bf96"/>
-          <rect x="-100" y="88" width="10" height="16" fill="#9c7a55"/><rect x="90" y="88" width="10" height="16" fill="#9c7a55"/>
-          <rect x="-44" y="-6" width="88" height="52" rx="6" fill="#1b2a40"/>
-          <rect x="-38" y="0" width="76" height="40" rx="3" fill="#3fa9f5" opacity=".85"/>
-          <rect x="-8" y="46" width="16" height="6" fill="#1b2a40"/>
-        </g>
-        <g id="person">
-          <circle cx="0" cy="-34" r="20" fill="#f2c7a2"/>
-          <path d="M-20 -40a20 20 0 0 1 40 0q-6-14-20-14t-20 14z" fill="#3b2a20"/>
-          <rect x="-28" y="-12" width="56" height="54" rx="20"/>
-        </g>
-      </defs>
-      <rect width="900" height="340" fill="url(#tiles)"/>
-      <rect width="900" height="70" fill="var(--card)" opacity=".7"/>
-      <g fill="var(--sky)" opacity=".35"><rect x="60" y="14" width="120" height="44" rx="6"/><rect x="390" y="14" width="120" height="44" rx="6"/><rect x="720" y="14" width="120" height="44" rx="6"/></g>
-      <g transform="translate(150 190)"><use href="#person" fill="#1f5fbf" transform="translate(0 -6)"/><use href="#desk"/><circle id="lamp0" cx="0" cy="-86" r="9" fill="var(--mut)"/></g>
-      <g transform="translate(450 190)"><use href="#person" fill="#1aa36f" transform="translate(0 -6)"/><use href="#desk"/><circle id="lamp1" cx="0" cy="-86" r="9" fill="var(--mut)"/></g>
-      <g transform="translate(750 190)"><use href="#person" fill="#f08a24" transform="translate(0 -6)"/><use href="#desk"/><circle id="lamp2" cx="0" cy="-86" r="9" fill="var(--mut)"/></g>
-      <g font-family="Cairo,sans-serif" font-weight="700" font-size="20" text-anchor="middle" fill="var(--ink)">
-        <text x="150" y="325">المبيعات والمحاسبة</text><text x="450" y="325">الطلبيات والشحن</text><text x="750" y="325">التسويق</text>
-      </g>
-    </svg>
-  </div>
+ <div id="app" hidden>
+ <div class="scene">
+  <svg viewBox="0 0 900 520" role="group" aria-label="المكتب: اكبس على أي موظف">
+   <defs>
+    <pattern id="wood" width="900" height="36" patternUnits="userSpaceOnUse"><rect width="900" height="36" fill="var(--floor)"/><rect y="34" width="900" height="2" fill="var(--plank)"/><rect x="180" width="2" height="36" fill="var(--plank)"/><rect x="610" width="2" height="36" fill="var(--plank)"/></pattern>
+    <g id="dk"><ellipse cx="0" cy="66" rx="98" ry="12" fill="#000" opacity=".1"/><rect x="-90" y="10" width="180" height="56" rx="10" fill="#c99c6b"/><rect x="-90" y="10" width="180" height="10" rx="5" fill="#ddb787"/><rect x="-34" y="-30" width="68" height="42" rx="5" fill="#1b2a40"/><rect x="-29" y="-25" width="58" height="31" rx="3" fill="#3fa9f5" opacity=".85"/><rect x="-6" y="12" width="12" height="5" fill="#1b2a40"/></g>
+    <g id="pl"><rect x="-12" y="-4" width="24" height="26" rx="5" fill="#b9805a"/><circle cx="0" cy="-16" r="16" fill="#2f9e5b"/><circle cx="-10" cy="-8" r="10" fill="#38b46a"/><circle cx="10" cy="-6" r="10" fill="#2b8f52"/></g>
+   </defs>
+   <rect width="900" height="520" fill="url(#wood)"/>
+   <rect width="900" height="86" fill="var(--wall)"/>
+   <g fill="#bfe3fb" stroke="#9fb8cc" stroke-width="3"><rect x="40" y="12" width="150" height="60" rx="4"/><rect x="230" y="12" width="150" height="60" rx="4"/><rect x="520" y="12" width="150" height="60" rx="4"/><rect x="710" y="12" width="150" height="60" rx="4"/></g>
+   <g stroke="#9fb8cc" stroke-width="3"><path d="M115 12v60M305 12v60M595 12v60M785 12v60"/></g>
+   <text x="450" y="52" text-anchor="middle" font-family="Cairo,sans-serif" font-weight="800" font-size="22" fill="var(--blue)">شركة الثقة</text>
+   <use href="#pl" x="30" y="120"/><use href="#pl" x="870" y="120"/><use href="#pl" x="30" y="480"/><use href="#pl" x="870" y="480"/>
+   <g transform="translate(450 280)"><ellipse cx="0" cy="44" rx="120" ry="16" fill="#000" opacity=".1"/><ellipse cx="0" cy="18" rx="112" ry="44" fill="#ddb787"/><ellipse cx="0" cy="12" rx="112" ry="40" fill="#e8c79d"/><text y="20" text-anchor="middle" font-family="Cairo,sans-serif" font-size="20" font-weight="700" fill="#7a5532">طاولة الاجتماع</text></g>
+   <g id="desks"></g>
+  </svg>
+ </div>
 
-  
-  <div class="grid" id="grid"></div>
-  <p class="note">الأرقام حية من برنامج المحاسبة، بتتحدّث كل ما تفتح الصفحة أو تكبس «تحديث». الموظفين بيبعتوا تقاريرهم إشعار عالموبايل بمواعيدهن. لتشغيل موظف هلق أو تشوف حالة آخر تقرير، افتح نسخة المكتب بـClaude.</p>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-    <button id="ref" type="button" style="margin:0">تحديث الأرقام</button>
-    <a class="btn" href="https://claude.ai/artifact/LiPDiQmpg2zD84KePzSQMU" target="_blank" rel="noopener">افتح المكتب بـClaude (تشغيل الموظفين)</a>
-    <button class="out" id="out" type="button" style="margin:0">تسجيل خروج</button>
-  </div>
-  </div>
+ <section class="card" id="standup" aria-labelledby="sh">
+  <h2 id="sh">اجتماع الصبح</h2>
+  <p class="meta" id="when"></p>
+  <p class="sum" id="sum"></p>
+  <div class="stats" id="stats"></div>
+  <ul class="cal" id="cal"></ul>
+ </section>
+
+ <section class="card" aria-labelledby="ah">
+  <h2 id="ah">بدو موافقتك <span class="meta" id="apn"></span></h2>
+  <div id="aps"></div>
+ </section>
+
+ <section class="card" id="emp" aria-live="polite"></section>
+
+ <div class="foot">
+  <button class="ghost" id="ref">تحديث</button>
+  <a class="btn ghost" id="toClaude" href="https://claude.ai/artifact/LiPDiQmpg2zD84KePzSQMU" target="_blank" rel="noopener" hidden>افتح المكتب بـClaude (تشغيل الاجتماع)</a>
+  <button class="ghost" id="out" hidden>تسجيل خروج</button>
+ </div>
+ </div>
 </main>
-
 <script>
 {
 const SB={url:'https://ecvzyptrpekgsouhgbdb.supabase.co',key:'sb_publishable_UpaManLT8I-L0lcQi53BaQ_Y52DzNpt'};
-const RT='thiqa-office-rt';
-const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
-const EMP=[
- {name:'موظف المبيعات والمحاسبة',when:'كل يوم السبت–الخميس 8:47 الصبح',col:'#1f5fbf',
-  icon:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>'},
- {name:'موظف الطلبيات والشحن',when:'كل يوم السبت–الخميس 9:07 الصبح',col:'#1aa36f',
-  icon:'<path d="M2 7h12v10H2zM14 10h4l3 3v4h-7z" stroke="#fff" stroke-width="2.2" fill="none" stroke-linejoin="round"/><circle cx="6" cy="18" r="2" fill="#fff"/><circle cx="17" cy="18" r="2" fill="#fff"/>'},
- {name:'مدير التسويق',when:'كل سبت 9:41 الصبح',col:'#f08a24',
-  icon:'<path d="M3 10v4h3l7 5V5L6 10z M17 9a4 4 0 0 1 0 6" stroke="#fff" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>'}
-];
+const PROJECT='ecvzyptrpekgsouhgbdb',TRIG='trig_015rp7dfYK3ehfXaGggnGbV6',RT='thiqa-office-rt';
+const TEAM=[
+ {k:'manager',n:'مازن',r:'مدير المكتب',c:'#1f5fbf',x:200,y:160},
+ {k:'sales',n:'سامر',r:'مبيعات وذمم',c:'#7b4fd0',x:700,y:160},
+ {k:'orders',n:'رامي',r:'طلبيات وشحن',c:'#1aa36f',x:200,y:385},
+ {k:'marketing',n:'لينا',r:'تسويق وإنستغرام',c:'#f08a24',x:700,y:385}];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:1});
-const N=v=>{const x=parseFloat(v);return isFinite(x)?x:0};
-const day=d=>String(d||'').slice(0,10);
-const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Damascus'}).format(new Date());
-const addDays=(s,n)=>{const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
+let REP=null,SEL='manager',mcp=null;
 
-$('grid').innerHTML=EMP.map((e,i)=>`
- <section class="emp" aria-labelledby="n${i}">
-  <div class="head"><div class="av" style="background:${e.col}"><svg viewBox="0 0 24 24">${e.icon}</svg></div>
-   <div><div class="name" id="n${i}">${esc(e.name)}</div><div class="when">${esc(e.when)}</div></div></div>
-  <div id="s${i}"><div class="stats"><div class="st"><b>…</b><span>عم يحمّل</span></div></div></div>
- </section>`).join('');
-['lamp0','lamp1','lamp2'].forEach(id=>{const l=$(id);if(l)l.setAttribute('fill','#1aa36f')});
+$('desks').innerHTML=TEAM.map(t=>`<g class="desk" data-k="${t.k}" tabindex="0" role="button" aria-label="${esc(t.n+' – '+t.r)}" transform="translate(${t.x} ${t.y})">
+ <circle cx="0" cy="-58" r="17" fill="#f2c7a2"/><path d="M-17 -62a17 17 0 0 1 34 0q-5-12-17-12t-17 12z" fill="#3b2a20"/>
+ <rect x="-24" y="-40" width="48" height="44" rx="18" fill="${t.c}"/>
+ <use href="#dk"/>
+ <circle id="lamp-${t.k}" cx="40" cy="-70" r="7" fill="#93a4bb"/>
+ <rect class="tag" x="-120" y="74" width="240" height="44" rx="22" fill="var(--wall)" stroke="var(--line)"/>
+ <text y="104" text-anchor="middle" font-family="Cairo,sans-serif" font-size="22" fill="var(--ink)"><tspan font-weight="800">${esc(t.n)}</tspan> · ${esc(t.r)}</text></g>`).join('');
+document.querySelectorAll('.desk').forEach(g=>{const f=()=>{SEL=g.dataset.k;renderEmp();$('emp').scrollIntoView({behavior:'smooth',block:'start'})};g.addEventListener('click',f);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}})});
 
+const arr=v=>Array.isArray(v)?v:[];
+const waNum=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);if(d.startsWith('0'))d='963'+d.slice(1);else if(d.length===9&&d.startsWith('9'))d='963'+d;return d.length>=11?d:''};
+function render(){
+ const r=REP&&REP.data||{};
+ if(!REP){$('when').textContent='لسا ما صار ولا اجتماع. أول اجتماع بيصير الصبح الساعة 8:47.';$('sum').textContent='';$('stats').innerHTML='';$('cal').innerHTML='';$('aps').innerHTML='<p class="empty">ما في شي هلق.</p>';$('apn').textContent='';renderEmp();return}
+ const t=new Date(REP.created_at);
+ $('when').textContent='آخر اجتماع: '+t.toLocaleString('ar-SY',{weekday:'long',day:'numeric',month:'numeric',hour:'numeric',minute:'2-digit'});
+ $('sum').textContent=r.summary||'';
+ const s=r.stats||{},st=(v,l,w)=>`<div class="st${w?' w':''}"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
+ $('stats').innerHTML=st('$'+num(Math.round(s.owed||0)),'ديون عند '+num(s.debtors)+' زبون')+st(num(s.inv_n)+' / $'+num(s.inv_sum),'فواتير آخر يوم')+st(num(s.due),'لازم يتذكّروا',s.due>0)+st(num(s.road),'بضاعة بالطريق +3 أيام',s.road>0);
+ $('cal').innerHTML=arr(r.calendar).map(c=>`<li><time>${esc(c.time)}</time><span>${esc(c.title)}</span></li>`).join('');
+ const A=r.agents||{},list=[];
+ TEAM.forEach(m=>arr(A[m.k]&&A[m.k].approve).forEach(a=>list.push({m,a})));
+ $('apn').textContent=list.length?'('+list.length+')':'';
+ $('aps').innerHTML=list.length?list.map(({m,a},i)=>{const w=waNum(a.phone);return`<div class="ap"><div class="who">${esc(m.n)} · ${esc(m.r)}${a.to?' ← '+esc(a.to):''}</div><div class="t">${esc(a.title)}</div>${a.msg?`<pre>${esc(a.msg)}</pre>`:''}<div class="row">${w&&a.msg?`<a class="btn wa" href="https://wa.me/${w}?text=${encodeURIComponent(a.msg)}" target="_blank" rel="noopener">موافق، افتح بالواتساب</a>`:''}${a.msg?`<button class="ghost" data-copy="${i}">نسخ</button>`:''}</div></div>`}).join(''):'<p class="empty">ما في شي بدو موافقتك هلق.</p>';
+ $('aps').querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>copy(list[+b.dataset.copy].a.msg,b)));
+ TEAM.forEach(m=>{const a=A[m.k]||{},l=$('lamp-'+m.k);if(l)l.setAttribute('fill',arr(a.issues).length?'#f08a24':'#1aa36f')});
+ renderEmp();
+}
+function renderEmp(){
+ document.querySelectorAll('.desk').forEach(g=>g.classList.toggle('sel',g.dataset.k===SEL));
+ const m=TEAM.find(t=>t.k===SEL),a=(REP&&REP.data&&REP.data.agents||{})[SEL]||{};
+ const col=(h,v)=>`<div class="col"><h3>${h}</h3>${arr(v).length?'<ul>'+arr(v).map(x=>`<li>${esc(typeof x==='string'?x:x.title||JSON.stringify(x))}</li>`).join('')+'</ul>':'<p class="empty">ما في</p>'}</div>`;
+ $('emp').innerHTML=`<div class="emp-head"><div class="av" style="background:${m.c}">${esc(m.n[0])}</div><div><h2 style="margin:0">${esc(m.n)}</h2><div class="meta" style="margin:0">${esc(m.r)}</div></div></div>`+
+  (REP?`<div class="cols">${col('شو عمل مبارح',a.done)}${col('شو لازم ينعمل اليوم',a.today)}${col('المشاكل',a.issues)}</div>${a.plan?`<h3 style="font-size:15px;margin:14px 0 6px;color:var(--mut)">خطة الأسبوع</h3><pre style="white-space:pre-wrap;font:15px/1.6 Cairo,sans-serif;margin:0">${esc(a.plan)}</pre>`:''}`:'<p class="empty">بس يصير أول اجتماع بيطلع هون شو عمل وشو المطلوب.</p>');
+}
+async function copy(t,b){try{await navigator.clipboard.writeText(t)}catch(e){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();try{document.execCommand('copy')}catch(_){}x.remove()}const o=b.textContent;b.textContent='انتسخ ✓';setTimeout(()=>b.textContent=o,1500)}
+function ok(t){$('dot').classList.add('on');$('state').textContent=t}
+function bad(t){$('dot').classList.remove('on');$('state').textContent=t}
+
+/* --- داخل Claude --- */
+function parseSql(p){const txt=typeof p==='string'?p:(p&&p.result)||JSON.stringify(p);const m=String(txt).match(/<untrusted-data-[^>]+>\s*([\s\S]*?)\s*<\/untrusted-data/);return JSON.parse(m?m[1]:txt)}
+const fmtT=t=>t?new Date(t).toLocaleString('ar-SY',{weekday:'short',hour:'numeric',minute:'2-digit'}):'';
+function startClaude(){
+ $('app').hidden=false;$('run').hidden=false;
+ const q='select id, created_at, data from office_reports order by created_at desc limit 1';
+ const load=()=>mcp.callTool('Supabase','execute_sql',{project_id:PROJECT,query:q}).then(res=>{const rows=parseSql(res.payload);REP=rows[0]||null;render();ok('متصل بالمكتب')}).catch(()=>bad('ما قدرت إقرا التقارير هلق'));
+ load();$('ref').onclick=load;
+ mcp.watchTool('Claude Code Remote','list_triggers',{limit:50},ev=>{
+  if(ev.type!=='data')return;const t=arr(ev.result.payload&&ev.result.payload.data).find(x=>x.id===TRIG);if(!t)return;
+  const lr=t.last_run,run=lr&&/RUN|PEND|QUEUE/.test(lr.status||'');
+  $('runMsg').textContent=run?'الفريق عم يجتمع هلق… بس يخلصوا بتتحدّث الصفحة.':(t.next_run_at?'الاجتماع الجاي: '+fmtT(t.next_run_at):'');
+  if(!run&&$('run').dataset.wait==='1'){$('run').dataset.wait='';load()}
+ },{refetchInterval:30000});
+ $('run').onclick=async()=>{const b=$('run');b.disabled=true;$('runMsg').textContent='عم بنادي الفريق…';
+  try{await mcp.callTool('Claude Code Remote','fire_trigger',{trigger_id:TRIG});b.dataset.wait='1';$('runMsg').textContent='بلّش الاجتماع. بياخد كم دقيقة، وبيوصلك إشعار لما يخلص.'}
+  catch(e){$('runMsg').textContent='ما زبط هلق، جرّب كمان شوي.'}finally{setTimeout(()=>b.disabled=false,60000)}};
+}
+
+/* --- برّا Claude (GitHub والتطبيق) --- */
 let tok=null,exp=0;
-async function auth(body,grant){
- const r=await fetch(SB.url+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify(body)});
- const j=await r.json().catch(()=>({}));
- if(!r.ok||!j.access_token)throw Object.assign(new Error('auth'),{code:r.status>=500?'net':'auth'});
- tok=j.access_token;exp=Date.now()+(j.expires_in||3600)*1000-60000;LS.set(RT,j.refresh_token||null);
-}
+async function auth(body,grant){const r=await fetch(SB.url+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok||!j.access_token)throw Object.assign(new Error('auth'),{code:r.status>=500?'net':'auth'});tok=j.access_token;exp=Date.now()+(j.expires_in||3600)*1000-60000;LS.set(RT,j.refresh_token||null)}
 async function token(){if(tok&&Date.now()<exp)return tok;const rt=LS.get(RT);if(!rt)throw Object.assign(new Error('login'),{code:'auth'});await auth({refresh_token:rt},'refresh_token');return tok}
-async function load(){
- const t=await token();
- const q='/rest/v1/acc_docs?select=path,col,data&or=(col.in.(customers,invoices),path.eq.meta/orders)';
- const r=await fetch(SB.url+q,{headers:{apikey:SB.key,Authorization:'Bearer '+t}});
- if(r.status===401||r.status===403)throw Object.assign(new Error('auth'),{code:'auth'});
- if(!r.ok)throw Object.assign(new Error('net'),{code:'net'});
- return r.json();
+function showLogin(m){$('app').hidden=true;$('login').hidden=false;$('lerr').textContent=m||'';bad('سجّل دخول')}
+async function webLoad(){
+ $('state').textContent='عم يجيب التقرير…';
+ try{const t=await token();const r=await fetch(SB.url+'/rest/v1/office_reports?select=id,created_at,data&order=created_at.desc&limit=1',{headers:{apikey:SB.key,Authorization:'Bearer '+t}});
+  if(r.status===401||r.status===403)throw Object.assign(new Error('auth'),{code:'auth'});if(!r.ok)throw Object.assign(new Error('net'),{code:'net'});
+  const rows=await r.json();REP=rows[0]||null;$('login').hidden=true;$('app').hidden=false;render();ok('متصل · '+new Date().toLocaleTimeString('ar-SY',{hour:'numeric',minute:'2-digit'}))}
+ catch(e){if(e.code==='auth'){LS.set(RT,null);tok=null;showLogin()}else{bad('ما في إنترنت هلق');if(!LS.get(RT))showLogin()}}
 }
-function stats(rows){
- const T=today(),cust=[],inv=[];let orders=[];
- for(const x of rows){const d=x.data||{};if(x.col==='customers')cust.push(d);else if(x.col==='invoices')inv.push(d);else if(x.path==='meta/orders'&&Array.isArray(d.list))orders=d.list}
- const debt=cust.filter(c=>N(c.balance)>0);
- const r={debtors:debt.length,owed:debt.reduce((a,c)=>a+N(c.balance),0)};
- r.due=debt.filter(c=>day(c.dueAt)&&day(c.dueAt)<=T).length;
- const m30=addDays(T,-30);r.stale=debt.filter(c=>N(c.balance)>50&&(!day(c.lastPay)||day(c.lastPay)<m30)).length;
- const past=inv.map(v=>day(v.date)).filter(d=>d&&d<T).sort();r.last_day=past[past.length-1]||'';
- const li=inv.filter(v=>r.last_day&&day(v.date)===r.last_day);r.inv_n=li.length;r.inv_sum=li.reduce((a,v)=>a+N(v.sub)-N(v.disc),0);
- const w=orders.filter(o=>o&&o.st==='w'),T1=addDays(T,1);
- r.wait=w.length;r.soon=w.filter(o=>day(o.due)&&day(o.due)>=T&&day(o.due)<=T1).length;r.late=w.filter(o=>day(o.due)&&day(o.due)<T).length;
- const m3=addDays(T,-3);r.road=inv.filter(v=>{const s=v.ship;if(!s||s.st!=='sent')return false;const h=Array.isArray(s.h)?s.h:[];const d=day(h.length?h[h.length-1].d:'');return d&&d<=m3}).length;
- const m14=addDays(T,-14),agg={};
- for(const v of inv)if(day(v.date)>=m14)for(const it of (Array.isArray(v.items)?v.items:[])){const k=it.name||it.code||'';agg[k]=(agg[k]||0)+N(it.qty)}
- r.top=Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>({n,q}));
- return r;
+function startWeb(){
+ $('toClaude').hidden=false;$('out').hidden=false;$('ref').onclick=webLoad;
+ $('login').addEventListener('submit',async ev=>{ev.preventDefault();const b=$('go');b.disabled=true;$('lerr').textContent='';
+  try{await auth({email:$('em').value.trim(),password:$('pw').value},'password');$('pw').value='';await webLoad()}
+  catch(e){$('lerr').textContent=e.code==='net'?'في مشكلة بالاتصال، جرّب كمان شوي':'الإيميل أو كلمة السر غلط'}finally{b.disabled=false}});
+ $('out').onclick=()=>{LS.set(RT,null);tok=null;showLogin()};
+ if(LS.get(RT))webLoad();else showLogin();
 }
-const st=(v,l,w)=>`<div class="st${w?' warn':''}"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
-function render(r){
- const d=r.last_day?new Date(r.last_day+'T12:00:00').toLocaleDateString('ar-SY',{weekday:'long',day:'numeric',month:'numeric'}):'—';
- $('s0').innerHTML='<div class="stats">'+st('$'+num(Math.round(r.owed)),'ديون إلنا عند '+num(r.debtors)+' زبون')+st(num(r.due),'لازم يتذكّروا اليوم',r.due>0)+st(num(r.inv_n)+' / $'+num(r.inv_sum),'فواتير آخر يوم شغل ('+d+')')+st(num(r.stale),'ما دفعوا من +30 يوم',r.stale>0)+'</div>';
- $('s1').innerHTML='<div class="stats">'+st(num(r.soon),'طلبيات لليوم وبكرا',r.soon>0)+st(num(r.late),'طلبيات متأخرة',r.late>0)+st(num(r.wait),'بالانتظار كلها')+st(num(r.road),'بالطريق +3 أيام',r.road>0)+'</div>';
- $('s2').innerHTML='<div class="when" style="margin-bottom:4px">الأصناف الماشية آخر أسبوعين</div><ul class="list">'+(r.top.length?r.top.map(t=>`<li><span>${esc(t.n)}</span><span class="q">${num(t.q)}</span></li>`).join(''):'<li>ما في مبيعات آخر أسبوعين</li>')+'</ul>';
+
+renderEmp();
+const WEB=/(^|\.)github\.io$/.test(location.hostname)||location.protocol==='file:'||location.hostname==='localhost';
+if(WEB)startWeb();
+else{
+ const noMcp=()=>{$('app').hidden=false;render();bad('افتح الصفحة من حسابك على Claude')};
+ let tries=0;const go=()=>{if(window.claude&&typeof window.claude.use==='function')window.claude.use('mcp').then(m=>{if(m){mcp=m;startClaude()}else noMcp()},noMcp);else if(++tries<20)setTimeout(go,250);else noMcp()};go();
 }
-function showLogin(msg){$('app').hidden=true;$('login').hidden=false;$('lerr').textContent=msg||'';$('liveDot').classList.remove('on');$('liveTxt').textContent='سجّل دخول لتشوف الأرقام'}
-async function refresh(){
- $('liveTxt').textContent='عم يجيب الأرقام…';
- try{const rows=await load();$('login').hidden=true;$('app').hidden=false;render(stats(rows));$('liveDot').classList.add('on');
-  $('liveTxt').textContent='أرقام حية · آخر تحديث '+new Date().toLocaleTimeString('ar-SY',{hour:'numeric',minute:'2-digit'})}
- catch(e){if(e.code==='auth'){LS.set(RT,null);tok=null;showLogin()}else{$('liveDot').classList.remove('on');$('liveTxt').textContent='ما في اتصال بالإنترنت هلق، جرّب كمان شوي';if(!LS.get(RT))showLogin()}}
-}
-$('login').addEventListener('submit',async ev=>{
- ev.preventDefault();const b=$('go');b.disabled=true;$('lerr').textContent='';
- try{await auth({email:$('em').value.trim(),password:$('pw').value},'password');$('pw').value='';await refresh()}
- catch(e){$('lerr').textContent=e.code==='net'?'في مشكلة بالاتصال، جرّب كمان شوي':'الإيميل أو كلمة السر غلط'}
- finally{b.disabled=false}
-});
-$('ref').addEventListener('click',refresh);
-$('out').addEventListener('click',()=>{LS.set(RT,null);tok=null;showLogin()});
-if(LS.get(RT))refresh();else showLogin();
 }
 </script>
 </body>
