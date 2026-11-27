@@ -1,7 +1,0 @@
-> Task :app:processOfficeReleaseResources FAILED
-* What went wrong:
-     ERROR: /home/runner/work/ASB-70/ASB-70/android/app/src/main/AndroidManifest.xml:10:5-35:19: AAPT: error: resource mipmap/ic_launcher (aka com.altheqa.office:mipmap/ic_launcher) not found.
-Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionException: A failure occurred while executing com.android.build.gradle.internal.res.LinkApplicationAndroidResourcesTask$TaskAction
-Caused by: com.android.builder.internal.aapt.v2.Aapt2Exception: Android resource linking failed
-ERROR: /home/runner/work/ASB-70/ASB-70/android/app/src/main/AndroidManifest.xml:10:5-35:19: AAPT: error: resource mipmap/ic_launcher (aka com.altheqa.office:mipmap/ic_launcher) not found.
-BUILD FAILED in 56s
