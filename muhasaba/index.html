@@ -1976,6 +1976,11 @@ const wkStart=s=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-((d.getD
 const emp=id=>S.staff.find(e=>e.id===id);
 const ROLES={head:'رئيس الشركة',mgr:'المدير',asst:'معاون مدير',emp:'موظف'},ROLE_RK={head:0,mgr:1,asst:2,emp:3},roleOf=e=>ROLES[(e||{}).role]?e.role:'emp',ownerRole=e=>roleOf(e)==='head'||roleOf(e)==='mgr';
 const empActive=e=>!e.end||e.end>=today();
+/* length of service: "32 سنة و10 أشهر", "6 أشهر", "شهر و17 يوم" (until the end date if the employee left) */
+function svcTxt(e){if(!e||!e.start)return'';const to=e.end&&e.end<today()?e.end:today();if(e.start>to)return'';const [a,b,c]=e.start.split('-').map(Number),[x,y,z]=to.split('-').map(Number);
+  let Y=x-a,M=y-b,D=z-c;if(D<0){M--;D+=new Date(x,y-1,0).getDate()}if(M<0){Y--;M+=12}
+  const w=(n,one,two,few,many)=>n===1?one:n===2?two:n<=10?n+' '+few:n+' '+many,yy=n=>w(n,'سنة','سنتين','سنوات','سنة'),mm=n=>w(n,'شهر','شهرين','أشهر','شهر'),dd=n=>w(n,'يوم','يومين','أيام','يوم');
+  if(Y>0)return yy(Y)+(M?' و'+mm(M):'');if(M>=2)return mm(M);if(M===1)return mm(1)+(D?' و'+dd(D):'');return D?dd(D):'من اليوم'}
 function weekCalc(e,ws){const we=addDays(ws,6),on=(!e.start||e.start<=we)&&(!e.end||e.end>=ws),z=()=>({usd:0,syp:0});
   const own=ownerRole(e),r={exp:z(),sal:{usd:on&&!own?nv(e.usd):0,syp:on&&!own?nv(e.syp):0},ot:z(),late:z(),unp:z(),cut:z(),adv:z(),draw:z(),paid:z(),days:0,rows:[]};
   for(const l of e.log||[]){if(l.type==='pay'){if(l.w===ws){r.paid.usd+=nv(l.usd);r.paid.syp+=nv(l.syp);r.rows.push(l)}continue}
@@ -1992,7 +1997,7 @@ function staffSub(){if(S.staffUnsub||!S.db)return;S.staffUnsub=S.db.collection('
 function renderStaff(){const el=$('#v-staff');if(!S.staffLoaded){el.innerHTML='<div class="empty">جارٍ تحميل الموظفين…</div>';return}
   const ws=wkStart(today()),L=S.staff.filter(e=>S.showOld||empActive(e)).sort((a,b)=>ROLE_RK[roleOf(a)]-ROLE_RK[roleOf(b)]||(a.name||'').localeCompare(b.name||'','ar')),old=S.staff.some(e=>!empActive(e));
   el.innerHTML=`<div class="grid2"><button class="btn primary" type="button" data-act="emp-new">＋ موظف جديد</button>${old?`<button class="btn" type="button" data-act="emp-old">${S.showOld?'إخفاء من انتهى عملهم':'عرض من انتهى عملهم'}</button>`:'<span></span>'}</div>`+
-   (L.length?`<div class="list">${L.map(e=>{const r=weekCalc(e,ws),q=ownerRole(e)?r.exp:r.net;return `<button class="row" type="button" data-emp="${esc(e.id)}">${ava(e,46)}<span class="who"><b>${esc(e.name)}</b><small><span class="chip c-zero">${ROLES[roleOf(e)]}</span>${e.start?`<span>منذ <span class="num">${dmy(e.start)}</span></span>`:''}${!empActive(e)?'<span class="chip c-zero">انتهى عمله</span>':(ownerRole(e)?'':`<span class="chip ${r.done?'c-credit':'c-due'}">${r.done?'قبض راتبه':'لم يقبض بعد'}</span>`)}</small></span>
+   (L.length?`<div class="list">${L.map(e=>{const r=weekCalc(e,ws),q=ownerRole(e)?r.exp:r.net;return `<button class="row" type="button" data-emp="${esc(e.id)}">${ava(e,46)}<span class="who"><b>${esc(e.name)}</b><small><span class="chip c-zero">${ROLES[roleOf(e)]}</span>${e.start?`<span>منذ <span class="num">${dmy(e.start)}</span>${svcTxt(e)?` · <b>${svcTxt(e)}</b>`:''}</span>`:''}${!empActive(e)?'<span class="chip c-zero">انتهى عمله</span>':(ownerRole(e)?'':`<span class="chip ${r.done?'c-credit':'c-due'}">${r.done?'قبض راتبه':'لم يقبض بعد'}</span>`)}</small></span>
      <span class="amt"><b>${q.usd||!q.syp?money(q.usd):sy(q.syp)}</b>${q.usd&&q.syp?`<small class="num">${sy(q.syp)}</small>`:''}</span></button>`}).join('')}</div>`
     :`<div class="empty"><b>لا يوجد موظفون بعد</b><span>أضف أول موظف ببياناته وراتبه الأسبوعي.</span></div>`)+
    `<span class="small muted">الدوام من السبت إلى الخميس (${WD} أيام)، من 9:30 صباحاً حتى 9 مساءً، والجمعة عطلة. ما بعد 9 مساءً إضافي. بيانات الموظفين تظهر لك وحدك حتى لو شاركت الصفحة.</span>`}
@@ -2023,7 +2028,7 @@ function renderEmp(){const el=$('#v-emp'),e=emp(S.eid);if(!e){el.innerHTML=S.sta
      <span class="amt">${l.type==='hot'||l.type==='hlate'||l.type==='hset'?(v=>`<b class="${v>0?'t-credit':'t-debt'}">${v>0?'+':'−'}${fh(v)}</b><small>ساعات</small>`)(l.type==='hlate'?-nv(l.h):nv(l.h)):l.type==='pay'?`<b>${l.usd?money(l.usd):''}</b><small class="num">${l.syp?sy(l.syp):''}</small>`:l.type==='leave'?'':`<b class="${l.type==='ot'?'t-credit':l.type==='adv'||l.type==='exp'?'':'t-debt'}">${l.type==='ot'?'+':l.type==='adv'||l.type==='exp'?'':'−'}${cm(l.cur,nv(l.a))}</b>`}</span>
      <button class="btn sm danger" type="button" data-act="lg-del" data-id="${esc(l.id)}">${S.armed==='lg'+l.id?'تأكيد':'حذف'}</button></div>`).join('')}</div>`:'<div class="empty">لا توجد حركات في هذا الأسبوع.</div>'}</div>
    <div class="card"><div class="sechead"><b>بيانات الموظف</b><button class="btn sm" type="button" data-act="emp-edit">تعديل</button></div>
-    ${info('المنصب',ROLES[roleOf(e)])}${info('تاريخ بدء العمل',e.start&&dmy(e.start),1)}${info('تاريخ نهاية العمل',e.end&&dmy(e.end),1)}${info('المواليد',e.birth&&dmy(e.birth),1)}${info('الرقم الوطني',e.nid,1)}${info('اسم الأب',e.father)}${info('اسم الأم',e.mother)}${info('الموبايل',e.phone,1)}
+    ${info('المنصب',ROLES[roleOf(e)])}${info('تاريخ بدء العمل',e.start&&dmy(e.start),1)}${info('مدّة الخدمة',svcTxt(e))}${info('تاريخ نهاية العمل',e.end&&dmy(e.end),1)}${info('المواليد',e.birth&&dmy(e.birth),1)}${info('الرقم الوطني',e.nid,1)}${info('اسم الأب',e.father)}${info('اسم الأم',e.mother)}${info('الموبايل',e.phone,1)}
     ${info('الراتب الأسبوعي',[nv(e.usd)?money(nv(e.usd)):'',nv(e.syp)?sy(nv(e.syp)):''].filter(Boolean).join(' + '),1,'sal')}${info('الحالة الصحية والأمراض',e.health)}${info('ملاحظات',e.note)}
     ${wa?`<a class="btn sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">مراسلته على واتساب</a>`:''}</div>
    <button class="btn danger" type="button" data-act="emp-del">${S.armed==='emp'?'اضغط ثانية لتأكيد حذف الموظف وكل سجله':'حذف الموظف'}</button>`}
@@ -3914,7 +3919,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261127-0428';
+const BUILD='20261127-0458';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
