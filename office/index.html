@@ -161,7 +161,7 @@ function render(){
  $('apn').textContent=list.length?'('+list.length+')':'';
  $('aps').innerHTML=list.length?list.map(({m,a},i)=>{const w=waNum(a.phone);return`<div class="ap"><div class="who">${esc(m.n)} · ${esc(m.r)}${a.to?' ← '+esc(a.to):''}</div><div class="t">${esc(a.title)}</div>${a.msg?`<pre>${esc(a.msg)}</pre>`:''}<div class="row">${w&&a.msg?`<a class="btn wa" href="https://wa.me/${w}?text=${encodeURIComponent(a.msg)}" target="_blank" rel="noopener">موافق، افتح بالواتساب</a>`:''}${a.msg?`<button class="ghost" data-copy="${i}">نسخ</button>`:''}</div></div>`}).join(''):'<p class="empty">ما في شي بدو موافقتك هلق.</p>';
  $('aps').querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>copy(list[+b.dataset.copy].a.msg,b)));
- TEAM.forEach(m=>{const a=A[m.k]||{},l=$('lamp-'+m.k);if(l)l.setAttribute('fill',m.f?(list.length?'#f08a24':'#1aa36f'):arr(a.issues).length?'#f08a24':'#1aa36f')});
+ TEAM.forEach(m=>{const a=A[m.k]||{},l=$('lamp-'+m.k);if(l)l.setAttribute('fill',(m.f?list.length:arr(a.approve).length)?'#f08a24':'#1aa36f')});
  renderEmp();
 }
 function renderEmp(){
