@@ -909,7 +909,7 @@ async function ensureOrdNo(o){if(!o||numOf(o.no))return o;const no=o.invNo&&numO
 async function ordNoBackfill(){if(S.ordNoRun)return;const miss=(S.orders||[]).filter(o=>!numOf(o.no)).sort((a,b)=>(a.at||'').localeCompare(b.at||''));if(!miss.length)return;S.ordNoRun=true;
   try{let m=await gMax();const map={};for(const o of miss)map[o.id]=o.invNo&&numOf(o.invNo)?String(o.invNo):String(++m);
     const remote=await ordFresh();if(!remote)return;const L=remote.map(o=>map[o.id]&&!numOf(o.no)?{...o,no:map[o.id]}:o);await S.db.doc('meta/orders').set({list:L});S.orders=L;if(S.view==='sales')renderSales()}catch(e){}finally{S.ordNoRun=false}}
-function invSheet(inv){S.itq='';if(!inv)setTimeout(()=>{const want=S.draft&&S.draft.no;gMax().then(m=>{const d=S.draft;if(!d||d.id||d.fromOrd||d.no!==want)return;const nn=String(m+1);if(nn===d.no)return;d.no=nn;const e=$('#in-no');if(e&&e.value===want)e.value=nn})},0);S.dupAsk=null;S.dupOK=false;S.stockOK=false;S.simOK=null;
+function invSheet(inv){S.itq='';S.bdp=null;if(!inv)setTimeout(()=>{const want=S.draft&&S.draft.no;gMax().then(m=>{const d=S.draft;if(!d||d.id||d.fromOrd||d.no!==want)return;const nn=String(m+1);if(nn===d.no)return;d.no=nn;const e=$('#in-no');if(e&&e.value===want)e.value=nn})},0);S.dupAsk=null;S.dupOK=false;S.stockOK=false;S.simOK=null;
   const c=cust(S.cid);if(!c||!S.ledger)return;
   S.draft=inv?{...JSON.parse(JSON.stringify(inv)),old:inv.stk?qtyMap(inv.items):{},wh:inv.wh||'main',oldWh:inv.wh||'main'}:{id:'',nid:newId(),old:{},wh:'main',oldWh:'main',no:nextNo(),date:today(),cashCur:'usd',cashRate:'',cashUsd:'',cashSyp:'',dest:c.city||'',phone:c.phone||'',shipper:'',shipFee:'واصل على الزبون',pay:'آجل',note:'',items:[blankItem()]};
   if(!S.draft.phone)S.draft.phone=c.phone||'';if(S.draft.sypRate)S.draft.sypOn=true;if(!inv&&!S.draft.seller){const ls=LS.get('thiqa-seller');if(ls&&(S.staff||[]).some(e=>e.id===ls&&nv(e.com)>0))S.draft.seller=ls}
@@ -929,9 +929,17 @@ function lastPxHint(it,i){const c=cust(S.cid);if(!c||c.walkin||!S.lpx||S.lpx.cid
   return `<div class="lt two" style="grid-column:span 2;align-items:center;gap:8px;flex-wrap:wrap"><small style="color:${low?'var(--due,#b7791f)':'var(--muted)'}">🕘 آخر مرة بعتو ياها بـ <b class="num">${pr(L.p)}</b> · فاتورة <span class="num">#${esc(L.no||'—')}</span>${dd===null?'':dd===0?' · اليوم':' · من '+dd+' يوم'}${low?' · أرخص من السعر الحالي '+pr(cur):''}</small>${same?'<small style="color:var(--credit)">✓ نفس السعر</small>':`<button class="btn sm" type="button" data-act="use-p" data-i="${i}" data-v="${L.p}">استعمل هالسعر</button>`}</div>`}
 function itqApply(){const d=S.draft,q=nrm(S.itq||'').trim(),R=pxQ(S.itq);if(!d)return;let n=0;document.querySelectorAll('#iform .itw').forEach(w=>{const it=d.items[+w.dataset.iw]||{},hit=!q||!((it.name||'').trim()||(it.code||'').trim())||nrm((it.name||'')+' '+(it.code||'')).includes(q)||String(it.code||'').toLowerCase().includes(String(S.itq||'').trim().toLowerCase())||(!!R&&nv(it.price)>0&&nv(it.price)>=R.lo-0.005&&nv(it.price)<=R.hi+0.005);w.hidden=!hit;if(hit)n++});
   const c=$('#it-qn');if(c)c.textContent=q?(n?`${n} من ${d.items.length} مادة`:'ما في مادة بهالاسم أو الكود أو السعر بالفاتورة'):'';const x=$('#it-qx');if(x)x.hidden=!q}
+/* per-line discount inside one invoice: price stays the net price; lp = price before discount, dp = percent */
+const lineDisc=it=>nv(it.dp)>0&&nv(it.lp)>0?r2(nv(it.qty)*(nv(it.lp)-nv(it.price))):0;
+const lineDiscSum=inv=>r2((inv.items||[]).reduce((a,it)=>a+lineDisc(it),0));
+function bdpHTML(d){const L=d.items.map((it,i)=>[it,i]).filter(([it])=>(it.name||'').trim()||(it.code||'').trim());
+  return `<div class="card" id="bdp" style="gap:6px"><b>علّم المواد اللي بدك تحسمها:</b><div style="max-height:45vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px">${L.map(([it,i])=>`<label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" class="bdp-c" value="${i}" ${S.bdp.has(i)?'checked':''} style="width:18px;height:18px;flex:none"><span class="num small" style="flex:none">${esc(it.code||'')}</span><span style="flex:1;min-width:0">${esc(it.name||'')}</span><span class="num small">${pr(nv(it.lp)>0?nv(it.lp):nv(it.price))}${nv(it.dp)>0?' −'+f1(nv(it.dp))+'%':''}</span></label>`).join('')}</div>
+   <div class="grid2"><div class="field"><label for="bdp-p">نسبة الحسم %</label><input id="bdp-p" type="number" step="any" min="0" max="100" inputmode="decimal" placeholder="5"></div><div style="display:flex;gap:6px;align-items:flex-end"><button class="btn primary" type="button" data-act="f-bdp-go" style="flex:1">تطبيق</button><button class="btn" type="button" data-act="f-bdp" style="flex:1">إلغاء</button></div></div><span class="small muted">اكتب 0 لتشيل الحسم عن المواد المعلّمة.</span></div>`}
+const dpApply=(it,v)=>{v=Math.min(100,Math.max(0,nv(v)));if(v>0){if(!(nv(it.lp)>0))it.lp=nv(it.price);it.dp=v;it.price=r4(nv(it.lp)*(1-v/100))}else{if(nv(it.lp)>0)it.price=nv(it.lp);delete it.lp;delete it.dp}};
+const dpInfo=it=>nv(it.dp)>0&&nv(it.lp)>0?`<span class="t-debt">${pr(nv(it.lp))} − ${f1(nv(it.dp))}% = <b class="num">${pr(nv(it.price))}</b></span>`:'';
 function itemHTML(it,i){const fld=(p,l,cls,attr)=>`<div class="field ${cls||''}"><label for="it-${i}-${p}">${l}</label><input id="it-${i}-${p}" data-i="${i}" data-p="${p}" value="${esc(it[p])}" ${attr||''}></div>`;
   return `<div class="it">${fld('code','كود المادة','','data-sug="code" dir="ltr" autocomplete="off" autocapitalize="characters"')}${fld('name','اسم المادة','two','data-sug="code" autocomplete="off"')}<div class="sug rows full" id="sg-${i}"></div>
-    ${fld('qty','الكمية','','type="number" step="any" min="0" inputmode="decimal"')}${fld('price','السعر ($)','','type="number" step="any" min="0" inputmode="decimal"')}${fld('pack','التعبئة بالطرد','','type="number" step="any" min="0" inputmode="decimal"')}
+    ${fld('qty','الكمية','','type="number" step="any" min="0" inputmode="decimal"')}${fld('price','السعر ($)','','type="number" step="any" min="0" inputmode="decimal"')}${fld('dp','حسم %','','type="number" step="any" min="0" max="100" inputmode="decimal" placeholder="0"')}${fld('pack','التعبئة بالطرد','','type="number" step="any" min="0" inputmode="decimal"')}<div class="lt full small" id="dpi-${i}">${dpInfo(it)}</div>
     <div class="field"><label for="it-${i}-unit">الوحدة</label><select id="it-${i}-unit" data-i="${i}" data-p="unit">${[...new Set([...UNITS,it.unit||'قطعة'])].map(u=>`<option ${u===(it.unit||'قطعة')?'selected':''}>${esc(u)}</option>`).join('')}</select></div>
     <div class="field"><label for="it-${i}-ctn">📦 عدد الطرود (اكتب الطرد المختوم وتُحسب القطع)</label><input id="it-${i}-ctn" data-i="${i}" data-p="ctn" type="number" step="any" min="0" inputmode="decimal" value="${nv(it.pack)>0&&nv(it.qty)>0?r2(nv(it.qty)/nv(it.pack)):''}"></div>
     ${(()=>{const k=(it.code||'').trim(),p=S.products[k],T=p?tierList(p):[];return (S.img[k]||T.length>=1)?`<div class="lt">${S.img[k]?`<img src="${S.img[k]}" alt="" width="46" height="46" style="border-radius:8px;object-fit:cover">`:'<span></span>'}${T.length>=1?`<span style="display:flex;gap:6px;flex-wrap:wrap"><small class="muted" style="align-self:center">سعر البيع:</small>${T.map(t=>`<button class="btn sm${nv(it.price)===effP(p,t[0])?' primary':''}" type="button" data-act="use-p" data-i="${i}" data-v="${effP(p,t[0])}">${t[1]} ${pr(effP(p,t[0]))}</button>`).join('')}</span>`:''}</div>`:''})()}
@@ -1029,6 +1037,7 @@ function renderInv(focusLast){wipCheck();if(S.draft&&S.cid&&(!S.lpx||S.lpx.cid!=
     ${d.items.length>3?`<div class="field" style="position:sticky;top:0;z-index:3;background:var(--bg,#0e1626);padding:6px 0"><div style="display:flex;gap:6px"><input id="it-q" type="search" placeholder="🔍 دوّر بمواد الفاتورة: اسم أو كود" autocomplete="off" value="${esc(S.itq||'')}" style="flex:1"><button class="btn sm" type="button" data-act="f-itq-clear" ${S.itq?'':'hidden'} id="it-qx">✕</button></div><small class="muted" id="it-qn"></small></div>`:''}
     ${d.items.map((it,i)=>`<div class="itw" data-iw="${i}">${itemHTML(it,i)}</div>`).join('')}
     <div class="grid2"><button class="btn primary" type="button" data-act="pick-open">＋ من لائحة الأسعار</button><button class="btn" type="button" data-act="add-item">＋ مادة يدوياً</button></div>
+    <button class="btn sm" type="button" data-act="f-bdp" style="width:100%">٪ حسم على عدة مواد</button>${S.bdp?bdpHTML(d):''}
     <div class="field"><label for="in-disc">حسم % على الفاتورة (اختياري)</label><input id="in-disc" data-f="disc" value="${esc(d.disc||'')}" inputmode="decimal" dir="ltr" placeholder="0"></div>
     <div class="small muted" id="idinfo">${discInfo(d)}</div>
     <div class="totbar"><span>${d.ord?'قيمة المسودة':'قيمة الفاتورة'} · <span id="icart">${f1(invCart(d))}</span> طرد</span><b id="itot">${money(invTotal(d))}</b></div>
@@ -1067,12 +1076,13 @@ $('#sheet').addEventListener('input',e=>{const t=e.target,d=S.draft;if(t.id==='i
   if(t.dataset.f){d[t.dataset.f]=t.value;if(t.dataset.f==='cashSyp'){refreshCashInfo(d,'syp');return}if(t.dataset.f==='cashRate'||t.dataset.f==='cashUsd'){refreshCashInfo(d);return}if(t.dataset.f==='disc'){refreshLP(d);const a=$('#itot'),b=$('#iprof'),i=$('#idinfo');if(a)a.textContent=money(invTotal(d));if(b)b.textContent=pc(money(draftProfit(d).profit));if(i)i.innerHTML=discInfo(d);return}if(t.dataset.f==='pay'||t.dataset.f==='wh'||t.dataset.f==='dest')renderInv();return}
   if(t.dataset.i!==undefined){const i=+t.dataset.i,it=d.items[i];if(!it)return;
     if(t.dataset.p==='ctn'){if(!(nv(it.pack)>0)){toast('حدّد «التعبئة بالطرد» لهذه المادة أولاً');return}it.qty=t.value===''?'':r2(nv(t.value)*nv(it.pack));const qi=$('#it-'+i+'-qty');if(qi)qi.value=it.qty}
-    else{it[t.dataset.p]=t.value;if(t.dataset.p==='qty'||t.dataset.p==='pack'){const ci=$('#it-'+i+'-ctn');if(ci)ci.value=nv(it.pack)>0&&nv(it.qty)>0?r2(nv(it.qty)/nv(it.pack)):''}}
+    else if(t.dataset.p==='dp'){dpApply(it,t.value);const pi=$('#it-'+i+'-price');if(pi)pi.value=it.price;const di=$('#dpi-'+i);if(di)di.innerHTML=dpInfo(it)}
+    else{it[t.dataset.p]=t.value;if(t.dataset.p==='price'&&nv(it.dp)>0){delete it.dp;delete it.lp;const de=$('#it-'+i+'-dp');if(de)de.value='';const di=$('#dpi-'+i);if(di)di.innerHTML=''}if(t.dataset.p==='qty'||t.dataset.p==='pack'){const ci=$('#it-'+i+'-ctn');if(ci)ci.value=nv(it.pack)>0&&nv(it.qty)>0?r2(nv(it.qty)/nv(it.pack)):''}}
 
     $('#lt-'+i).textContent=money(lineTot(it));$('#lc-'+i).textContent=cartText(it);refreshLP(d);$('#itot').textContent=money(invTotal(d));$('#icart').textContent=f1(invCart(d));$('#iprof').textContent=pc(money(draftProfit(d).profit));const av=$('#av-'+i);if(av)av.style.color=nv(it.qty)>avail((it.code||'').trim())?'var(--debt)':'var(--ink)'}});
 async function saveInvoice(){
   const d=S.draft,c=cust(S.cid);if(!d||!c||!S.ledger)return;
-  const items=d.items.filter(it=>(it.name||'').trim()||(it.code||'').trim()).map(it=>({code:ck(it),name:(it.name||'').trim(),pack:nv(it.pack),qty:nv(it.qty),unit:(it.unit||'').trim(),price:nv(it.price),cost:nv(it.cost)>0?nv(it.cost):nv((S.stock[(it.code||'').trim()]||{}).cost)}));
+  const items=d.items.filter(it=>(it.name||'').trim()||(it.code||'').trim()).map(it=>({code:ck(it),name:(it.name||'').trim(),pack:nv(it.pack),qty:nv(it.qty),unit:(it.unit||'').trim(),price:nv(it.price),...(nv(it.dp)>0&&nv(it.lp)>0?{dp:nv(it.dp),lp:nv(it.lp)}:{}),cost:nv(it.cost)>0?nv(it.cost):nv((S.stock[(it.code||'').trim()]||{}).cost)}));
   if(!items.length){toast('أضف مادة واحدة على الأقل');return}
   if(dupBlock(d,items))return;
   if(items.some(it=>!(it.qty>0))){qtyBlock(d);return}
@@ -1138,7 +1148,7 @@ async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
   try{await Promise.race([Promise.all([document.fonts.load('600 40px "Readex Pro"'),document.fonts.load('400 28px "IBM Plex Sans Arabic"'),document.fonts.load('600 28px "IBM Plex Sans Arabic"')]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   const SO=!NP&&nv(inv.sypRate)>0?44:0,W=1080,P=48,RH=66,headH=210,infoH=216,thH=64,footH=(NP?(inv.note?200:150):(inv.note?330:290))+SO,items=inv.items||[];
   const BFa='"IBM Plex Sans Arabic",Tahoma,sans-serif',mx=document.createElement('canvas').getContext('2d'),NMW=NP?456:226;
-  const lay=items.map(it=>{const t=String(it.name||'').replace(/\s+/g,' ').trim(),fo=sz=>'400 '+sz+'px '+BFa,wd=(s,f)=>{mx.font=f;return mx.measureText(s).width};
+  const lay=items.map(it=>{const t=(String(it.name||'')+(!NP&&nv(it.dp)>0&&nv(it.lp)>0?' (حسم '+f1(nv(it.dp))+'%)':'')).replace(/\s+/g,' ').trim(),fo=sz=>'400 '+sz+'px '+BFa,wd=(s,f)=>{mx.font=f;return mx.measureText(s).width};
     const wrap=f=>{const L=[''];for(const z of t.split(' ')){const c=L[L.length-1]?L[L.length-1]+' '+z:z;if(wd(c,f)<=NMW||!L[L.length-1])L[L.length-1]=c;else L.push(z)}return L};
     for(const sz of [24,22]){if(wd(t,fo(sz))<=NMW)return{h:RH,sz,L:[t]}}
     for(const sz of [22,20]){const L=wrap(fo(sz));if(L.length<=2&&L.every(l=>wd(l,fo(sz))<=NMW))return{h:RH,sz,L}}
@@ -1184,7 +1194,7 @@ async function drawInvoice(c,inv,opt){const NP=!!(opt&&opt.noPrice);
     if(!NP){nu(pr(it.price),xs[7]-8,y+ty,nf,'#101B33');nu(money(lineTot(it)),xs[8]-8,y+ty,'600 24px '+DF,'#101B33')}nu(lineCart(it)?f1(lineCart(it)):'',xs[9]-8,y+ty,nf,'#5A6684');y+=rh;rb.push(y*K)});cv._rb=rb;
   if(!items.length)y+=RH;cv._re=y*K;
   ar('عدد المواد: '+items.length+'   ·   إجمالي الطرود: '+f1(invCart(inv)),W-P,y+56,'400 26px '+BF,'#5A6684');
-  if(!NP&&nv(inv.disc)>0)nu('قبل الحسم '+money(invSub(inv))+'  ·  حسم '+f1(discPct(inv))+'% −'+money(invDisc(inv)),P,y+56,'500 24px '+DF,'#B3261E','left');
+  {const LD=NP?0:lineDiscSum(inv),pts=[];if(LD>0)pts.push(money(LD)+' مجموع الحسم على المواد');if(!NP&&nv(inv.disc)>0)pts.push('قبل الحسم '+money(invSub(inv))+'  ·  حسم '+f1(discPct(inv))+'% −'+money(invDisc(inv)));if(pts.length)nu(pts.join('  ·  '),P,y+56,'500 24px '+DF,'#B3261E','left')}
   const QB=QOK?170:0;
   if(!NP){x.fillStyle='#13265C';x.fillRect(P+QB,y+84,W-2*P-QB,96);
   if(QB){x.fillStyle='#13265C';x.fillRect(P,y+84,QB,160);x.fillStyle='#FFFFFF';x.fillRect(P+8,y+92,144,144);x.imageSmoothingEnabled=false;x.drawImage(SHAM.img,P+10,y+94,140,140);x.imageSmoothingEnabled=true;
@@ -2212,7 +2222,7 @@ function qtyBlock(d){if(S.itq){S.itq='';const q=$('#it-q');if(q)q.value='';itqAp
   const q=$('#it-'+bad[0]+'-qty');if(q){q.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(()=>{try{q.focus()}catch(e){}},250)}return true}
 const zeroQtyItems=items=>(items||[]).filter(x=>((x.name||'').trim()||(x.code||'').trim())&&!(nv(x.qty)>0));
 async function saveOrdDraft(){const d=S.draft,c=cust(S.cid);if(!d||!d.ord||!c)return;if(qtyBlock(d))return;
-  const items=d.items.filter(it=>(it.name||'').trim()||(it.code||'').trim()).map(it=>({code:codeOf(it),name:(it.name||'').trim(),pack:nv(it.pack)||nv((S.products[codeOf(it)]||{}).pack),qty:nv(it.qty),unit:(it.unit||'').trim(),price:nv(it.price)}));
+  const items=d.items.filter(it=>(it.name||'').trim()||(it.code||'').trim()).map(it=>({code:codeOf(it),name:(it.name||'').trim(),pack:nv(it.pack)||nv((S.products[codeOf(it)]||{}).pack),qty:nv(it.qty),unit:(it.unit||'').trim(),price:nv(it.price),...(nv(it.dp)>0&&nv(it.lp)>0?{dp:nv(it.dp),lp:nv(it.lp)}:{})}));
   if(!items.length&&!(d.note||'').trim()){toast('أضف مادة واحدة أو اكتب ملاحظة');return}
   if(dupBlock(d,items))return;
   const at=new Date((d.odate||today())+'T'+(d.otime||'00:00')).toISOString(),id=d.ordId||newId(),old=S.orders.find(x=>x.id===id);
@@ -2816,7 +2826,9 @@ document.addEventListener('click',e=>{
   else if(a==='out-ok'){const k=S.dupAsk;if(!k)return;S.dupAsk=null;if(k.t==='outfill')fillItem(k.i,k.code,false,true);else pickItem(k.it,true)}
   else if(a==='stock-save'){S.dupAsk=null;S.stockOK=true;guard(saveInvoice)}
   else if(a==='dup-save'){S.dupAsk=null;S.dupOK=true;if(S.draft&&S.draft.ord)guard(saveOrdDraft);else guard(saveInvoice)}
-  else if(a==='use-p'){const it=S.draft&&S.draft.items[+b.dataset.i];if(it){it.price=b.dataset.v;renderInv()}}
+  else if(a==='use-p'){const it=S.draft&&S.draft.items[+b.dataset.i];if(it){it.price=b.dataset.v;delete it.dp;delete it.lp;renderInv()}}
+  else if(a==='f-bdp'){S.bdp=S.bdp?null:new Set();renderInv()}
+  else if(a==='f-bdp-go'){const d=S.draft;if(!d)return;const ch=[...document.querySelectorAll('.bdp-c:checked')].map(x=>+x.value),p=$('#bdp-p').value;if(!ch.length){toast('علّم المواد اللي بدك تحسمها');return}if(p===''){toast('اكتب نسبة الحسم');return}for(const i of ch)if(d.items[i])dpApply(d.items[i],p);S.bdp=null;renderInv();toast(nv(p)>0?'انحسم '+f1(nv(p))+'% على '+ch.length+' مادة':'انشال الحسم عن '+ch.length+' مادة')}
   else if(a==='add-item'){if(S.draft){S.draft.items.push(blankItem());renderInv(true)}}
   else if(a==='del-item'){if(S.draft){S.draft.items.splice(+b.dataset.i,1);if(!S.draft.items.length)S.draft.items.push(blankItem());renderInv()}}
   else if(a==='del-inv'){if(!S.curInv)return;if(S.armed!=='inv'){S.armed='inv';b.textContent='اضغط ثانية لتأكيد الحذف';return}
@@ -3902,7 +3914,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.datase
 /* ==FIN-END== */
 /* ---------- boot ---------- */
 /* ---------- device back button (online app): go back one step instead of leaving ---------- */
-const BUILD='20261126-2330';
+const BUILD='20261127-0428';
 const BK={d:0,ignore:0,at:0,pop:false};
 function backNeed(){return $('#lock').hidden&&(!$('#scrim').hidden||S.view!=='home')}
 function navPush(){if(!EXT||BK.pop)return;history.pushState({d:++BK.d},'')}
