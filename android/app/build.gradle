@@ -41,6 +41,11 @@ android {
             applicationId "com.altheqa.accounts"
             buildConfigField "String", "START_URL", "\"https://asb-70.github.io/ASB-70/muhasaba/\""
         }
+        office {
+            dimension "app"
+            applicationId "com.altheqa.office"
+            buildConfigField "String", "START_URL", "\"https://asb-70.github.io/ASB-70/office/\""
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
